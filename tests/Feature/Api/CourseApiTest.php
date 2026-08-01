@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 
 class CourseApiTest extends ApiTestCase
@@ -9,6 +10,22 @@ class CourseApiTest extends ApiTestCase
     public function test_it_requires_authentication(): void
     {
         $this->getJson('/api/v1/courses')->assertUnauthorized();
+    }
+
+    public function test_api_requests_are_counted_for_usage(): void
+    {
+        Sanctum::actingAs($this->freeUser);
+
+        $this->getJson('/api/v1/courses')->assertOk();
+        $this->getJson('/api/v1/courses')->assertOk();
+
+        $row = DB::table('api_usage')
+            ->where('user_id', $this->freeUser->id)
+            ->where('usage_date', now()->toDateString())
+            ->first();
+
+        $this->assertNotNull($row);
+        $this->assertSame(2, (int) $row->requests);
     }
 
     public function test_it_lists_courses_paginated_with_clean_meta(): void

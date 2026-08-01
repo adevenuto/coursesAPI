@@ -16,6 +16,10 @@ const sidebarNavItems: NavItem[] = [
         href: editProfile(),
     },
     {
+        title: 'API keys',
+        href: '/settings/api-keys',
+    },
+    {
         title: 'Security',
         href: editSecurity(),
     },

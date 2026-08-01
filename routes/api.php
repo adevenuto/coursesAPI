@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\GeoController;
 use App\Http\Controllers\Api\V1\GreenCenterController;
 use App\Http\Middleware\EnsurePremium;
+use App\Http\Middleware\TrackApiUsage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -12,7 +13,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::prefix('v1')
-    ->middleware(['auth:sanctum', 'throttle:api'])
+    ->middleware(['auth:sanctum', 'throttle:api', TrackApiUsage::class])
     ->group(function () {
         // Courses
         Route::get('courses', [CourseController::class, 'index']);
