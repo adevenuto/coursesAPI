@@ -1,0 +1,44 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Content — SectionHeading, Stat, Feature, Checklist" subtitle="Marketing content primitives" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--ink-900);padding:26px;font-family:var(--font-body)}
+.row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:22px}
+[data-lucide]{width:20px;height:20px}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="../../_ds_bundle.js"></script></head>
+<body><div id="root"></div>
+<script type="text/babel">
+const NS = window.TrainerFlowDesignSystem_2e5958;
+const { SectionHeading, StatBlock, FeatureCard, ChecklistItem, Badge } = NS;
+const Icon = ({n}) => <i data-lucide={n}></i>;
+function Demo(){return (<>
+<SectionHeading align="left"
+  eyebrow={<Badge tone="lime">The Solution</Badge>}
+  title="One platform."
+  highlight="Unlimited potential."
+  lead="TrainerFlow brings workouts, nutrition and client comms into one seamless experience." />
+<div className="row">
+  <StatBlock value="80%" label="Less admin time" />
+  <StatBlock value="3x" label="Client retention" />
+  <StatBlock value="10k+" label="Clients coached" tone="emerald" />
+</div>
+<div className="row">
+  <FeatureCard style={{width:230}} icon={<Icon n="dumbbell"/>} title="Workout Builder"
+    description="Assign custom programs with a drag-and-drop builder."
+    badge={<Badge tone="solid" dot={false}>Popular</Badge>} />
+  <FeatureCard style={{width:230}} icon={<Icon n="apple"/>} title="Nutrition Planning"
+    description="Set macros, assign meal plans, track progress automatically." glow />
+  <div style={{width:230}}>
+    <ChecklistItem>Everything in one platform</ChecklistItem>
+    <div style={{height:10}}></div>
+    <ChecklistItem>Automated tracking & reports</ChecklistItem>
+    <div style={{height:10}}></div>
+    <ChecklistItem checked={false}>Hours spent on spreadsheets</ChecklistItem>
+  </div>
+</div>
+</>);}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+setTimeout(()=>window.lucide&&window.lucide.createIcons(),80);
+</script></body></html>

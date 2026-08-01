@@ -1,0 +1,20 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Text & semantic" subtitle="Text ramp on dark + status colors" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>body{margin:0;background:var(--ink-900);font-family:var(--font-body);padding:22px;display:flex;gap:36px;align-items:center}
+.txt div{margin:3px 0}.lab{font-size:11px;font-family:var(--font-mono);color:var(--text-tertiary);margin-left:8px}
+.dots{display:flex;gap:14px}.d{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:11px;color:var(--text-secondary)}
+.dot{width:34px;height:34px;border-radius:50%}</style></head>
+<body>
+<div class="txt">
+<div style="color:var(--text-primary);font-size:17px;font-weight:600">Primary<span class="lab">#f5f7f4</span></div>
+<div style="color:var(--text-secondary);font-size:15px">Secondary<span class="lab">#a8b0a6</span></div>
+<div style="color:var(--text-tertiary);font-size:14px">Tertiary<span class="lab">#6b726a</span></div>
+<div style="color:var(--text-disabled);font-size:14px">Disabled<span class="lab">#454b44</span></div>
+</div>
+<div class="dots">
+<div class="d"><span class="dot" style="background:var(--success)"></span>success</div>
+<div class="d"><span class="dot" style="background:var(--warning)"></span>warning</div>
+<div class="d"><span class="dot" style="background:var(--danger)"></span>danger</div>
+<div class="d"><span class="dot" style="background:var(--accent-text)"></span>accent</div>
+</div>
+</body></html>

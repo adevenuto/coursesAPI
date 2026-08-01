@@ -1,0 +1,44 @@
+<!-- @dsCard group="Marketing Site" viewport="1120x760" name="Landing page" subtitle="Full TrainerFlow marketing recreation" -->
+<!-- @startingPoint section="Marketing" subtitle="TrainerFlow landing page recreation" viewport="1120x760" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>TrainerFlow — Landing</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--ink-900)}a{color:var(--lime-400)}a:hover{color:var(--lime-300)}
+footer{padding:40px 28px;border-top:1px solid var(--border-subtle);background:var(--ink-900)}
+[data-lucide]{stroke-width:2}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="../../_ds_bundle.js"></script></head>
+<body><div id="root"></div>
+<script type="text/babel" src="Hero.jsx"></script>
+<script type="text/babel" src="Sections.jsx"></script>
+<script type="text/babel">
+function App(){
+  React.useEffect(()=>{ const t=setInterval(()=>window.lucide&&window.lucide.createIcons(),120); setTimeout(()=>clearInterval(t),1500); },[]);
+  const { TFNav, TFHero, TFProblem, TFSolution, TFFeatures, TFCTA } = window;
+  return (<>
+    <TFNav/><TFHero/><TFProblem/><TFSolution/><TFFeatures/><TFCTA/>
+    <footer>
+      <div style={{maxWidth:1120,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,fontFamily:'var(--font-display)',fontWeight:700,fontSize:17,color:'var(--text-primary)'}}>
+          <span style={{width:24,height:24,borderRadius:7,background:'var(--grad-lime)',display:'grid',placeItems:'center'}}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#0a1400" strokeWidth="2.4" strokeLinecap="round"><path d="M4 12h4l3-8 4 16 3-8h2"/></svg>
+          </span>TrainerFlow
+        </div>
+        <div style={{display:'flex',gap:24,fontFamily:'var(--font-body)',fontSize:14}}>
+          <a href="#">Features</a><a href="#">Pricing</a><a href="#">About</a><a href="#">Support</a>
+        </div>
+        <span style={{color:'var(--text-tertiary)',fontSize:13}}>© 2026 TrainerFlow</span>
+      </div>
+    </footer>
+  </>);
+}
+window.__mountApp = () => {
+  const ready = window.TFNav && window.TFProblem && window.TrainerFlowDesignSystem_2e5958;
+  if(!ready){ return setTimeout(window.__mountApp, 60); }
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+};
+window.__mountApp();
+</script>
+</body></html>

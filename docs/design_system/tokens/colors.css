@@ -1,0 +1,60 @@
+/* TrainerFlow — Color tokens
+   Dark-first product. Near-black canvas, electric lime accent, emerald aurora glow. */
+:root {
+  /* ---- Neutrals (green-tinted charcoals) ---- */
+  --black: #050605;
+  --ink-900: #0a0b0a;   /* page background */
+  --ink-850: #0e100e;
+  --ink-800: #111311;   /* card surface */
+  --ink-750: #161815;
+  --ink-700: #1c1e1b;   /* raised surface / input */
+  --ink-600: #262925;
+  --ink-500: #363a35;
+
+  /* ---- Lime (primary accent) ---- */
+  --lime-200: #d7f8a6;
+  --lime-300: #b6f16e;
+  --lime-400: #9aea47;
+  --lime-500: #8ae63c;   /* brand primary */
+  --lime-600: #6fc42a;
+  --lime-700: #559a1f;
+
+  /* ---- Emerald (secondary / aurora glow) ---- */
+  --emerald-400: #4ade80;
+  --emerald-500: #22c55e;
+  --emerald-600: #16a34a;
+  --emerald-700: #15803d;
+
+  /* ---- Text ---- */
+  --white: #ffffff;
+  --text-primary: #f5f7f4;
+  --text-secondary: #a8b0a6;
+  --text-tertiary: #6b726a;
+  --text-disabled: #454b44;
+  --text-on-lime: #0a1400;   /* dark ink on lime fills */
+
+  /* ---- Borders / lines ---- */
+  --border-subtle: rgba(255,255,255,0.07);
+  --border-default: rgba(255,255,255,0.11);
+  --border-strong: rgba(255,255,255,0.18);
+  --border-lime: rgba(138,230,60,0.45);
+
+  /* ---- Semantic aliases ---- */
+  --bg-page: var(--ink-900);
+  --surface-card: var(--ink-800);
+  --surface-raised: var(--ink-700);
+  --surface-input: var(--ink-750);
+  --accent: var(--lime-500);
+  --accent-hover: var(--lime-400);
+  --accent-press: var(--lime-600);
+  --accent-text: var(--lime-400);
+  --focus-ring: rgba(138,230,60,0.55);
+
+  --success: var(--emerald-500);
+  --warning: #f5c542;
+  --danger: #f2603c;
+
+  /* ---- Glow / aurora (used in gradients) ---- */
+  --glow-lime: rgba(138,230,60,0.35);
+  --glow-emerald: rgba(34,197,94,0.30);
+}

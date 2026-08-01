@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Core — Button, Badge, Card" subtitle="Pill buttons, eyebrow/status pills, surface card" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>body{margin:0;background:var(--ink-900);padding:26px;font-family:var(--font-body)}
+.grp{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px}
+h4{font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary);margin:0 0 10px;text-transform:uppercase;letter-spacing:.1em}</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script></head>
+<body><div id="root"></div>
+<script type="text/babel">
+const { Button, Badge, Card } = window.TrainerFlowDesignSystem_2e5958;
+function Demo(){return (<>
+<h4>Buttons</h4>
+<div className="grp">
+<Button variant="primary" size="lg">Start Free Trial</Button>
+<Button variant="secondary">See How It Works</Button>
+<Button variant="ghost">Pricing</Button>
+<Button variant="dark">Login</Button>
+<Button variant="primary" size="sm">Small</Button>
+<Button variant="primary" disabled>Disabled</Button>
+</div>
+<h4>Badges</h4>
+<div className="grp">
+<Badge tone="neutral">The Problem</Badge>
+<Badge tone="lime">The Solution</Badge>
+<Badge tone="solid" dot={false}>Popular</Badge>
+<Badge tone="lime" dot={false}>89% Adherence</Badge>
+</div>
+<h4>Card</h4>
+<div className="grp">
+<Card glow style={{width:260}}>
+<div style={{color:'var(--text-primary)',fontFamily:'var(--font-display)',fontWeight:600,fontSize:16}}>Featured card</div>
+<div style={{color:'var(--text-secondary)',fontSize:13,marginTop:6}}>With the emerald top glow.</div>
+</Card>
+<Card hover style={{width:260}}>
+<div style={{color:'var(--text-primary)',fontFamily:'var(--font-display)',fontWeight:600,fontSize:16}}>Hover card</div>
+<div style={{color:'var(--text-secondary)',fontSize:13,marginTop:6}}>Lifts + lime border on hover.</div>
+</Card>
+</div>
+</>);}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script></body></html>

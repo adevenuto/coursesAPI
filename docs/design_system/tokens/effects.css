@@ -1,0 +1,18 @@
+/* TrainerFlow — Shadows, glows, gradients */
+:root {
+  /* Elevation — soft, low-contrast on dark ground */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
+  --shadow-lg: 0 24px 60px rgba(0,0,0,0.55);
+
+  /* Lime glow — for primary CTAs & highlighted cards */
+  --glow-cta: 0 0 0 1px rgba(138,230,60,0.35), 0 8px 30px rgba(138,230,60,0.28);
+  --glow-soft: 0 10px 40px rgba(34,197,94,0.20);
+
+  /* Signature gradients */
+  --grad-lime: linear-gradient(180deg, var(--lime-400), var(--lime-600));
+  --grad-card-glow: radial-gradient(120% 100% at 50% 0%, rgba(34,197,94,0.18), transparent 60%); /* @kind color */
+  --grad-aurora: radial-gradient(80% 120% at 20% -10%, rgba(34,197,94,0.55), transparent 55%),
+                 radial-gradient(70% 90% at 75% 0%, rgba(138,230,60,0.35), transparent 55%); /* @kind color */
+  --hairline: rgba(255,255,255,0.06);
+}

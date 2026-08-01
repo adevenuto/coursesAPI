@@ -1,0 +1,460 @@
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+/* Marketing (Fairway) type — TrainerFlow DS: Sora display · Onest body · JetBrains Mono. */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-sans:
+        Instrument Sans, ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+    --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Onest', ui-sans-serif, system-ui, sans-serif;
+    --font-mono:
+        'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
+        monospace;
+
+    /* ---- TrainerFlow DS palette → Tailwind utilities (marketing) ---- */
+    --color-ink-900: var(--ink-900);
+    --color-ink-850: var(--ink-850);
+    --color-ink-800: var(--ink-800);
+    --color-ink-750: var(--ink-750);
+    --color-ink-700: var(--ink-700);
+    --color-ink-600: var(--ink-600);
+    --color-lime-200: var(--lime-200);
+    --color-lime-300: var(--lime-300);
+    --color-lime-400: var(--lime-400);
+    --color-lime-500: var(--lime-500);
+    --color-lime-600: var(--lime-600);
+    --color-emerald-400: var(--emerald-400);
+    --color-emerald-500: var(--emerald-500);
+    --color-fg: var(--text-primary);
+    --color-fg-muted: var(--text-secondary);
+    --color-fg-subtle: var(--text-tertiary);
+    --color-on-lime: var(--text-on-lime);
+    --color-line: var(--border-subtle);
+    --color-line-2: var(--border-default);
+    --color-line-lime: var(--border-lime);
+
+    /* Back-compat aliases so reused components keep working */
+    --color-mk-bg: var(--ink-900);
+    --color-mk-bg2: var(--ink-850);
+    --color-mk-surface: var(--ink-800);
+    --color-mk-border: var(--border-subtle);
+    --color-mk-text: var(--text-primary);
+    --color-mk-muted: var(--text-secondary);
+    --color-mk-accent: var(--lime-500);
+    --color-mk-accent2: var(--emerald-500);
+
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar-background);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+}
+
+@layer utilities {
+    body,
+    html {
+        --font-sans:
+            'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+            'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+            'Noto Color Emoji';
+    }
+}
+
+:root {
+    --background: hsl(0 0% 100%);
+    --foreground: hsl(0 0% 3.9%);
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(0 0% 3.9%);
+    --popover: hsl(0 0% 100%);
+    --popover-foreground: hsl(0 0% 3.9%);
+    --primary: hsl(0 0% 9%);
+    --primary-foreground: hsl(0 0% 98%);
+    --secondary: hsl(0 0% 92.1%);
+    --secondary-foreground: hsl(0 0% 9%);
+    --muted: hsl(0 0% 96.1%);
+    --muted-foreground: hsl(0 0% 45.1%);
+    --accent: hsl(0 0% 96.1%);
+    --accent-foreground: hsl(0 0% 9%);
+    --destructive: hsl(0 84.2% 60.2%);
+    --destructive-foreground: hsl(0 0% 98%);
+    --border: hsl(0 0% 92.8%);
+    --input: hsl(0 0% 89.8%);
+    --ring: hsl(0 0% 3.9%);
+    --chart-1: hsl(12 76% 61%);
+    --chart-2: hsl(173 58% 39%);
+    --chart-3: hsl(197 37% 24%);
+    --chart-4: hsl(43 74% 66%);
+    --chart-5: hsl(27 87% 67%);
+    --radius: 0.5rem;
+    --sidebar-background: hsl(0 0% 98%);
+    --sidebar-foreground: hsl(240 5.3% 26.1%);
+    --sidebar-primary: hsl(0 0% 10%);
+    --sidebar-primary-foreground: hsl(0 0% 98%);
+    --sidebar-accent: hsl(0 0% 94%);
+    --sidebar-accent-foreground: hsl(0 0% 30%);
+    --sidebar-border: hsl(0 0% 91%);
+    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+    --sidebar: hsl(0 0% 98%);
+
+    /* =====================================================================
+       TrainerFlow design system — marketing tokens (Fairway landing).
+       Near-black green-tinted charcoal · electric-lime · emerald aurora.
+       ===================================================================== */
+    --black: #050605;
+    --ink-900: #0a0b0a; /* page bg */
+    --ink-850: #0e100e;
+    --ink-800: #111311; /* card surface */
+    --ink-750: #161815;
+    --ink-700: #1c1e1b; /* raised / input */
+    --ink-600: #262925;
+    --ink-500: #363a35;
+
+    --lime-200: #d7f8a6;
+    --lime-300: #b6f16e;
+    --lime-400: #9aea47;
+    --lime-500: #8ae63c; /* brand primary */
+    --lime-600: #6fc42a;
+    --lime-700: #559a1f;
+
+    --emerald-400: #4ade80;
+    --emerald-500: #22c55e;
+    --emerald-600: #16a34a;
+    --emerald-700: #15803d;
+
+    --text-primary: #f5f7f4;
+    --text-secondary: #a8b0a6;
+    --text-tertiary: #6b726a;
+    --text-on-lime: #0a1400;
+
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-default: rgba(255, 255, 255, 0.11);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --border-lime: rgba(138, 230, 60, 0.45);
+
+    /* elevation + glow + signature gradients */
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
+    --glow-cta: 0 0 0 1px rgba(138, 230, 60, 0.35),
+        0 8px 30px rgba(138, 230, 60, 0.28);
+    --glow-cta-hover: 0 0 0 1px rgba(138, 230, 60, 0.45),
+        0 10px 34px rgba(138, 230, 60, 0.38);
+    --glow-soft: 0 10px 40px rgba(34, 197, 94, 0.2);
+    --grad-lime: linear-gradient(180deg, var(--lime-400), var(--lime-600));
+    --grad-card-glow: radial-gradient(
+        120% 100% at 50% 0%,
+        rgba(34, 197, 94, 0.18),
+        transparent 60%
+    );
+    --grad-aurora: radial-gradient(
+            80% 120% at 20% -10%,
+            rgba(34, 197, 94, 0.5),
+            transparent 55%
+        ),
+        radial-gradient(
+            70% 90% at 78% 0%,
+            rgba(138, 230, 60, 0.32),
+            transparent 55%
+        );
+
+    /* back-compat aliases (reused components) */
+    --mk-accent: var(--lime-500);
+    --mk-accent2: var(--emerald-500);
+}
+
+.dark {
+    --background: hsl(0 0% 3.9%);
+    --foreground: hsl(0 0% 98%);
+    --card: hsl(0 0% 3.9%);
+    --card-foreground: hsl(0 0% 98%);
+    --popover: hsl(0 0% 3.9%);
+    --popover-foreground: hsl(0 0% 98%);
+    --primary: hsl(0 0% 98%);
+    --primary-foreground: hsl(0 0% 9%);
+    --secondary: hsl(0 0% 14.9%);
+    --secondary-foreground: hsl(0 0% 98%);
+    --muted: hsl(0 0% 16.08%);
+    --muted-foreground: hsl(0 0% 63.9%);
+    --accent: hsl(0 0% 14.9%);
+    --accent-foreground: hsl(0 0% 98%);
+    --destructive: hsl(0 84% 60%);
+    --destructive-foreground: hsl(0 0% 98%);
+    --border: hsl(0 0% 14.9%);
+    --input: hsl(0 0% 14.9%);
+    --ring: hsl(0 0% 83.1%);
+    --chart-1: hsl(220 70% 50%);
+    --chart-2: hsl(160 60% 45%);
+    --chart-3: hsl(30 80% 55%);
+    --chart-4: hsl(280 65% 60%);
+    --chart-5: hsl(340 75% 55%);
+    --sidebar-background: hsl(0 0% 7%);
+    --sidebar-foreground: hsl(0 0% 95.9%);
+    --sidebar-primary: hsl(360, 100%, 100%);
+    --sidebar-primary-foreground: hsl(0 0% 100%);
+    --sidebar-accent: hsl(0 0% 15.9%);
+    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+    --sidebar-border: hsl(0 0% 15.9%);
+    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+    --sidebar: hsl(240 5.9% 10%);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    /* Smooth in-page anchor scrolling; offset for the sticky marketing nav. */
+    html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 5rem;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+    }
+}
+
+/* ----------------------------------------------------------------------------
+   TrainerFlow DS — marketing recipe classes (Fairway landing)
+---------------------------------------------------------------------------- */
+@layer components {
+    /* Signature aurora background (emerald/lime bleed over near-black). */
+    .aurora {
+        background: var(--grad-aurora), var(--ink-900);
+    }
+
+    /* Hairline charcoal card. */
+    .ds-card {
+        position: relative;
+        background: var(--ink-800);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        box-shadow: var(--shadow-md);
+        transition:
+            border-color 0.18s ease,
+            transform 0.18s ease;
+    }
+    .ds-card--hover:hover {
+        border-color: var(--border-lime);
+        transform: translateY(-3px);
+    }
+    .ds-card--glow {
+        box-shadow: var(--glow-soft);
+    }
+    .ds-card--glow::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        border-radius: inherit;
+        background: var(--grad-card-glow);
+    }
+
+    /* 40px lime-tinted rounded icon tile. */
+    .ds-icon-tile {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        color: var(--lime-400);
+        background: rgba(138, 230, 60, 0.1);
+        border: 1px solid var(--border-lime);
+    }
+
+    /* Pill buttons. */
+    .ds-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 999px;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+        border: 1px solid transparent;
+        transition:
+            transform 0.12s ease,
+            background 0.15s ease,
+            box-shadow 0.15s ease,
+            filter 0.15s ease;
+    }
+    .ds-btn:active {
+        transform: scale(0.97);
+    }
+    .ds-btn--primary {
+        background: var(--grad-lime);
+        color: var(--text-on-lime);
+        box-shadow: var(--glow-cta);
+    }
+    .ds-btn--primary:hover {
+        filter: brightness(1.06);
+        box-shadow: var(--glow-cta-hover);
+    }
+    .ds-btn--secondary {
+        background: var(--ink-700);
+        color: var(--text-primary);
+        border-color: var(--border-default);
+    }
+    .ds-btn--secondary:hover {
+        background: var(--ink-600);
+        border-color: var(--border-strong);
+    }
+    .ds-btn--dark {
+        background: var(--ink-850);
+        color: var(--text-primary);
+        border-color: var(--border-default);
+    }
+    .ds-btn--dark:hover {
+        background: var(--ink-700);
+    }
+
+    /* Eyebrow / status pill. */
+    .ds-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1;
+    }
+    .ds-badge--lime {
+        color: var(--lime-300);
+        border: 1px solid var(--border-lime);
+        background: rgba(138, 230, 60, 0.08);
+    }
+    .ds-badge--neutral {
+        color: var(--text-secondary);
+        border: 1px solid var(--border-default);
+        background: rgba(255, 255, 255, 0.02);
+    }
+}
+
+@layer utilities {
+    /* Staggered load reveal. Pair with inline animation-delay. */
+    .mk-reveal {
+        opacity: 0;
+        animation: mk-rise 0.9s cubic-bezier(0.2, 0.65, 0.3, 1) forwards;
+    }
+    @keyframes mk-rise {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    /* Contour stroke draw-in (SVG paths with pathLength=1). */
+    .mk-draw {
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+        animation: mk-draw 2.4s ease forwards;
+    }
+    @keyframes mk-draw {
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    /* Slow pin pulse on the green-center marker. */
+    @keyframes mk-ping {
+        0% {
+            transform: scale(1);
+            opacity: 0.55;
+        }
+        70%,
+        100% {
+            transform: scale(2.6);
+            opacity: 0;
+        }
+    }
+    .mk-ping {
+        animation: mk-ping 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .mk-reveal,
+        .mk-draw,
+        .mk-ping {
+            animation: none;
+            opacity: 1;
+            stroke-dashoffset: 0;
+        }
+    }
+}
