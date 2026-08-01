@@ -5,7 +5,7 @@
 
 <template>
     <div
-        class="dark relative min-h-screen overflow-x-hidden bg-ink-900 font-body text-fg antialiased"
+        class="dark relative min-h-screen overflow-x-clip bg-ink-900 font-body text-fg antialiased"
     >
         <slot />
     </div>

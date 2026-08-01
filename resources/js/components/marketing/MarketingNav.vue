@@ -20,7 +20,7 @@ const close = () => (open.value = false);
 <template>
     <header
         class="sticky top-0 z-50 border-b border-line"
-        style="background: rgba(10, 11, 10, 0.72); backdrop-filter: blur(14px)"
+        style="background: rgba(10, 11, 10, 0.6); backdrop-filter: blur(16px)"
     >
         <nav class="mx-auto flex h-16 max-w-[1120px] items-center gap-6 px-5 sm:px-7">
             <a href="#top" class="flex items-center gap-2.5" @click="close">

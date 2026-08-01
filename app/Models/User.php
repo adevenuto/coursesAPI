@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
@@ -20,6 +21,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
+ * @property string $plan
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -32,7 +34,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -46,5 +48,38 @@ class User extends Authenticatable implements PasskeyUser
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The user's plan key (falls back to the configured default).
+     */
+    public function planKey(): string
+    {
+        $plan = $this->plan ?: (string) config('api.default_plan', 'free');
+
+        return config()->has("api.plans.{$plan}") ? $plan : (string) config('api.default_plan', 'free');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function planConfig(): array
+    {
+        return config('api.plans.'.$this->planKey(), []);
+    }
+
+    public function dailyLimit(): int
+    {
+        return (int) ($this->planConfig()['per_day'] ?? 250);
+    }
+
+    public function burstLimit(): int
+    {
+        return (int) ($this->planConfig()['per_minute'] ?? 30);
+    }
+
+    public function hasPremium(): bool
+    {
+        return (bool) ($this->planConfig()['premium'] ?? false);
     }
 }

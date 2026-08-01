@@ -3,8 +3,11 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -24,6 +27,27 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * Per-plan API rate limiting: a daily quota + a per-minute burst cap,
+     * keyed to the authenticated user (all their keys share the pool).
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('api', function (Request $request) {
+            $user = $request->user();
+
+            if (! $user) {
+                return Limit::perMinute(20)->by($request->ip());
+            }
+
+            return [
+                Limit::perDay($user->dailyLimit())->by('u:'.$user->id),
+                Limit::perMinute($user->burstLimit())->by('u:'.$user->id),
+            ];
+        });
     }
 
     /**

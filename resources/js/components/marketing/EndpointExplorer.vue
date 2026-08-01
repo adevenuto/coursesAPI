@@ -3,57 +3,93 @@ import { ref } from 'vue';
 import SectionHeading from './SectionHeading.vue';
 import CodeBlock from './CodeBlock.vue';
 
+// Responses below are captured verbatim from the live API (arrays trimmed
+// for brevity). Keep these in sync with the actual endpoints.
 const tabs = [
     {
         key: 'search',
         name: 'Search & filter',
         method: 'GET',
-        path: '/api/v1/courses?q=pine&country=US',
+        path: '/api/v1/courses?q=bowling',
         code: `{
   "data": [
     {
-      "id": 8123,
-      "name": "Pine Valley Golf Club",
-      "city": "Pine Valley",
-      "state": "New Jersey",
-      "country": "US"
+      "id": 4,
+      "name": "Bowling Green Country Club",
+      "club": "Bowling Green Country Club",
+      "city": "Bowling Green",
+      "state": "Kentucky",
+      "country": "US",
+      "latitude": 37.0132,
+      "longitude": -86.43378
     }
   ],
-  "meta": { "current_page": 1, "per_page": 25, "total": 214 }
+  "meta": { "current_page": 1, "per_page": 25, "last_page": 1, "total": 6 }
 }`,
     },
     {
         key: 'near',
         name: 'Near me',
         method: 'GET',
-        path: '/api/v1/courses?lat=33.52&lng=-86.80&radius=25',
+        path: '/api/v1/courses?lat=37.014&lng=-86.434&radius=25',
         code: `{
   "data": [
     {
-      "id": 4711,
-      "name": "Highland Park Golf Course",
-      "city": "Birmingham",
-      "distance_km": 3.4
+      "id": 4,
+      "name": "Bowling Green Country Club",
+      "club": "Bowling Green Country Club",
+      "city": "Bowling Green",
+      "state": "Kentucky",
+      "country": "US",
+      "latitude": 37.0132,
+      "longitude": -86.43378,
+      "distance_km": 0.09
+    },
+    {
+      "id": 331,
+      "name": "Indian Hills Country Club",
+      "city": "Bowling Green",
+      "state": "Kentucky",
+      "country": "US",
+      "distance_km": 3.72
     }
   ],
-  "meta": { "radius_km": 25, "total": 12 }
+  "meta": { "current_page": 1, "per_page": 25, "last_page": 1, "total": 5 }
 }`,
     },
     {
         key: 'detail',
         name: 'Course detail',
         method: 'GET',
-        path: '/api/v1/courses/4609',
+        path: '/api/v1/courses/4',
         code: `{
-  "id": 4609,
-  "name": "Cherokee Country Club",
-  "location": { "city": "Centre", "state": "Alabama", "country": "US" },
-  "scorecard": {
-    "hole_count": 18,
-    "teeboxes": [
-      { "name": "Blue", "rating": 72.6, "slope": 136,
-        "holes": [{ "hole": 1, "par": 4, "yards": 401 }] }
-    ]
+  "data": {
+    "id": 4,
+    "name": "Bowling Green Country Club",
+    "club": "Bowling Green Country Club",
+    "address": "251 Beech Bend Rd, Bowling Green, KY 42101, USA",
+    "postal_code": "42101",
+    "phone": null,
+    "website": null,
+    "location": {
+      "city": "Bowling Green",
+      "state": "Kentucky",
+      "country": { "name": "United States", "iso2": "US" }
+    },
+    "coordinates": { "latitude": 37.0132, "longitude": -86.43378 },
+    "scorecard": {
+      "hole_count": 18,
+      "teeboxes": [
+        {
+          "name": "Gold", "rating": 73.3, "slope": 128, "total_yards": 6800,
+          "holes": [
+            { "hole": 1, "par": 4, "yards": 437, "handicap": 7 },
+            { "hole": 2, "par": 5, "yards": 518, "handicap": 1 }
+          ]
+        }
+      ]
+    },
+    "green_centers_available": true
   }
 }`,
     },
@@ -61,15 +97,18 @@ const tabs = [
         key: 'green',
         name: 'Green centers',
         method: 'GET',
-        path: '/api/v1/courses/4609/green-centers',
+        path: '/api/v1/courses/4/green-centers',
         premium: true,
         code: `{
-  "data": [
-    { "hole": 1, "lat": 34.11744, "lng": -86.43135 },
-    { "hole": 2, "lat": 34.11937, "lng": -86.43487 },
-    { "hole": 7, "lat": 34.11098, "lng": -85.64477 }
-  ],
-  "source": "golftrax"
+  "data": {
+    "course_id": 4,
+    "source": "golftrax",
+    "holes": [
+      { "hole": 1, "lat": 37.017442644114, "lng": -86.43135309219 },
+      { "hole": 2, "lat": 37.019378640182, "lng": -86.43487751483 },
+      { "hole": 3, "lat": 37.017583990629, "lng": -86.43266201019 }
+    ]
+  }
 }`,
     },
 ];
