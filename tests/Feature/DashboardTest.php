@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
@@ -16,12 +17,19 @@ class DashboardTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
-    public function test_authenticated_users_can_visit_the_dashboard()
+    public function test_authenticated_users_see_the_cockpit()
     {
-        $user = User::factory()->create();
-        $this->actingAs($user);
+        $user = User::factory()->create(['plan' => 'pro']);
 
-        $response = $this->get(route('dashboard'));
-        $response->assertOk();
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Dashboard')
+                ->where('plan.key', 'pro')
+                ->where('usage.limit', 10000)
+                ->has('usage.series', 14)
+                ->where('keys.count', 0),
+            );
     }
 }

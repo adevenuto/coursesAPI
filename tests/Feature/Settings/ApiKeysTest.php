@@ -16,7 +16,7 @@ class ApiKeysTest extends TestCase
         $this->get('/settings/api-keys')->assertRedirect('/login');
     }
 
-    public function test_page_renders_with_plan_usage_and_tokens(): void
+    public function test_page_renders_with_usage_and_tokens(): void
     {
         $user = User::factory()->create(['plan' => 'pro']);
 
@@ -25,11 +25,10 @@ class ApiKeysTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('settings/ApiKeys')
-                ->where('plan.key', 'pro')
-                ->where('plan.premium', true)
                 ->where('usage.limit', 10000)
-                ->has('usage.series', 14)
-                ->has('tokens'),
+                ->has('usage.today')
+                ->has('tokens')
+                ->where('maxKeys', 10),
             );
     }
 

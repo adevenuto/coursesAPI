@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, ref, shallowRef } from 'vue';
+import { computed } from 'vue';
 import { useClipboard } from '@vueuse/core';
-import { Check, Copy, Crown, KeyRound, Plus, Trash2 } from '@lucide/vue';
+import { Check, Copy, KeyRound, Plus, Trash2 } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -17,8 +17,7 @@ interface TokenRow {
 }
 
 const props = defineProps<{
-    plan: { key: string; label: string; per_day: number; per_minute: number; premium: boolean };
-    usage: { today: number; limit: number; series: { date: string; requests: number }[] };
+    usage: { today: number; limit: number };
     tokens: TokenRow[];
     newToken: string | null;
     maxKeys: number;
@@ -45,54 +44,9 @@ const revoke = (id: number) => {
     }
 };
 
-// One-time plaintext token copy.
 const { copy, copied } = useClipboard({ source: () => props.newToken ?? '' });
 
-// Usage progress.
-const usedPct = computed(() =>
-    props.usage.limit > 0
-        ? Math.min(100, Math.round((props.usage.today / props.usage.limit) * 100))
-        : 0,
-);
 const nf = (n: number) => n.toLocaleString('en-US');
-
-// ApexCharts (client-only for SSR safety).
-const chart = shallowRef<unknown>(null);
-onMounted(async () => {
-    chart.value = (await import('vue3-apexcharts')).default;
-});
-
-const isDark = () =>
-    typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-
-const series = computed(() => [
-    { name: 'Requests', data: props.usage.series.map((d) => d.requests) },
-]);
-
-const chartOptions = computed(() => ({
-    chart: { type: 'area', height: 220, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit' },
-    theme: { mode: isDark() ? 'dark' : 'light' },
-    colors: ['#22c55e'],
-    dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-        type: 'gradient',
-        gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 90] },
-    },
-    grid: { borderColor: isDark() ? '#262626' : '#e5e7eb', strokeDashArray: 4 },
-    xaxis: {
-        categories: props.usage.series.map((d) =>
-            new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
-        ),
-        labels: { rotate: 0, style: { colors: '#9ca3af' } },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
-        tooltip: { enabled: false },
-    },
-    yaxis: { labels: { style: { colors: '#9ca3af' } }, min: 0, forceNiceScale: true },
-    tooltip: { theme: isDark() ? 'dark' : 'light' },
-}));
-
 const errors = computed(() => ({ ...form.errors, ...(page.props.errors as Record<string, string>) }));
 </script>
 
@@ -103,53 +57,15 @@ const errors = computed(() => ({ ...form.errors, ...(page.props.errors as Record
         <Heading
             variant="small"
             title="API keys"
-            description="Create keys, track usage, and manage your plan."
+            description="Create and manage the keys that authenticate your API requests."
         />
 
-        <!-- Plan + usage -->
-        <div class="grid gap-4 md:grid-cols-2">
-            <div class="rounded-xl border border-border p-5">
-                <div class="flex items-center justify-between">
-                    <span class="text-sm text-muted-foreground">Current plan</span>
-                    <span
-                        v-if="plan.premium"
-                        class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
-                    >
-                        <Crown class="size-3" /> Premium
-                    </span>
-                </div>
-                <div class="mt-1 text-2xl font-semibold">{{ plan.label }}</div>
-                <dl class="mt-4 space-y-1 text-sm text-muted-foreground">
-                    <div class="flex justify-between">
-                        <dt>Daily requests</dt>
-                        <dd class="font-medium text-foreground">{{ nf(plan.per_day) }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt>Burst / minute</dt>
-                        <dd class="font-medium text-foreground">{{ nf(plan.per_minute) }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt>Green-center GPS</dt>
-                        <dd class="font-medium text-foreground">{{ plan.premium ? 'Included' : '—' }}</dd>
-                    </div>
-                </dl>
-            </div>
-
-            <div class="rounded-xl border border-border p-5">
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-muted-foreground">Usage today</span>
-                    <span class="font-medium">{{ nf(usage.today) }} / {{ nf(usage.limit) }}</span>
-                </div>
-                <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: usedPct + '%' }" />
-                </div>
-                <div class="mt-4 -mx-1">
-                    <component :is="chart" v-if="chart" type="area" height="200" :options="chartOptions" :series="series" />
-                    <div v-else class="h-[200px]" />
-                </div>
-                <p class="mt-1 text-xs text-muted-foreground">Requests over the last 14 days</p>
-            </div>
-        </div>
+        <!-- compact usage line (full breakdown lives on the dashboard) -->
+        <p class="text-sm text-muted-foreground">
+            <span class="font-medium text-foreground">{{ nf(usage.today) }}</span>
+            of {{ nf(usage.limit) }} requests used today.
+            <a href="/dashboard" class="text-emerald-600 hover:underline dark:text-emerald-400">View usage →</a>
+        </p>
 
         <!-- One-time token reveal -->
         <div
