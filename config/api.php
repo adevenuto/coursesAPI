@@ -13,7 +13,7 @@ return [
     'plans' => [
         'free' => [
             'label' => 'Free',
-            'per_day' => 250,
+            'per_day' => 30,
             'per_minute' => 30,
             'premium' => false,
         ],

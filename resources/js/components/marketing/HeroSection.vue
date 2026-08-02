@@ -4,6 +4,8 @@ import { ArrowRight, CircleCheck } from '@lucide/vue';
 import { register } from '@/routes';
 import GlowBadge from './GlowBadge.vue';
 import ContourGreen from './ContourGreen.vue';
+
+withDefaults(defineProps<{ freePerDay?: number }>(), { freePerDay: 30 });
 </script>
 
 <template>
@@ -61,7 +63,7 @@ import ContourGreen from './ContourGreen.vue';
                     </span>
                     <span class="flex items-center gap-2 text-sm text-fg-subtle">
                         <CircleCheck class="size-4" style="color: var(--lime-500)" />
-                        250 requests/day free
+                        {{ freePerDay.toLocaleString() }} requests/day free
                     </span>
                 </div>
             </div>

@@ -1,13 +1,31 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import SectionHeading from './SectionHeading.vue';
 import PricingCard from './PricingCard.vue';
 
-const plans = [
-    {
-        name: 'Free',
+interface PlanConfig {
+    label: string;
+    per_day: number;
+    per_minute: number;
+    premium: boolean;
+}
+
+const props = defineProps<{
+    plans: Record<'free' | 'pro' | 'max', PlanConfig>;
+}>();
+
+// Marketing copy lives here; the per-day quota comes from config/api.php.
+const copy: Record<'free' | 'pro' | 'max', {
+    price: string;
+    period: string;
+    blurb: string;
+    cta: string;
+    highlighted?: boolean;
+    features: string[];
+}> = {
+    free: {
         price: '$0',
         period: '',
-        requests: '250 requests / day',
         blurb: 'For prototypes and hobby projects.',
         cta: 'Get free key',
         features: [
@@ -17,11 +35,9 @@ const plans = [
             'Community support',
         ],
     },
-    {
-        name: 'Pro',
+    pro: {
         price: '$49',
         period: '/mo',
-        requests: '10,000 requests / day',
         blurb: 'For production apps that ship.',
         cta: 'Start free',
         highlighted: true,
@@ -32,11 +48,9 @@ const plans = [
             'Email support',
         ],
     },
-    {
-        name: 'Max',
+    max: {
         price: '$199',
         period: '/mo',
-        requests: '100,000 requests / day',
         blurb: 'For scale and heavy workloads.',
         cta: 'Start free',
         features: [
@@ -46,7 +60,15 @@ const plans = [
             'Early access to new data',
         ],
     },
-];
+};
+
+const tiers = computed(() =>
+    (['free', 'pro', 'max'] as const).map((key) => ({
+        name: props.plans[key].label,
+        requests: `${props.plans[key].per_day.toLocaleString()} requests / day`,
+        ...copy[key],
+    })),
+);
 </script>
 
 <template>
@@ -60,7 +82,7 @@ const plans = [
         />
         <div class="mt-14 grid gap-6 lg:grid-cols-3">
             <PricingCard
-                v-for="p in plans"
+                v-for="p in tiers"
                 :key="p.name"
                 v-bind="p"
             />

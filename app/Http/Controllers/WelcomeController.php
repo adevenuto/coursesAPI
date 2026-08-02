@@ -23,6 +23,9 @@ class WelcomeController extends Controller
             ];
         });
 
-        return Inertia::render('Welcome', ['stats' => $stats]);
+        return Inertia::render('Welcome', [
+            'stats' => $stats,
+            'plans' => config('api.plans'),
+        ]);
     }
 }

@@ -12,6 +12,13 @@ import CtaSection from '@/components/marketing/CtaSection.vue';
 import MarketingFooter from '@/components/marketing/MarketingFooter.vue';
 import ScrollToTop from '@/components/marketing/ScrollToTop.vue';
 
+interface PlanConfig {
+    label: string;
+    per_day: number;
+    per_minute: number;
+    premium: boolean;
+}
+
 withDefaults(
     defineProps<{
         stats?: {
@@ -20,6 +27,7 @@ withDefaults(
             cities: number;
             greenCenters: number;
         };
+        plans?: Record<'free' | 'pro' | 'max', PlanConfig>;
     }>(),
     {
         stats: () => ({
@@ -27,6 +35,11 @@ withDefaults(
             countries: 88,
             cities: 152970,
             greenCenters: 9975,
+        }),
+        plans: () => ({
+            free: { label: 'Free', per_day: 30, per_minute: 30, premium: false },
+            pro: { label: 'Pro', per_day: 10000, per_minute: 120, premium: true },
+            max: { label: 'Max', per_day: 100000, per_minute: 600, premium: true },
         }),
     },
 );
@@ -49,12 +62,12 @@ withDefaults(
     <MarketingLayout>
         <MarketingNav />
         <main>
-            <HeroSection />
+            <HeroSection :free-per-day="plans.free.per_day" />
             <StatBand :stats="stats" />
             <FeatureGrid />
             <EndpointExplorer />
             <GreenCenterShowcase />
-            <PricingSection />
+            <PricingSection :plans="plans" />
             <CtaSection />
         </main>
         <MarketingFooter />
