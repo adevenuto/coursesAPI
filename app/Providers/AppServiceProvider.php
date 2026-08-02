@@ -43,9 +43,11 @@ class AppServiceProvider extends ServiceProvider
                 return Limit::perMinute(20)->by($request->ip());
             }
 
+            // Distinct keys per window — a named limiter that returns multiple
+            // limits must key them separately or they collide on one counter.
             return [
-                Limit::perDay($user->dailyLimit())->by('u:'.$user->id),
-                Limit::perMinute($user->burstLimit())->by('u:'.$user->id),
+                Limit::perDay($user->dailyLimit())->by('api-day:'.$user->id),
+                Limit::perMinute($user->burstLimit())->by('api-min:'.$user->id),
             ];
         });
     }
