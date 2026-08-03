@@ -18,23 +18,33 @@ STRIPE_SECRET=sk_test_...
 
 ## 2. Create the products & prices
 
-Dashboard → **Product catalog → Add product**. Create two recurring monthly prices:
+**Recommended — one command.** With your keys in `.env`, run:
 
-| Plan | Price      | Interval |
-|------|------------|----------|
-| Pro  | **$9.99**  | Monthly  |
-| Max  | **$19.99** | Monthly  |
-
-Copy each **Price ID** (looks like `price_1AbC...`) into `.env`:
-
-```
-STRIPE_PRICE_PRO=price_...
-STRIPE_PRICE_MAX=price_...
+```bash
+php artisan stripe:sync-products --write-env
 ```
 
-These map back to plan keys in `config/api.php` (`plans.*.stripe_price_id`). The limits
-(`per_day`, `per_minute`) and display `price` also live there — keep the `price` field in
-sync with the Stripe amount.
+It reads the paid plans from `config/api.php`, creates the Stripe products +
+recurring monthly prices (Pro **$9.99**, Max **$19.99**), applies the required tax
+code, and patches `STRIPE_PRICE_PRO` / `STRIPE_PRICE_MAX` into `.env`. It's
+idempotent — matches prices by a stable lookup key, so re-running reuses them, and
+if you change a plan's `price` in config it mints a new Stripe price and transfers
+the lookup key. It refuses to touch a live account without confirmation.
+
+> This is the same command you run in production: paste live keys, run it, done.
+> Test and live modes are separate — you create products in each mode once.
+
+Pricing lives in `config/api.php` (`plans.*.price` + `plans.*.stripe_price_id`); the
+Stripe product name/tax code come from `config/api.php` `stripe.*`
+(`STRIPE_PRODUCT_PREFIX`, `STRIPE_TAX_CODE`).
+
+<details>
+<summary>Manual alternative (dashboard)</summary>
+
+Dashboard → **Product catalog → Add product**, create two recurring monthly prices
+(**$9.99**, **$19.99**), set each product's **tax code** (SaaS – `txcd_10103001`),
+then copy the Price IDs into `.env` as `STRIPE_PRICE_PRO` / `STRIPE_PRICE_MAX`.
+</details>
 
 ## 3. Configure the webhook
 
