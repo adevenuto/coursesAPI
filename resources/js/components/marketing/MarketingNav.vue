@@ -25,11 +25,11 @@ const close = () => (open.value = false);
         style="background: rgba(10, 11, 10, 0.6); backdrop-filter: blur(16px)"
     >
         <nav class="mx-auto flex h-16 max-w-[1120px] items-center gap-6 px-5 sm:px-7">
-            <a href="/#top" class="flex flex-col leading-none" @click="close">
+            <a href="/" class="flex flex-col leading-none" @click="close">
                 <span class="font-display text-xl font-extrabold tracking-tight text-fg">
                     <span style="color: var(--lime-500)">G</span>CA
                 </span>
-                <span class="mt-1 font-mono text-[9px] font-medium tracking-[0.2em] text-fg-subtle uppercase">
+                <span class="mt-0.5 font-mono text-[9px] font-medium tracking-[0.2em] text-fg-subtle uppercase">
                     Golf Courses API
                 </span>
             </a>

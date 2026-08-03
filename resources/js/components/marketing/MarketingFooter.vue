@@ -31,7 +31,7 @@ const cols = [
                         <span class="font-display text-xl font-extrabold tracking-tight text-fg">
                             <span style="color: var(--lime-500)">G</span>CA
                         </span>
-                        <span class="mt-1 font-mono text-[9px] font-medium tracking-[0.2em] text-fg-subtle uppercase">
+                        <span class="mt-0.5 font-mono text-[9px] font-medium tracking-[0.2em] text-fg-subtle uppercase">
                             Golf Courses API
                         </span>
                     </div>
