@@ -26,7 +26,7 @@ onBeforeUnmount(() => observer?.disconnect());
 </script>
 
 <template>
-    <nav class="sticky top-24 hidden lg:block" aria-label="Documentation">
+    <nav class="sticky top-24 hidden self-start lg:block" aria-label="Documentation">
         <div class="mb-3 font-mono text-[11px] tracking-[0.2em] text-fg-subtle uppercase">
             On this page
         </div>
