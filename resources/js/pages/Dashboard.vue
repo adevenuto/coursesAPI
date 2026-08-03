@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 
 const props = defineProps<{
+    baseUrl: string;
     plan: { key: string; label: string; per_day: number; per_minute: number; premium: boolean };
     usage: { today: number; limit: number; series: { date: string; requests: number }[] };
     keys: { count: number; recent: { name: string; last_used_at: string | null } | null };
@@ -36,7 +37,7 @@ const usedPct = computed(() =>
     props.usage.limit > 0 ? Math.min(100, Math.round((props.usage.today / props.usage.limit) * 100)) : 0,
 );
 
-const snippet = `curl "${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/courses?q=pebble" \\
+const snippet = `curl "${props.baseUrl}/api/v1/courses?q=pebble" \\
   -H "Authorization: Bearer YOUR_API_KEY"`;
 const { copy, copied } = useClipboard({ source: () => snippet });
 </script>
