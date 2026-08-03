@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Flag, MapPin } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
+import { ChevronLeft, ChevronRight, Flag, MapPin } from '@lucide/vue';
 
 interface ResultCourse {
     id: number;
@@ -11,32 +12,79 @@ interface ResultCourse {
     url: string;
 }
 
-defineProps<{
+const props = defineProps<{
     area: { type: string; name: string; label: string } | null;
     courses: ResultCourse[];
     count: number;
     capped: boolean;
     loading: boolean;
 }>();
+
+const PER_PAGE = 20;
+const page = ref(1);
+const topAnchor = ref<HTMLElement | null>(null);
+
+// Paginate over what we fetched (the map-capped set).
+const total = computed(() => props.courses.length);
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PER_PAGE)));
+const start = computed(() => (page.value - 1) * PER_PAGE);
+const paged = computed(() => props.courses.slice(start.value, start.value + PER_PAGE));
+const rangeStart = computed(() => (total.value ? start.value + 1 : 0));
+const rangeEnd = computed(() => Math.min(start.value + PER_PAGE, total.value));
+
+// A fresh selection resets to page 1.
+watch(() => props.courses, () => (page.value = 1));
+
+function go(next: number) {
+    page.value = Math.min(pageCount.value, Math.max(1, next));
+    topAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 </script>
 
 <template>
     <div>
+        <div ref="topAnchor" class="scroll-mt-24" />
+
         <div v-if="loading" class="space-y-2">
-            <div v-for="i in 5" :key="i" class="h-16 animate-pulse rounded-xl border border-line bg-ink-800" />
+            <div v-for="i in 6" :key="i" class="h-16 animate-pulse rounded-xl border border-line bg-ink-800" />
         </div>
 
         <template v-else-if="area">
-            <div class="mb-3 flex items-baseline justify-between">
-                <h2 class="font-display text-lg font-semibold text-fg">{{ area.label }}</h2>
-                <span class="font-mono text-xs text-fg-subtle">
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <h2 class="min-w-0 truncate font-display text-lg font-semibold text-fg">{{ area.label }}</h2>
+
+                <!-- pagination controls live where the count was -->
+                <div v-if="pageCount > 1" class="flex shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        class="grid size-7 place-items-center rounded-lg border border-line text-fg-muted transition enabled:cursor-pointer enabled:hover:border-line-lime enabled:hover:text-fg disabled:opacity-40"
+                        :disabled="page === 1"
+                        aria-label="Previous page"
+                        @click="go(page - 1)"
+                    >
+                        <ChevronLeft class="size-4" />
+                    </button>
+                    <span class="font-mono text-xs text-fg-subtle tabular-nums">
+                        {{ rangeStart.toLocaleString() }}–{{ rangeEnd.toLocaleString() }} of {{ total.toLocaleString() }}
+                    </span>
+                    <button
+                        type="button"
+                        class="grid size-7 place-items-center rounded-lg border border-line text-fg-muted transition enabled:cursor-pointer enabled:hover:border-line-lime enabled:hover:text-fg disabled:opacity-40"
+                        :disabled="page === pageCount"
+                        aria-label="Next page"
+                        @click="go(page + 1)"
+                    >
+                        <ChevronRight class="size-4" />
+                    </button>
+                </div>
+                <span v-else class="shrink-0 font-mono text-xs text-fg-subtle">
                     {{ count.toLocaleString() }} course{{ count === 1 ? '' : 's' }}
                 </span>
             </div>
 
-            <div v-if="courses.length" class="space-y-2">
+            <div v-if="paged.length" class="space-y-2">
                 <Link
-                    v-for="course in courses"
+                    v-for="course in paged"
                     :key="course.id"
                     :href="course.url"
                     class="ds-card ds-card--hover flex items-center gap-3 p-4"
@@ -58,7 +106,7 @@ defineProps<{
             </p>
 
             <p v-if="capped" class="mt-3 text-center font-mono text-[11px] text-fg-subtle">
-                Showing the first {{ courses.length }} of {{ count.toLocaleString() }}.
+                Showing the first {{ total.toLocaleString() }} of {{ count.toLocaleString() }}.
             </p>
         </template>
 

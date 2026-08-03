@@ -104,8 +104,8 @@ async function onSelect(hit: Hit) {
                     />
                 </div>
 
-                <!-- right: map (Part 2) -->
-                <div class="ds-card relative min-h-[420px] overflow-hidden lg:min-h-[70vh]">
+                <!-- right: map (Part 2) — sticky as the results list scrolls -->
+                <div class="ds-card relative min-h-[420px] overflow-hidden lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:min-h-0 lg:self-start">
                     <div class="aurora absolute inset-0 opacity-40" />
                     <div class="relative flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
                         <span class="ds-icon-tile">
