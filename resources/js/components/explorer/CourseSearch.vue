@@ -77,6 +77,8 @@ const runSearch = useDebounceFn(async (q: string) => {
 
     try {
         const { results } = await client.value.search({ requests });
+        // Ignore results that arrive after the input changed (e.g. cleared).
+        if (q !== query.value) return;
         groups.value = ORDER.map((o, i) => ({
             key: o.key,
             label: o.label,
@@ -95,9 +97,18 @@ const runSearch = useDebounceFn(async (q: string) => {
 // Search only on real typing — setting `query` on select must NOT reopen the
 // dropdown or re-search the label.
 function onInput() {
-    open.value = true;
-    loading.value = query.value.trim().length >= 2;
     active.value = -1;
+
+    // Cleared / too short → hide the dropdown immediately (no waiting on debounce).
+    if (query.value.trim().length < 2) {
+        groups.value = [];
+        loading.value = false;
+        open.value = false;
+        return;
+    }
+
+    open.value = true;
+    loading.value = true;
     runSearch(query.value);
 }
 

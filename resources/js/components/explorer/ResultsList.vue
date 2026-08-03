@@ -50,8 +50,16 @@ function go(next: number) {
         </div>
 
         <template v-else-if="area">
-            <div class="mb-3 flex items-center justify-between gap-3">
-                <h2 class="min-w-0 truncate font-display text-lg font-semibold text-fg">{{ area.label }}</h2>
+            <div class="mb-3 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 class="truncate font-display text-lg font-semibold text-fg">{{ area.label }}</h2>
+                    <p class="mt-0.5 font-mono text-[11px] text-fg-subtle tabular-nums">
+                        <template v-if="capped">
+                            {{ count.toLocaleString() }} courses · exploring the first {{ total.toLocaleString() }}
+                        </template>
+                        <template v-else>{{ count.toLocaleString() }} course{{ count === 1 ? '' : 's' }}</template>
+                    </p>
+                </div>
 
                 <!-- pagination controls live where the count was -->
                 <div v-if="pageCount > 1" class="flex shrink-0 items-center gap-2">
@@ -77,9 +85,6 @@ function go(next: number) {
                         <ChevronRight class="size-4" />
                     </button>
                 </div>
-                <span v-else class="shrink-0 font-mono text-xs text-fg-subtle">
-                    {{ count.toLocaleString() }} course{{ count === 1 ? '' : 's' }}
-                </span>
             </div>
 
             <div v-if="paged.length" class="space-y-2">
@@ -103,10 +108,6 @@ function go(next: number) {
             </div>
             <p v-else class="rounded-xl border border-line bg-ink-800 p-6 text-center text-sm text-fg-subtle">
                 No mapped courses in this area yet.
-            </p>
-
-            <p v-if="capped" class="mt-3 text-center font-mono text-[11px] text-fg-subtle">
-                Showing the first {{ total.toLocaleString() }} of {{ count.toLocaleString() }}.
             </p>
         </template>
 
