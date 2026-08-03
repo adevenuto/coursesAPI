@@ -101,5 +101,8 @@ const user = computed(() => page.props.auth.user);
         </Form>
     </div>
 
-    <DeleteUser />
+    <DeleteUser
+        :subscribed="!!page.props.billing?.subscribed"
+        :plan-label="page.props.billing?.plan"
+    />
 </template>
