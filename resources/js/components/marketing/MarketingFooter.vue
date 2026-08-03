@@ -27,16 +27,13 @@ const cols = [
         <div class="mx-auto max-w-[1120px] px-5 py-14 sm:px-7">
             <div class="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
                 <div>
-                    <div class="flex items-center gap-2.5">
-                        <span
-                            class="grid size-7 place-items-center rounded-lg"
-                            style="background: var(--grad-lime)"
-                        >
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#0a1400" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M5 21V4l11 3-11 3" />
-                            </svg>
+                    <div class="flex flex-col leading-none">
+                        <span class="font-display text-xl font-extrabold tracking-tight text-fg">
+                            <span style="color: var(--lime-500)">G</span>CA
                         </span>
-                        <span class="font-display text-lg font-bold">GCA</span>
+                        <span class="mt-1 font-mono text-[9px] font-medium tracking-[0.2em] text-fg-subtle uppercase">
+                            Golf Courses API
+                        </span>
                     </div>
                     <p class="mt-4 max-w-xs text-sm text-fg-muted">
                         The golf course data API — locations, scorecards and
