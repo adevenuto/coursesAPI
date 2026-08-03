@@ -112,7 +112,7 @@ const { copy, copied } = useClipboard({ source: () => snippet });
                     <Link href="/settings/api-keys"><Plus class="size-4" /> {{ keys.count === 0 ? 'Create your first key' : 'Create a key' }}</Link>
                 </Button>
                 <Button as-child variant="outline" class="justify-start">
-                    <Link href="/settings/billing"><Crown class="size-4" /> {{ plan.premium ? 'Manage plan' : 'Upgrade plan' }}</Link>
+                    <Link href="/settings/billing"><Crown class="size-4 fill-[#f5b301] stroke-0" /> {{ plan.premium ? 'Manage plan' : 'Upgrade plan' }}</Link>
                 </Button>
                 <Button as-child variant="outline" class="justify-start">
                     <a href="/docs"><BookOpen class="size-4" /> Read the docs</a>
