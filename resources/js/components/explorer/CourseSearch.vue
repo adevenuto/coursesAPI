@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, onMounted, ref, shallowRef } from 'vue';
 import { useDebounceFn, onClickOutside } from '@vueuse/core';
 import { Building2, Flag, Globe, Loader2, Map, Search } from '@lucide/vue';
 
@@ -92,12 +92,14 @@ const runSearch = useDebounceFn(async (q: string) => {
     }
 }, 180);
 
-watch(query, (q) => {
+// Search only on real typing — setting `query` on select must NOT reopen the
+// dropdown or re-search the label.
+function onInput() {
     open.value = true;
-    loading.value = q.trim().length >= 2;
+    loading.value = query.value.trim().length >= 2;
     active.value = -1;
-    runSearch(q);
-});
+    runSearch(query.value);
+}
 
 onClickOutside(root, () => (open.value = false));
 
@@ -153,7 +155,8 @@ const flatIndex = (g: number, h: number) =>
                 class="w-full rounded-xl border border-line bg-ink-800 py-3.5 pr-10 pl-11 text-fg placeholder:text-fg-subtle focus:border-line-lime focus:outline-none disabled:opacity-50"
                 autocomplete="off"
                 spellcheck="false"
-                @focus="open = true"
+                @focus="open = groups.length > 0"
+                @input="onInput"
                 @keydown="onKeydown"
             />
             <Loader2 v-if="loading" class="absolute top-1/2 right-4 size-4 -translate-y-1/2 animate-spin text-fg-subtle" />
@@ -162,7 +165,7 @@ const flatIndex = (g: number, h: number) =>
         <!-- dropdown -->
         <div
             v-if="open && (groups.length > 0 || (query.trim().length >= 2 && !loading))"
-            class="absolute z-40 mt-2 max-h-[70vh] w-full overflow-y-auto rounded-xl border border-line bg-ink-850 p-2 shadow-2xl"
+            class="no-scrollbar absolute z-40 mt-2 max-h-[45vh] w-full overflow-y-auto rounded-xl border border-line bg-ink-850 p-2 shadow-2xl"
         >
             <template v-if="groups.length">
                 <div v-for="(g, gi) in groups" :key="g.key" class="mb-1 last:mb-0">
@@ -192,6 +195,15 @@ const flatIndex = (g: number, h: number) =>
 </template>
 
 <style scoped>
+/* Hide the native scrollbar while keeping the dropdown scrollable. */
+.no-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* legacy Edge/IE */
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+}
+
 /* Algolia wraps matched text in <em>; tint it lime instead of italic. */
 .hl :deep(em) {
     font-style: normal;
