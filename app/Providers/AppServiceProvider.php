@@ -56,6 +56,9 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute($user->burstLimit())->by('api-min:'.$user->id),
             ];
         });
+
+        // Public explorer geo→courses endpoints (unauthenticated, keyed by IP).
+        RateLimiter::for('explore', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
     }
 
     /**

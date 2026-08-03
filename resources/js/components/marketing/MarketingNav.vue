@@ -11,6 +11,7 @@ const open = ref(false);
 // Absolute paths so anchors work from the landing (same-path hash scroll)
 // and from /docs (navigate home, then scroll).
 const links = [
+    { label: 'Explorer', href: '/explorer' },
     { label: 'Features', href: '/#features' },
     { label: 'Pricing', href: '/#pricing' },
     { label: 'Docs', href: '/docs' },

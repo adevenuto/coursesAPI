@@ -3,11 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
+use Laravel\Scout\Searchable;
 
 class Course extends Model
 {
+    use Searchable;
+
     protected $guarded = [];
 
     protected function casts(): array
@@ -111,6 +116,65 @@ class Course extends Model
     public function hasGreenCenters(): bool
     {
         return $this->green_centers !== null;
+    }
+
+    // ---- Search (Algolia via Scout) ----------------------------------------
+
+    /**
+     * The record pushed to the `courses` index. `url` points at the course
+     * show page; `type` lets the explorer decide navigate-vs-fetch.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        $city = $this->city?->name;
+        $state = $this->state?->name;
+        $country = $this->country?->name;
+
+        return [
+            'id' => $this->id,
+            'name' => $this->course_name,
+            'club' => $this->club_name,
+            'city' => $city,
+            'state' => $state,
+            'country' => $country,
+            'label' => collect([$this->club_name ?: $this->course_name, $city, $state, $country])
+                ->filter()->implode(', '),
+            'lat' => $this->lat,
+            'lng' => $this->lng,
+            'type' => 'course',
+            'url' => '/courses/'.$this->id.'/'.$this->urlSlug(),
+        ];
+    }
+
+    /**
+     * Eager-load the geo names so bulk indexing doesn't N+1.
+     *
+     * @param  Collection<int, Course>  $models
+     * @return Collection<int, Course>
+     */
+    public function makeSearchableUsing(Collection $models): Collection
+    {
+        return $models->load('city:id,name', 'state:id,name', 'country:id,name');
+    }
+
+    /**
+     * Cosmetic slug for the course URL (resolved by id). Club-first (more
+     * consistent than course_name); append the course only when it adds info.
+     */
+    public function urlSlug(): string
+    {
+        $club = trim((string) $this->club_name);
+        $course = trim((string) $this->course_name);
+
+        $slug = Str::slug($club !== '' ? $club : $course);
+
+        if ($course !== '' && $club !== '' && Str::slug($course) !== Str::slug($club)) {
+            $slug .= '_'.Str::slug($course);
+        }
+
+        return $slug !== '' ? $slug : 'course';
     }
 
     // ---- Scopes ------------------------------------------------------------
