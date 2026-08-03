@@ -34,7 +34,7 @@ const close = () => (open.value = false);
                         <path d="M5 21V4l11 3-11 3" />
                     </svg>
                 </span>
-                <span class="font-display text-lg font-bold tracking-tight">Fairway</span>
+                <span class="font-display text-lg font-bold tracking-tight">GCA</span>
             </a>
 
             <!-- desktop links -->

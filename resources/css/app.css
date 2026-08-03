@@ -2,7 +2,7 @@
 
 @import 'tw-animate-css';
 
-/* Marketing (Fairway) type — TrainerFlow DS: Sora display · Onest body · JetBrains Mono. */
+/* Marketing (GCA) type — TrainerFlow DS: Sora display · Onest body · JetBrains Mono. */
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -166,7 +166,7 @@
     --sidebar: hsl(0 0% 98%);
 
     /* =====================================================================
-       TrainerFlow design system — marketing tokens (Fairway landing).
+       TrainerFlow design system — marketing tokens (GCA landing).
        Near-black green-tinted charcoal · electric-lime · emerald aurora.
        ===================================================================== */
     --black: #050605;
@@ -286,7 +286,7 @@
 }
 
 /* ----------------------------------------------------------------------------
-   TrainerFlow DS — marketing recipe classes (Fairway landing)
+   TrainerFlow DS — marketing recipe classes (GCA landing)
 ---------------------------------------------------------------------------- */
 @layer components {
     /* Signature aurora background (emerald/lime bleed over near-black). */

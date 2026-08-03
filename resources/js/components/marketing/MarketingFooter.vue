@@ -36,7 +36,7 @@ const cols = [
                                 <path d="M5 21V4l11 3-11 3" />
                             </svg>
                         </span>
-                        <span class="font-display text-lg font-bold">Fairway</span>
+                        <span class="font-display text-lg font-bold">GCA</span>
                     </div>
                     <p class="mt-4 max-w-xs text-sm text-fg-muted">
                         The golf course data API — locations, scorecards and
@@ -69,7 +69,7 @@ const cols = [
             <div
                 class="mt-12 flex flex-col gap-4 border-t border-line pt-6 text-xs text-fg-subtle sm:flex-row sm:items-center sm:justify-between"
             >
-                <p>© {{ new Date().getFullYear() }} Fairway. All rights reserved.</p>
+                <p>© {{ new Date().getFullYear() }} GCA. All rights reserved.</p>
                 <p class="max-w-xl sm:text-right">
                     Geographic data ©
                     <a href="https://www.openstreetmap.org/copyright" class="underline underline-offset-2 hover:text-fg">OpenStreetMap</a>

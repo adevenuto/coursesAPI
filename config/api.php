@@ -45,11 +45,12 @@ return [
     | Stripe / billing
     |--------------------------------------------------------------------------
     | Settings for `stripe:sync-products`. `product_prefix` names the Stripe
-    | products (e.g. "Fairway Pro"). `tax_code` is applied to every product —
-    | Managed Payments requires one; default is SaaS, business use.
+    | products (e.g. "GCA Pro") and derives the price lookup keys. `tax_code`
+    | is applied to every product — Managed Payments requires one; default is
+    | SaaS, business use.
     */
     'stripe' => [
-        'product_prefix' => env('STRIPE_PRODUCT_PREFIX', 'Fairway'),
+        'product_prefix' => env('STRIPE_PRODUCT_PREFIX', 'GCA'),
         'tax_code' => env('STRIPE_TAX_CODE', 'txcd_10103001'),
     ],
 

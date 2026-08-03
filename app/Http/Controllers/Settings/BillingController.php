@@ -172,7 +172,7 @@ class BillingController extends Controller
     {
         return $request->user()->downloadInvoice($invoiceId, [
             'vendor' => config('app.name'),
-            'product' => 'Fairway API',
+            'product' => 'Golf Courses API',
         ]);
     }
 }

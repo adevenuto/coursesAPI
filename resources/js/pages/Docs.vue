@@ -167,8 +167,8 @@ const resCities = `{
 </script>
 
 <template>
-    <Head title="API Documentation — Fairway">
-        <meta name="description" content="Fairway golf course API documentation: authentication, rate limits, pagination, and endpoint reference with live examples." />
+    <Head title="API Documentation — GCA">
+        <meta name="description" content="Golf Courses API (GCA) documentation: authentication, rate limits, pagination, and endpoint reference with live examples." />
     </Head>
 
     <MarketingLayout>
@@ -183,7 +183,7 @@ const resCities = `{
                     <section id="introduction" class="scroll-mt-24">
                         <GlowBadge>API v1</GlowBadge>
                         <h1 class="mt-5 font-display text-4xl font-bold tracking-tight text-fg" style="letter-spacing: -0.02em">
-                            Fairway API
+                            Golf Courses API
                         </h1>
                         <p class="mt-4 max-w-2xl text-lg text-fg-muted">
                             A fast, REST + JSON API for golf course data — locations,

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use Stripe\StripeClient;
 
 /**
@@ -42,7 +43,8 @@ class StripeSyncProducts extends Command
 
         $stripe = new StripeClient($secret);
         $currency = strtolower((string) config('cashier.currency', 'usd'));
-        $prefix = (string) config('api.stripe.product_prefix', 'Fairway');
+        $prefix = (string) config('api.stripe.product_prefix', 'GCA');
+        $lookupPrefix = Str::slug($prefix, '_'); // "GCA" -> "gca"
         $taxCode = (string) config('api.stripe.tax_code');
 
         $envUpdates = [];
@@ -54,7 +56,7 @@ class StripeSyncProducts extends Command
 
             $label = $plan['label'] ?? ucfirst($key);
             $amount = (int) round(((float) ($plan['price'] ?? 0)) * 100);
-            $lookupKey = 'fairway_'.$key.'_monthly';
+            $lookupKey = $lookupPrefix.'_'.$key.'_monthly';
 
             $price = $this->reconcilePrice($stripe, [
                 'plan_key' => $key,

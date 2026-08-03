@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Fairway marketing shell — TrainerFlow DS. Dark token set + near-black canvas;
+// GCA marketing shell — TrainerFlow DS. Dark token set + near-black canvas;
 // sections layer their own aurora/glow on top.
 </script>
 
