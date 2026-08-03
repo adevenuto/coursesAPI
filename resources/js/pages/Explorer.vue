@@ -8,6 +8,7 @@ import MarketingFooter from '@/components/marketing/MarketingFooter.vue';
 import GlowBadge from '@/components/marketing/GlowBadge.vue';
 import CourseSearch from '@/components/explorer/CourseSearch.vue';
 import ResultsList from '@/components/explorer/ResultsList.vue';
+import CoursesMap from '@/components/explorer/CoursesMap.vue';
 
 interface Hit {
     id: number;
@@ -24,6 +25,7 @@ const props = defineProps<{
         configured: boolean;
         indices: { courses: string; cities: string; states: string; countries: string };
     };
+    maps: { key: string; configured: boolean };
     baseUrl: string;
 }>();
 
@@ -104,21 +106,24 @@ async function onSelect(hit: Hit) {
                     />
                 </div>
 
-                <!-- right: map (Part 2) — sticky as the results list scrolls -->
+                <!-- right: clustered map — sticky as the results list scrolls -->
                 <div class="ds-card relative min-h-[420px] overflow-hidden lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:min-h-0 lg:self-start">
-                    <div class="aurora absolute inset-0 opacity-40" />
-                    <div class="relative flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-                        <span class="ds-icon-tile">
-                            <MapPinned class="size-5 text-lime-500" />
-                        </span>
-                        <p class="font-display text-lg font-semibold text-fg">
-                            <template v-if="area">{{ count.toLocaleString() }} courses in {{ area.name }}</template>
-                            <template v-else>Interactive map</template>
-                        </p>
-                        <p class="max-w-xs text-sm text-fg-subtle">
-                            Clustered course markers and zoom-to-area land here next.
-                        </p>
-                    </div>
+                    <CoursesMap
+                        v-if="maps.configured"
+                        :maps-key="maps.key"
+                        :courses="courses"
+                        :bounds="bounds"
+                    />
+                    <template v-else>
+                        <div class="aurora absolute inset-0 opacity-40" />
+                        <div class="relative flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+                            <span class="ds-icon-tile"><MapPinned class="size-5 text-lime-500" /></span>
+                            <p class="font-display text-lg font-semibold text-fg">Map not configured</p>
+                            <p class="max-w-xs text-sm text-fg-subtle">
+                                Add a Google Maps key to <code class="font-mono">.env</code> to enable the map.
+                            </p>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>

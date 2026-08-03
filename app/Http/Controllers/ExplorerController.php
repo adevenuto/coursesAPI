@@ -20,6 +20,7 @@ class ExplorerController extends Controller
     {
         $appId = config('services.algolia.app_id');
         $searchKey = config('services.algolia.search_key');
+        $mapsKey = config('services.google.places_key');
 
         return Inertia::render('Explorer', [
             'algolia' => [
@@ -32,6 +33,10 @@ class ExplorerController extends Controller
                     'states' => (new State)->searchableAs(),
                     'countries' => (new Country)->searchableAs(),
                 ],
+            ],
+            'maps' => [
+                'key' => $mapsKey,
+                'configured' => filled($mapsKey),
             ],
             'baseUrl' => rtrim((string) config('app.url'), '/'),
         ]);

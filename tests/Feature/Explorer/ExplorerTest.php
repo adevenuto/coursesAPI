@@ -85,6 +85,19 @@ class ExplorerTest extends TestCase
             );
     }
 
+    public function test_explorer_passes_maps_configuration(): void
+    {
+        config(['services.google.places_key' => 'MAPSKEY']);
+        $this->get('/explorer')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('maps.configured', true)
+                ->where('maps.key', 'MAPSKEY'));
+
+        config(['services.google.places_key' => null]);
+        $this->get('/explorer')
+            ->assertInertia(fn (Assert $page) => $page->where('maps.configured', false));
+    }
+
     public function test_course_show_page_renders(): void
     {
         $course = $this->seedGeo();

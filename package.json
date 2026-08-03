@@ -34,6 +34,8 @@
         "vue-tsc": "^2.2.4"
     },
     "dependencies": {
+        "@googlemaps/js-api-loader": "^2.1.1",
+        "@googlemaps/markerclusterer": "^2.6.2",
         "@inertiajs/vite": "^3.0.0",
         "@inertiajs/vue3": "^3.0.0",
         "@laravel/passkeys": "^0.2.0",
