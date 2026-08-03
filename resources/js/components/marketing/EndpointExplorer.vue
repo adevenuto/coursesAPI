@@ -102,7 +102,6 @@ const tabs = [
         code: `{
   "data": {
     "course_id": 4,
-    "source": "golftrax",
     "holes": [
       { "hole": 1, "lat": 37.017442644114, "lng": -86.43135309219 },
       { "hole": 2, "lat": 37.019378640182, "lng": -86.43487751483 },

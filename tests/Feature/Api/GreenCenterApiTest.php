@@ -19,12 +19,14 @@ class GreenCenterApiTest extends ApiTestCase
     {
         Sanctum::actingAs($this->proUser);
 
-        $this->getJson("/api/v1/courses/{$this->bgCourse->id}/green-centers")
+        $res = $this->getJson("/api/v1/courses/{$this->bgCourse->id}/green-centers")
             ->assertOk()
             ->assertJsonPath('data.course_id', $this->bgCourse->id)
-            ->assertJsonPath('data.source', 'golftrax')
             ->assertJsonCount(2, 'data.holes')
             ->assertJsonPath('data.holes.0.hole', 1);
+
+        // Provenance is never exposed.
+        $this->assertArrayNotHasKey('source', $res->json('data'));
     }
 
     public function test_green_centers_404_when_course_has_none(): void
@@ -52,7 +54,7 @@ class GreenCenterApiTest extends ApiTestCase
 
         $this->getJson("/api/v1/courses/{$this->bgCourse->id}")
             ->assertOk()
-            ->assertJsonPath('data.green_centers.source', 'golftrax')
-            ->assertJsonCount(2, 'data.green_centers.holes');
+            ->assertJsonCount(2, 'data.green_centers')
+            ->assertJsonPath('data.green_centers.0.hole', 1);
     }
 }

@@ -108,16 +108,6 @@ class Course extends Model
         return $out;
     }
 
-    public function getGreenCentersSourceAttribute(): ?string
-    {
-        $data = $this->layout_data;
-        if (! is_array($data) || empty($data['greenCenters'])) {
-            return null;
-        }
-
-        return $data['greenCentersSource'] ?? 'golftrax';
-    }
-
     public function hasGreenCenters(): bool
     {
         return $this->green_centers !== null;
