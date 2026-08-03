@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Settings\ApiKeyController;
+use App\Http\Controllers\Settings\BillingController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
@@ -16,6 +17,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('settings/api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
     Route::post('settings/api-keys', [ApiKeyController::class, 'store'])->name('api-keys.store');
     Route::delete('settings/api-keys/{tokenId}', [ApiKeyController::class, 'destroy'])->name('api-keys.destroy');
+
+    // Billing (Stripe / Cashier)
+    Route::get('settings/billing', [BillingController::class, 'index'])->name('billing.index');
+    Route::post('settings/billing/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
+    Route::post('settings/billing/swap', [BillingController::class, 'swap'])->name('billing.swap');
+    Route::post('settings/billing/portal', [BillingController::class, 'portal'])->name('billing.portal');
+    Route::get('settings/billing/invoice/{invoiceId}', [BillingController::class, 'invoice'])->name('billing.invoice');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
