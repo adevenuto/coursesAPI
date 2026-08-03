@@ -194,11 +194,23 @@ const ctaLabel = (plan: PlanCard): string => {
                 <div
                     v-for="plan in plans"
                     :key="plan.key"
-                    class="flex flex-col rounded-xl border p-5"
-                    :class="plan.key === currentPlan ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-border'"
+                    class="group flex flex-col rounded-xl border p-5 transition-colors duration-200"
+                    :class="
+                        plan.key === currentPlan
+                            ? 'border-emerald-500/50 bg-emerald-500/5'
+                            : 'border-border hover:border-emerald-500/40 hover:bg-emerald-500/5'
+                    "
                 >
                     <div class="flex items-center gap-2">
-                        <component :is="iconFor(plan.key)" class="size-4 text-muted-foreground" />
+                        <component
+                            :is="iconFor(plan.key)"
+                            class="size-4 transition-colors duration-200"
+                            :class="
+                                plan.key === currentPlan
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
+                            "
+                        />
                         <span class="font-medium">{{ plan.label }}</span>
                         <span
                             v-if="plan.key === currentPlan"
