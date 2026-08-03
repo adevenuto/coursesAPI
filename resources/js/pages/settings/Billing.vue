@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Check, CreditCard, Crown, ExternalLink, Zap } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 interface PlanCard {
     key: string;
@@ -57,9 +65,42 @@ const checkoutResult = computed(() => new URLSearchParams(window.location.search
 
 const iconFor = (key: string) => (key === 'max' ? Crown : key === 'pro' ? Zap : Check);
 
+// Swap confirmation (only for an in-place plan change on an existing sub).
+const pending = ref<PlanCard | null>(null);
+const confirmOpen = ref(false);
+const swapping = ref(false);
+const willResume = computed(() => !!props.subscription?.on_grace_period);
+
 const choose = (plan: PlanCard) => {
-    if (plan.key === props.currentPlan || !plan.billable) return;
+    if (plan.key === props.currentPlan || !plan.billable || !props.configured) return;
+
+    // Already subscribed → this is an in-place swap that bills the card on
+    // file. Confirm first so the change (and any resume) is never a surprise.
+    if (subscribed.value) {
+        pending.value = plan;
+        confirmOpen.value = true;
+        return;
+    }
+
+    // No subscription yet → hosted Stripe checkout handles confirmation itself.
     router.post('/settings/billing/checkout', { plan: plan.key }, { preserveScroll: true });
+};
+
+const confirmSwap = () => {
+    if (!pending.value) return;
+    swapping.value = true;
+    router.post(
+        '/settings/billing/checkout',
+        { plan: pending.value.key },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                swapping.value = false;
+                confirmOpen.value = false;
+                pending.value = null;
+            },
+        },
+    );
 };
 
 const manage = () => router.post('/settings/billing/portal', {}, { preserveScroll: true });
@@ -186,6 +227,39 @@ const ctaLabel = (plan: PlanCard): string => {
                 To downgrade to Free or cancel, use <button type="button" class="underline" @click="manage">Manage billing</button>.
             </p>
         </div>
+
+        <!-- Swap confirmation -->
+        <Dialog v-model:open="confirmOpen">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Switch to {{ pending?.label }}?</DialogTitle>
+                    <DialogDescription>
+                        You'll move from {{ current?.label ?? currentPlan }} to {{ pending?.label }} immediately.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="space-y-3 text-sm">
+                    <p class="text-muted-foreground">
+                        The prorated difference is billed to your card on file, and your plan becomes
+                        <span class="font-medium text-foreground">${{ pending?.price.toFixed(2) }}/mo</span>.
+                    </p>
+                    <p
+                        v-if="willResume"
+                        class="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-amber-700 dark:text-amber-400"
+                    >
+                        Heads up: your subscription is set to cancel on {{ subscription?.ends_at }}.
+                        Switching plans will <span class="font-medium">resume</span> it — it will renew instead of ending.
+                    </p>
+                </div>
+
+                <DialogFooter class="gap-2 sm:gap-2">
+                    <Button variant="outline" :disabled="swapping" @click="confirmOpen = false">Cancel</Button>
+                    <Button :disabled="swapping" @click="confirmSwap">
+                        {{ swapping ? 'Switching…' : `Switch to ${pending?.label}` }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <!-- Invoices -->
         <div v-if="invoices.length" class="rounded-xl border border-border">
