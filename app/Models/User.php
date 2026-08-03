@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Billable;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
@@ -82,5 +83,37 @@ class User extends Authenticatable implements PasskeyUser
     public function hasPremium(): bool
     {
         return (bool) ($this->planConfig()['premium'] ?? false);
+    }
+
+    /**
+     * When an account is deleted, end any live Stripe subscription (so a
+     * deleted account is never billed again) and clean up local billing
+     * records and API keys. A billing failure must never block the deletion.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (self $user): void {
+            try {
+                foreach ($user->subscriptions as $subscription) {
+                    if ($subscription->active()) {
+                        $subscription->cancelNow();
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::error('Failed to cancel Stripe subscription on account deletion', [
+                    'user_id' => $user->getKey(),
+                    'stripe_id' => $user->stripe_id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+
+            // Remove local billing records and API keys tied to the account.
+            foreach ($user->subscriptions()->get() as $subscription) {
+                $subscription->items()->delete();
+                $subscription->delete();
+            }
+
+            $user->tokens()->delete();
+        });
     }
 }
