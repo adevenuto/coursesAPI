@@ -62,15 +62,16 @@ function infoHtml(c: MapCourse): string {
 onMounted(async () => {
     if (typeof window === 'undefined' || !props.mapsKey) return;
     try {
-        const [{ Loader }, clustererMod] = await Promise.all([
+        const [loaderMod, clustererMod] = await Promise.all([
             import('@googlemaps/js-api-loader'),
             import('@googlemaps/markerclusterer'),
         ]);
         MarkerClusterer = clustererMod.MarkerClusterer;
 
-        const loader = new Loader({ apiKey: props.mapsKey, version: 'weekly' });
-        await loader.importLibrary('maps');
-        await loader.importLibrary('marker');
+        // js-api-loader v2: functional API (setOptions + importLibrary).
+        loaderMod.setOptions({ key: props.mapsKey, v: 'weekly' });
+        await loaderMod.importLibrary('maps');
+        await loaderMod.importLibrary('marker');
         g = (window as any).google;
 
         map = new g.maps.Map(el.value, {
@@ -85,7 +86,8 @@ onMounted(async () => {
         info = new g.maps.InfoWindow();
         loading.value = false;
         render();
-    } catch {
+    } catch (e) {
+        console.error('[CoursesMap] Google Maps failed to load', e);
         failed.value = true;
         loading.value = false;
     }
