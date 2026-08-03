@@ -6,15 +6,15 @@ const cols = [
     {
         title: 'Product',
         links: [
-            { label: 'Features', href: '#features' },
-            { label: 'Endpoints', href: '#endpoints' },
-            { label: 'Pricing', href: '#pricing' },
+            { label: 'Features', href: '/#features' },
+            { label: 'Endpoints', href: '/#endpoints' },
+            { label: 'Pricing', href: '/#pricing' },
         ],
     },
     {
         title: 'Developers',
         links: [
-            { label: 'Documentation', href: '#endpoints' },
+            { label: 'Documentation', href: '/docs' },
             { label: 'Status', href: '#' },
             { label: 'Changelog', href: '#' },
         ],

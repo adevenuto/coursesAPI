@@ -114,7 +114,7 @@ const { copy, copied } = useClipboard({ source: () => snippet });
                     <Link href="/#pricing"><Crown class="size-4" /> Upgrade plan</Link>
                 </Button>
                 <Button as-child variant="outline" class="justify-start">
-                    <a href="/#endpoints"><BookOpen class="size-4" /> Read the docs</a>
+                    <a href="/docs"><BookOpen class="size-4" /> Read the docs</a>
                 </Button>
                 <p v-if="keys.recent" class="mt-1 text-xs text-muted-foreground">
                     <KeyRound class="mr-1 inline size-3" />Most recent: <span class="font-medium text-foreground">{{ keys.recent.name }}</span> · last used {{ keys.recent.last_used_at ?? 'never' }}
