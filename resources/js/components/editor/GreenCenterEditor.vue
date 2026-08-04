@@ -82,13 +82,16 @@ function clearHole(hole: number) {
                     {{ setCount }}/{{ holes.length }} placed
                 </p>
                 <div class="max-h-[60vh] space-y-1 overflow-y-auto pr-1">
-                    <button
+                    <div
                         v-for="h in holes"
                         :key="h"
-                        type="button"
-                        class="flex w-full cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition"
+                        role="button"
+                        tabindex="0"
+                        class="flex w-full cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition focus:outline-none focus-visible:border-line-lime"
                         :class="activeHole === h ? 'border-line-lime bg-ink-800 text-fg' : 'border-line text-fg-muted hover:text-fg'"
                         @click="activeHole = h"
+                        @keydown.enter="activeHole = h"
+                        @keydown.space.prevent="activeHole = h"
                     >
                         <span
                             class="grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-bold"
@@ -106,13 +109,13 @@ function clearHole(hole: number) {
                         <button
                             v-if="greenFor(h)"
                             type="button"
-                            class="shrink-0 text-fg-subtle hover:text-destructive"
+                            class="shrink-0 cursor-pointer text-fg-subtle hover:text-destructive"
                             aria-label="Clear hole"
                             @click.stop="clearHole(h)"
                         >
                             <X class="size-3.5" />
                         </button>
-                    </button>
+                    </div>
                 </div>
                 <p class="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
                     <MapPin class="size-3.5 text-lime-500" />
