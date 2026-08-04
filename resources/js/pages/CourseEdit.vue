@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import TeeboxEditor from '@/components/editor/TeeboxEditor.vue';
+import GreenCenterEditor from '@/components/editor/GreenCenterEditor.vue';
 
 interface Hole {
     hole: number;
@@ -183,10 +184,20 @@ function destroy() {
                     </div>
                 </section>
 
-                <!-- Green centers (Checkpoint 4) -->
+                <!-- Green centers -->
                 <section class="ds-card p-6">
                     <h2 class="font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase">Green centers</h2>
-                    <p class="mt-3 text-sm text-fg-subtle">{{ form.green_centers.length }} hole(s) mapped. Map editor loads next.</p>
+                    <p class="mt-1 text-xs text-fg-subtle">Place the center of each hole's green on the satellite map.</p>
+                    <InputError class="mt-1" :message="form.errors.green_centers" />
+                    <div class="mt-4">
+                        <GreenCenterEditor
+                            v-model="form.green_centers"
+                            :maps-key="mapsKey"
+                            :lat="form.lat"
+                            :lng="form.lng"
+                            :hole-count="form.hole_count"
+                        />
+                    </div>
                 </section>
             </div>
         </div>
