@@ -82,6 +82,7 @@ onMounted(async () => {
             zoomControl: true,
             backgroundColor: '#0a0b0a',
             minZoom: 2,
+            gestureHandling: 'greedy', // scroll-wheel zoom without holding Cmd/Ctrl
         });
         info = new g.maps.InfoWindow();
         loading.value = false;
