@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\State;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class CourseWriteTest extends TestCase
@@ -145,5 +146,43 @@ class CourseWriteTest extends TestCase
     {
         $user = User::factory()->create(['plan' => 'pro', 'role' => 'user']);
         $this->actingAs($user)->post('/courses', $this->payload())->assertForbidden();
+    }
+
+    public function test_editor_can_delete_a_course(): void
+    {
+        $course = Course::create(['course_name' => 'Doomed', 'lat' => 1, 'lng' => 1, 'layout_data' => []]);
+
+        $this->actingAs($this->editor())
+            ->delete("/courses/{$course->id}")
+            ->assertRedirect(route('explorer'));
+
+        $this->assertModelMissing($course);
+    }
+
+    public function test_edit_serialization_preserves_teebox_color(): void
+    {
+        $course = Course::create([
+            'course_name' => 'Colory', 'lat' => 1, 'lng' => 1,
+            'layout_data' => [
+                'hole_count' => 18,
+                'teeboxes' => [[
+                    'order' => 0, 'name' => 'Blue', 'color' => '#1565C0',
+                    'slope' => 128, 'courseRating' => 71.5, 'totalYardage' => 6500,
+                    'holes' => ['hole-1' => ['par' => '4', 'length' => '410', 'handicap' => 5]],
+                ]],
+                'greenCenters' => ['hole-1' => ['lat' => 1.001, 'lng' => 1.001]],
+            ],
+        ]);
+
+        $this->actingAs($this->editor())
+            ->get("/courses/{$course->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('CourseEdit')
+                ->where('mode', 'edit')
+                ->where('course.teeboxes.0.color', '#1565C0')
+                ->where('course.teeboxes.0.holes.0.par', 4) // forEditor normalizes to int
+                ->where('course.green_centers.0.hole', 1),
+            );
     }
 }
