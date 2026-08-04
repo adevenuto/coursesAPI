@@ -17,6 +17,7 @@ const props = defineProps<{
     mapsKey: string;
     courses: MapCourse[];
     bounds: { min_lat: number; max_lat: number; min_lng: number; max_lng: number } | null;
+    circle?: { lat: number; lng: number; radiusMeters: number } | null;
 }>();
 
 const el = ref<HTMLElement | null>(null);
@@ -29,6 +30,7 @@ let g: any = null;
 let map: any = null;
 let clusterer: any = null;
 let info: any = null;
+let circleObj: any = null;
 let markers: any[] = [];
 let MarkerClusterer: any = null;
 
@@ -94,48 +96,66 @@ onMounted(async () => {
     }
 });
 
-function clear() {
+function clearMarkers() {
     if (clusterer) clusterer.clearMarkers();
     markers.forEach((m) => m.setMap(null));
     markers = [];
 }
 
+function drawCircle() {
+    if (circleObj) {
+        circleObj.setMap(null);
+        circleObj = null;
+    }
+    if (props.circle && map && g) {
+        circleObj = new g.maps.Circle({
+            map,
+            center: { lat: props.circle.lat, lng: props.circle.lng },
+            radius: props.circle.radiusMeters,
+            strokeColor: '#8ae63c',
+            strokeOpacity: 0.5,
+            strokeWeight: 1.5,
+            fillColor: '#8ae63c',
+            fillOpacity: 0.07,
+            clickable: false,
+        });
+    }
+}
+
 function render() {
     if (!map || !g) return;
-    clear();
+    clearMarkers();
+    drawCircle();
 
-    if (!props.courses.length) {
-        map.setCenter({ lat: 24, lng: 4 });
-        map.setZoom(2);
-        return;
+    if (props.courses.length) {
+        markers = props.courses.map((c) => {
+            const marker = new g.maps.Marker({
+                position: { lat: c.lat, lng: c.lng },
+                icon: {
+                    path: g.maps.SymbolPath.CIRCLE,
+                    scale: 6,
+                    fillColor: '#8ae63c',
+                    fillOpacity: 1,
+                    strokeColor: '#0a1400',
+                    strokeWeight: 1.4,
+                },
+            });
+            marker.addListener('click', () => {
+                info.setContent(infoHtml(c));
+                info.open({ anchor: marker, map });
+            });
+            return marker;
+        });
+        clusterer = new MarkerClusterer({ map, markers });
     }
 
-    markers = props.courses.map((c) => {
-        const marker = new g.maps.Marker({
-            position: { lat: c.lat, lng: c.lng },
-            icon: {
-                path: g.maps.SymbolPath.CIRCLE,
-                scale: 6,
-                fillColor: '#8ae63c',
-                fillOpacity: 1,
-                strokeColor: '#0a1400',
-                strokeWeight: 1.4,
-            },
-        });
-        marker.addListener('click', () => {
-            info.setContent(infoHtml(c));
-            info.open({ anchor: marker, map });
-        });
-        return marker;
-    });
-
-    clusterer = new MarkerClusterer({ map, markers });
-
-    // Zoom the map to the area.
-    if (props.bounds) {
+    // Zoom: a circle (radius search) frames the whole radius; otherwise fit the
+    // course set; otherwise a single point / the default world view.
+    if (circleObj) {
+        map.fitBounds(circleObj.getBounds(), 24);
+    } else if (props.courses.length && props.bounds) {
         const { min_lat, max_lat, min_lng, max_lng } = props.bounds;
-        const singlePoint = min_lat === max_lat && min_lng === max_lng;
-        if (singlePoint || props.courses.length === 1) {
+        if ((min_lat === max_lat && min_lng === max_lng) || props.courses.length === 1) {
             map.setCenter({ lat: min_lat, lng: min_lng });
             map.setZoom(12);
         } else {
@@ -144,13 +164,18 @@ function render() {
                 48,
             );
         }
+    } else if (!props.courses.length) {
+        map.setCenter({ lat: 24, lng: 4 });
+        map.setZoom(2);
     }
 }
 
-watch(() => props.courses, () => render());
+watch([() => props.courses, () => props.circle], () => render());
 
 onBeforeUnmount(() => {
-    clear();
+    clearMarkers();
+    if (circleObj) circleObj.setMap(null);
+    circleObj = null;
     clusterer = null;
     map = null;
 });

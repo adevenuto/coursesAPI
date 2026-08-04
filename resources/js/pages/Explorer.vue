@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
 import { MapPinned } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
@@ -9,6 +10,7 @@ import GlowBadge from '@/components/marketing/GlowBadge.vue';
 import CourseSearch from '@/components/explorer/CourseSearch.vue';
 import ResultsList from '@/components/explorer/ResultsList.vue';
 import CoursesMap from '@/components/explorer/CoursesMap.vue';
+import RadiusControl from '@/components/explorer/RadiusControl.vue';
 
 interface Hit {
     id: number;
@@ -16,6 +18,14 @@ interface Hit {
     name?: string;
     label?: string;
     url: string;
+}
+
+interface Area {
+    type: string;
+    name: string;
+    label: string;
+    radius_mi?: number;
+    center?: { lat: number; lng: number };
 }
 
 const props = defineProps<{
@@ -29,40 +39,86 @@ const props = defineProps<{
     baseUrl: string;
 }>();
 
-const area = ref<{ type: string; name: string; label: string } | null>(null);
-const courses = ref<Array<{ id: number; name: string; club: string | null; city: string | null; state: string | null; url: string }>>([]);
+const area = ref<Area | null>(null);
+const courses = ref<Array<{ id: number; name: string; club: string | null; city: string | null; state: string | null; distance_mi?: number; url: string }>>([]);
 const count = ref(0);
 const capped = ref(false);
-const loading = ref(false);
-// Stashed for Part 2 (map zoom-to-bounds).
+const loading = ref(false); // initial skeleton
+const refreshing = ref(false); // in-place refresh (radius toggle/slider)
 const bounds = ref<{ min_lat: number; max_lat: number; min_lng: number; max_lng: number } | null>(null);
 
-async function onSelect(hit: Hit) {
-    // A course goes straight to its detail page.
-    if (hit.type === 'course') {
-        router.visit(hit.url);
-        return;
+// Radius search (city selections only).
+const selected = ref<Hit | null>(null);
+const radiusOn = ref(false);
+const radiusMiles = ref(25);
+const center = ref<{ lat: number; lng: number } | null>(null);
+let reqToken = 0;
+
+const mapCircle = computed(() =>
+    radiusOn.value && center.value
+        ? { lat: center.value.lat, lng: center.value.lng, radiusMeters: radiusMiles.value * 1609.34 }
+        : null,
+);
+
+async function loadArea(refresh: boolean) {
+    const hit = selected.value;
+    if (!hit) return;
+
+    const useRadius = radiusOn.value && hit.type === 'city';
+    const url = useRadius ? `${hit.url}?radius=${radiusMiles.value}` : hit.url;
+    const token = ++reqToken;
+
+    if (refresh) {
+        refreshing.value = true;
+    } else {
+        loading.value = true;
+        area.value = null;
     }
 
-    // A geo loads that area's courses (and bounds for the map).
-    loading.value = true;
-    area.value = null;
     try {
-        const res = await fetch(hit.url, { headers: { Accept: 'application/json' } });
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
         const data = await res.json();
+        if (token !== reqToken) return; // a newer request won
         area.value = data.area;
         courses.value = data.courses ?? [];
         count.value = data.count ?? 0;
         capped.value = !!data.capped;
         bounds.value = data.bounds ?? null;
+        center.value = data.area?.center ?? null;
     } catch {
-        area.value = { type: hit.type, name: hit.name ?? '', label: hit.label ?? '' };
-        courses.value = [];
-        count.value = 0;
+        if (token !== reqToken) return;
+        if (!refresh) {
+            area.value = { type: hit.type, name: hit.name ?? '', label: hit.label ?? '' };
+            courses.value = [];
+            count.value = 0;
+        }
     } finally {
-        loading.value = false;
+        if (token === reqToken) {
+            loading.value = false;
+            refreshing.value = false;
+        }
     }
 }
+
+function onSelect(hit: Hit) {
+    // A course goes straight to its detail page.
+    if (hit.type === 'course') {
+        router.visit(hit.url);
+        return;
+    }
+    selected.value = hit;
+    loadArea(false);
+}
+
+// Toggling nearby refetches immediately; the slider is debounced so dragging
+// doesn't spam the endpoint.
+watch(radiusOn, () => {
+    if (selected.value?.type === 'city') loadArea(true);
+});
+const refetchForRadius = useDebounceFn(() => {
+    if (radiusOn.value && selected.value?.type === 'city') loadArea(true);
+}, 250);
+watch(radiusMiles, refetchForRadius);
 </script>
 
 <template>
@@ -73,7 +129,7 @@ async function onSelect(hit: Hit) {
     <MarketingLayout>
         <MarketingNav />
 
-        <div class="mx-auto max-w-[1280px] px-5 pt-10 pb-16 sm:px-7">
+        <div class="mx-auto max-w-[1120px] px-5 pt-10 pb-16 sm:px-7">
             <div class="mb-8">
                 <GlowBadge>Explorer</GlowBadge>
                 <h1 class="mt-4 font-display text-3xl font-bold tracking-tight text-fg sm:text-4xl" style="letter-spacing: -0.02em">
@@ -97,12 +153,19 @@ async function onSelect(hit: Hit) {
                 <!-- left: search + results -->
                 <div class="flex flex-col gap-5">
                     <CourseSearch :algolia="algolia" @select="onSelect" />
+                    <RadiusControl
+                        v-if="area?.type === 'city'"
+                        v-model:enabled="radiusOn"
+                        v-model:miles="radiusMiles"
+                        :city="area.name"
+                    />
                     <ResultsList
                         :area="area"
                         :courses="courses"
                         :count="count"
                         :capped="capped"
                         :loading="loading"
+                        :refreshing="refreshing"
                     />
                 </div>
 
@@ -113,6 +176,7 @@ async function onSelect(hit: Hit) {
                         :maps-key="maps.key"
                         :courses="courses"
                         :bounds="bounds"
+                        :circle="mapCircle"
                     />
                     <template v-else>
                         <div class="aurora absolute inset-0 opacity-40" />
