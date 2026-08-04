@@ -76,7 +76,7 @@ onMounted(async () => {
             center: hasStart ? { lat: startLat!, lng: startLng! } : { lat: 39.8, lng: -98.6 },
             zoom: hasStart ? 16 : 4,
             mapTypeId: 'hybrid',
-            gestureHandling: 'greedy',
+            gestureHandling: 'cooperative', // plain scroll pages; Cmd/Ctrl+scroll zooms
             disableDefaultUI: true,
             zoomControl: true,
             tilt: 0,

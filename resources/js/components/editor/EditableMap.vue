@@ -76,7 +76,7 @@ onMounted(async () => {
             center: { lat: props.lat, lng: props.lng },
             zoom: 16,
             mapTypeId: 'hybrid', // satellite + labels so greens are visible
-            gestureHandling: 'greedy',
+            gestureHandling: 'cooperative', // plain scroll pages; Cmd/Ctrl+scroll zooms
             disableDefaultUI: true,
             zoomControl: true,
             tilt: 0,
