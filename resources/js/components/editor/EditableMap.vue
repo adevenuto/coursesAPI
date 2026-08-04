@@ -63,6 +63,19 @@ function renderMarkers() {
     }
 }
 
+// On load, frame the already-placed greens (single point → just center in).
+function fitToGreens() {
+    if (!map || !g || !props.greens.length) return;
+    if (props.greens.length === 1) {
+        map.setCenter({ lat: props.greens[0].lat, lng: props.greens[0].lng });
+        map.setZoom(17);
+        return;
+    }
+    const bounds = new g.maps.LatLngBounds();
+    props.greens.forEach((green) => bounds.extend({ lat: green.lat, lng: green.lng }));
+    map.fitBounds(bounds, 60);
+}
+
 onMounted(async () => {
     if (typeof window === 'undefined' || !props.mapsKey) return;
     try {
@@ -85,6 +98,7 @@ onMounted(async () => {
 
         loading.value = false;
         renderMarkers();
+        fitToGreens(); // frame existing greens on open (no-op when none placed)
     } catch (e) {
         console.error('[EditableMap] Google Maps failed to load', e);
         failed.value = true;
