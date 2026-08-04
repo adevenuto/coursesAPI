@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
+import TeeboxEditor from '@/components/editor/TeeboxEditor.vue';
 
 interface Hole {
     hole: number;
@@ -173,10 +174,13 @@ function destroy() {
                     </p>
                 </section>
 
-                <!-- Teeboxes (Checkpoint 3) -->
+                <!-- Teeboxes -->
                 <section class="ds-card p-6">
                     <h2 class="font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase">Teeboxes &amp; scorecard</h2>
-                    <p class="mt-3 text-sm text-fg-subtle">{{ form.teeboxes.length }} teebox(es). Editor loads next.</p>
+                    <InputError class="mt-1" :message="form.errors.teeboxes" />
+                    <div class="mt-4">
+                        <TeeboxEditor v-model="form.teeboxes" v-model:hole-count="form.hole_count" />
+                    </div>
                 </section>
 
                 <!-- Green centers (Checkpoint 4) -->
