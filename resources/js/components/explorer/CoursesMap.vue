@@ -82,6 +82,7 @@ onMounted(async () => {
             zoomControl: true,
             backgroundColor: '#0a0b0a',
             minZoom: 2,
+            maxZoom: 15, // don't dive in past street level
         });
         info = new g.maps.InfoWindow();
         loading.value = false;

@@ -99,6 +99,9 @@ function go(next: number) {
                     </span>
                     <span class="min-w-0 flex-1">
                         <span class="block truncate text-sm font-medium text-fg">{{ course.name }}</span>
+                        <span v-if="course.club && course.club !== course.name" class="block truncate text-xs text-fg-muted">
+                            {{ course.club }}
+                        </span>
                         <span class="flex items-center gap-1 text-xs text-fg-subtle">
                             <MapPin class="size-3 shrink-0" />
                             <span class="truncate">{{ [course.city, course.state].filter(Boolean).join(', ') || '—' }}</span>
