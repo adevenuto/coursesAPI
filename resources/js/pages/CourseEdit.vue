@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed, nextTick, onMounted } from 'vue';
-import { ArrowLeft, ExternalLink, Save, Trash2 } from '@lucide/vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
+import { ArrowLeft, ExternalLink, History, Save, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,16 +47,26 @@ interface EditorCourse {
     teeboxes: Teebox[];
     green_centers: GreenCenter[];
     location?: { city: string | null; state: string | null; country: string | null };
+    last_editor?: { name: string | null; at: string | null } | null;
+}
+interface Revision {
+    user: string;
+    action: string;
+    changes: Array<{ label: string; detail: string }>;
+    at: string | null;
 }
 
 const props = defineProps<{
     mode: 'create' | 'edit';
     course: EditorCourse | null;
     mapsKey: string | null;
+    history?: Revision[];
 }>();
 
 const c = props.course;
 const isEdit = computed(() => props.mode === 'edit');
+const lastEditor = computed(() => props.course?.last_editor ?? null);
+const showHistory = ref(false);
 
 const form = useForm({
     course_name: c?.course_name ?? '',
@@ -128,8 +139,14 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                     <p v-if="c?.location" class="mt-1 text-sm text-fg-subtle">
                         {{ [c.location.city, c.location.state, c.location.country].filter(Boolean).join(', ') || 'Location set from coordinates on save' }}
                     </p>
+                    <p v-if="lastEditor" class="mt-0.5 text-xs text-fg-subtle">
+                        Last edited by <span class="text-fg-muted">{{ lastEditor.name || 'someone' }}</span> · {{ lastEditor.at }}
+                    </p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
+                    <Button v-if="isEdit" type="button" variant="ghost" size="sm" @click="showHistory = true">
+                        <History class="size-4" /> History
+                    </Button>
                     <a
                         v-if="isEdit && course"
                         :href="`/courses/${course.id}`"
@@ -146,6 +163,36 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                     </Button>
                 </div>
             </div>
+
+            <!-- Edit history -->
+            <Dialog v-model:open="showHistory">
+                <DialogContent class="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Edit history</DialogTitle>
+                        <DialogDescription>Recent changes to this course.</DialogDescription>
+                    </DialogHeader>
+                    <div class="max-h-[60vh] space-y-3 overflow-y-auto">
+                        <p v-if="!history || !history.length" class="py-6 text-center text-sm text-fg-subtle">
+                            No edits recorded yet.
+                        </p>
+                        <div v-for="(rev, i) in history" :key="i" class="rounded-lg border border-line p-3">
+                            <div class="flex items-center justify-between gap-2 text-sm">
+                                <span class="font-medium text-fg">{{ rev.user }}</span>
+                                <span class="font-mono text-xs text-fg-subtle">{{ rev.action }} · {{ rev.at }}</span>
+                            </div>
+                            <div v-if="rev.changes.length" class="mt-2 flex flex-wrap gap-1.5">
+                                <span
+                                    v-for="(ch, j) in rev.changes"
+                                    :key="j"
+                                    class="rounded-full border border-line px-2 py-0.5 text-xs text-fg-muted"
+                                >
+                                    <span class="text-fg-subtle">{{ ch.label }}:</span> {{ ch.detail }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <div class="mt-8 space-y-6">
                 <!-- Details -->

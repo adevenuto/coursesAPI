@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 
@@ -41,6 +42,16 @@ class Course extends Model
     public function country(): BelongsTo
     {
         return $this->belongsTo(Country::class);
+    }
+
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(CourseRevision::class)->latest('created_at');
     }
 
     // ---- Derived data (from layout_data) -----------------------------------
@@ -171,6 +182,9 @@ class Course extends Model
                 'state' => $this->state?->name,
                 'country' => $this->country?->name,
             ],
+            'last_editor' => $this->updated_by
+                ? ['name' => $this->updatedBy?->name, 'at' => $this->updated_at?->diffForHumans()]
+                : null,
         ];
     }
 
