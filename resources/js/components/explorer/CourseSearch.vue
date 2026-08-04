@@ -8,6 +8,7 @@ interface Hit {
     id: number;
     type: 'course' | 'city' | 'state' | 'country';
     name?: string;
+    club?: string;
     label?: string;
     city?: string;
     state?: string;
@@ -140,7 +141,14 @@ function onKeydown(e: KeyboardEvent) {
 function highlighted(hit: Hit): string {
     const hr = hit._highlightResult ?? {};
     if (hit.type === 'course') {
-        return hr.name?.value || hr.club?.value || hit.name || '';
+        const name = hr.name?.value || hit.name || '';
+        const club = hr.club?.value || hit.club || '';
+        // Lead with the club for context; append the course when it differs
+        // (e.g. "Cog Hill · 2", "Cantigny Golf · Woodside/Lakeside").
+        if (club && hit.club !== hit.name) {
+            return name ? `${club} <span class="sep">·</span> ${name}` : club;
+        }
+        return name || club;
     }
     return hr.label?.value || hit.label || hit.name || '';
 }
@@ -213,6 +221,12 @@ const flatIndex = (g: number, h: number) =>
 }
 .no-scrollbar::-webkit-scrollbar {
     display: none; /* Chrome, Safari */
+}
+
+/* Muted separator between club and course name. */
+.hl :deep(.sep) {
+    color: var(--fg-subtle);
+    padding: 0 2px;
 }
 
 /* Algolia wraps matched text in <em>; tint it lime instead of italic. */
