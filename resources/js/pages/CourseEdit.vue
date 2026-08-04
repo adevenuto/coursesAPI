@@ -73,6 +73,13 @@ const form = useForm({
 
 const title = computed(() => (isEdit.value ? c?.course_name || 'Edit course' : 'New course'));
 
+// Normalize the website for the "open" link (accept bare domains too).
+const websiteHref = computed(() => {
+    const w = String(form.website ?? '').trim();
+    if (!w) return '';
+    return /^https?:\/\//i.test(w) ? w : `https://${w}`;
+});
+
 function save() {
     if (isEdit.value && props.course) {
         form.put(`/courses/${props.course.id}`, { preserveScroll: true });
@@ -151,7 +158,19 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                         </div>
                         <div>
                             <Label for="website">Website</Label>
-                            <Input id="website" v-model="form.website" class="mt-1" placeholder="https://…" />
+                            <div class="relative mt-1">
+                                <Input id="website" v-model="form.website" class="pr-9" placeholder="https://…" />
+                                <a
+                                    v-if="websiteHref"
+                                    :href="websiteHref"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="absolute top-1/2 right-2.5 -translate-y-1/2 text-fg-subtle transition hover:text-lime-500"
+                                    aria-label="Open website in a new tab"
+                                >
+                                    <ExternalLink class="size-4" />
+                                </a>
+                            </div>
                             <InputError class="mt-1" :message="form.errors.website" />
                         </div>
                         <div class="sm:col-span-2">
