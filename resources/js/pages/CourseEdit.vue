@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, nextTick, onMounted } from 'vue';
 import { ArrowLeft, ExternalLink, Save, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
@@ -71,6 +71,10 @@ const form = useForm({
     green_centers: (c?.green_centers ?? []) as GreenCenter[],
 });
 
+// Child editors normalize their data on mount (e.g. reconciling holes); reset
+// the dirty baseline afterwards so Save starts disabled until a real change.
+onMounted(() => nextTick(() => form.defaults()));
+
 const title = computed(() => (isEdit.value ? c?.course_name || 'Edit course' : 'New course'));
 
 // Normalize the website for the "open" link (accept bare domains too).
@@ -81,10 +85,12 @@ const websiteHref = computed(() => {
 });
 
 function save() {
+    // Reset the dirty baseline on success so Save disables again.
+    const opts = { preserveScroll: true, onSuccess: () => form.defaults() };
     if (isEdit.value && props.course) {
-        form.put(`/courses/${props.course.id}`, { preserveScroll: true });
+        form.put(`/courses/${props.course.id}`, opts);
     } else {
-        form.post('/courses', { preserveScroll: true });
+        form.post('/courses', opts);
     }
 }
 
@@ -116,7 +122,7 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
             </Link>
 
             <!-- sticky action bar -->
-            <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="sticky top-16 z-30 -mx-5 mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-line bg-ink-900/85 px-5 py-3 backdrop-blur sm:-mx-7 sm:px-7">
                 <div class="min-w-0">
                     <h1 class="truncate font-display text-2xl font-bold tracking-tight text-fg sm:text-3xl">{{ title }}</h1>
                     <p v-if="c?.location" class="mt-1 text-sm text-fg-subtle">
@@ -135,7 +141,7 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                     <Button v-if="isEdit" type="button" variant="ghost" class="text-destructive" @click="destroy">
                         <Trash2 class="size-4" /> Delete
                     </Button>
-                    <Button type="button" :disabled="form.processing" @click="save">
+                    <Button type="button" :disabled="!form.isDirty || form.processing" @click="save">
                         <Save class="size-4" /> {{ form.processing ? 'Saving…' : 'Save' }}
                     </Button>
                 </div>
