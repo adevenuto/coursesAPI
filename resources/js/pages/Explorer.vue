@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
-import { MapPinned } from '@lucide/vue';
+import { MapPinned, Plus } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import MarketingFooter from '@/components/marketing/MarketingFooter.vue';
@@ -36,6 +36,7 @@ const props = defineProps<{
         indices: { courses: string; cities: string; states: string; countries: string };
     };
     maps: { key: string; configured: boolean };
+    canEdit: boolean;
     baseUrl: string;
 }>();
 
@@ -101,9 +102,9 @@ async function loadArea(refresh: boolean) {
 }
 
 function onSelect(hit: Hit) {
-    // A course goes straight to its detail page.
+    // A course goes to its detail page — or straight to the editor for editors.
     if (hit.type === 'course') {
-        router.visit(hit.url);
+        router.visit(props.canEdit ? `/courses/${hit.id}/edit` : hit.url);
         return;
     }
     selected.value = hit;
@@ -130,14 +131,24 @@ watch(radiusMiles, refetchForRadius);
         <MarketingNav />
 
         <div class="mx-auto max-w-[1120px] px-5 pt-10 pb-16 sm:px-7">
-            <div class="mb-8">
-                <GlowBadge>Explorer</GlowBadge>
-                <h1 class="mt-4 font-display text-3xl font-bold tracking-tight text-fg sm:text-4xl" style="letter-spacing: -0.02em">
-                    Find any course.
-                </h1>
-                <p class="mt-3 max-w-2xl text-fg-muted">
-                    Search 22,000+ courses by name, or jump to a city, state, or country to see everything in the area.
-                </p>
+            <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <GlowBadge>Explorer</GlowBadge>
+                        <span v-if="canEdit" class="ds-badge ds-badge--lime font-mono text-[10px] tracking-widest uppercase">Editor</span>
+                    </div>
+                    <h1 class="mt-4 font-display text-3xl font-bold tracking-tight text-fg sm:text-4xl" style="letter-spacing: -0.02em">
+                        Find any course.
+                    </h1>
+                    <p class="mt-3 max-w-2xl text-fg-muted">
+                        <template v-if="canEdit">Search to edit an existing course, or add a new one.</template>
+                        <template v-else>Search 22,000+ courses by name, or jump to a city, state, or country to see everything in the area.</template>
+                    </p>
+                </div>
+
+                <Link v-if="canEdit" href="/courses/create" class="ds-btn ds-btn--primary shrink-0 px-4 py-2.5 text-sm">
+                    <Plus class="size-4" /> New course
+                </Link>
             </div>
 
             <!-- not-configured (dev) state -->

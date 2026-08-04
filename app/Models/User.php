@@ -24,6 +24,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string $plan
+ * @property string $role
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -83,6 +84,27 @@ class User extends Authenticatable implements PasskeyUser
     public function hasPremium(): bool
     {
         return (bool) ($this->planConfig()['premium'] ?? false);
+    }
+
+    // ---- Roles -------------------------------------------------------------
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isEditor(): bool
+    {
+        return in_array($this->role, ['editor', 'admin'], true);
+    }
+
+    /**
+     * Course editing is for editors/admins; editors must also be on a paid
+     * plan (admins always qualify).
+     */
+    public function canEditCourses(): bool
+    {
+        return $this->isEditor() && ($this->hasPremium() || $this->isAdmin());
     }
 
     /**

@@ -118,6 +118,62 @@ class Course extends Model
         return $this->green_centers !== null;
     }
 
+    /**
+     * Full editable representation for the course editor — richer than the
+     * read accessors (keeps teebox color/secondaryColor, numeric hole values,
+     * and the green-center list). Order is implied by array position.
+     *
+     * @return array<string, mixed>
+     */
+    public function forEditor(): array
+    {
+        $data = is_array($this->layout_data) ? $this->layout_data : [];
+
+        $teeboxes = [];
+        foreach (($data['teeboxes'] ?? []) as $tb) {
+            $holes = [];
+            foreach (($tb['holes'] ?? []) as $key => $h) {
+                $holes[] = [
+                    'hole' => (int) preg_replace('/\D/', '', (string) $key),
+                    'par' => isset($h['par']) ? (int) $h['par'] : null,
+                    'length' => isset($h['length']) ? (int) $h['length'] : null,
+                    'handicap' => isset($h['handicap']) ? (int) $h['handicap'] : null,
+                ];
+            }
+            usort($holes, fn ($a, $b) => $a['hole'] <=> $b['hole']);
+
+            $teeboxes[] = [
+                'name' => $tb['name'] ?? '',
+                'color' => $tb['color'] ?? null,
+                'secondaryColor' => $tb['secondaryColor'] ?? null,
+                'courseRating' => isset($tb['courseRating']) ? (float) $tb['courseRating'] : null,
+                'slope' => isset($tb['slope']) ? (int) $tb['slope'] : null,
+                'totalYardage' => isset($tb['totalYardage']) ? (int) $tb['totalYardage'] : null,
+                'holes' => $holes,
+            ];
+        }
+
+        return [
+            'id' => $this->id,
+            'course_name' => $this->course_name,
+            'club_name' => $this->club_name,
+            'address' => $this->address,
+            'postal_code' => $this->postal_code,
+            'phone' => $this->phone,
+            'website' => $this->website,
+            'lat' => $this->lat,
+            'lng' => $this->lng,
+            'hole_count' => isset($data['hole_count']) ? (int) $data['hole_count'] : null,
+            'teeboxes' => $teeboxes,
+            'green_centers' => $this->green_centers ?? [],
+            'location' => [
+                'city' => $this->city?->name,
+                'state' => $this->state?->name,
+                'country' => $this->country?->name,
+            ],
+        ];
+    }
+
     // ---- Search (Algolia via Scout) ----------------------------------------
 
     /**

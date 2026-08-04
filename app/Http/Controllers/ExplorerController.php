@@ -38,6 +38,7 @@ class ExplorerController extends Controller
                 'key' => $mapsKey,
                 'configured' => filled($mapsKey),
             ],
+            'canEdit' => (bool) request()->user()?->canEditCourses(),
             'baseUrl' => rtrim((string) config('app.url'), '/'),
         ]);
     }

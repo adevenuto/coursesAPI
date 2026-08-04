@@ -15,6 +15,7 @@ createInertiaApp({
             case name === 'Docs':
             case name === 'Explorer':
             case name === 'CourseShow':
+            case name === 'CourseEdit':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
