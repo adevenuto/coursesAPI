@@ -41,12 +41,25 @@ const props = defineProps<{
 }>();
 
 const area = ref<Area | null>(null);
-const courses = ref<Array<{ id: number; name: string; club: string | null; city: string | null; state: string | null; distance_mi?: number; url: string }>>([]);
+const courses = ref<Array<{ id: number; name: string; club: string | null; city: string | null; state: string | null; lat: number; lng: number; distance_mi?: number; url: string }>>([]);
 const count = ref(0);
 const capped = ref(false);
 const loading = ref(false); // initial skeleton
 const refreshing = ref(false); // in-place refresh (radius toggle/slider)
 const bounds = ref<{ min_lat: number; max_lat: number; min_lng: number; max_lng: number } | null>(null);
+
+// Map ↔ list sync: current map viewport (for filtering) + hovered course.
+const viewport = ref<{ min_lat: number; max_lat: number; min_lng: number; max_lng: number } | null>(null);
+const hoveredId = ref<number | null>(null);
+
+// The list shows only the courses currently within the map viewport.
+const visibleCourses = computed(() => {
+    const v = viewport.value;
+    if (!v) return courses.value;
+    return courses.value.filter(
+        (c) => c.lat >= v.min_lat && c.lat <= v.max_lat && c.lng >= v.min_lng && c.lng <= v.max_lng,
+    );
+});
 
 // Radius search (city selections only).
 const selected = ref<Hit | null>(null);
@@ -64,6 +77,9 @@ const mapCircle = computed(() =>
 async function loadArea(refresh: boolean) {
     const hit = selected.value;
     if (!hit) return;
+
+    // Show all until the map re-fits and reports its new viewport.
+    viewport.value = null;
 
     const useRadius = radiusOn.value && hit.type === 'city';
     const url = useRadius ? `${hit.url}?radius=${radiusMiles.value}` : hit.url;
@@ -172,11 +188,14 @@ watch(radiusMiles, refetchForRadius);
                     />
                     <ResultsList
                         :area="area"
-                        :courses="courses"
+                        :courses="visibleCourses"
                         :count="count"
+                        :loaded="courses.length"
                         :capped="capped"
                         :loading="loading"
                         :refreshing="refreshing"
+                        :hovered-id="hoveredId"
+                        @hover="hoveredId = $event"
                     />
                 </div>
 
@@ -188,6 +207,9 @@ watch(radiusMiles, refetchForRadius);
                         :courses="courses"
                         :bounds="bounds"
                         :circle="mapCircle"
+                        :hovered-id="hoveredId"
+                        @viewport="viewport = $event"
+                        @marker-hover="hoveredId = $event"
                     />
                     <template v-else>
                         <div class="aurora absolute inset-0 opacity-40" />

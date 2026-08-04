@@ -18,6 +18,12 @@ const props = defineProps<{
     courses: MapCourse[];
     bounds: { min_lat: number; max_lat: number; min_lng: number; max_lng: number } | null;
     circle?: { lat: number; lng: number; radiusMeters: number } | null;
+    hoveredId?: number | null;
+}>();
+
+const emit = defineEmits<{
+    (e: 'viewport', bounds: { min_lat: number; max_lat: number; min_lng: number; max_lng: number }): void;
+    (e: 'marker-hover', id: number | null): void;
 }>();
 
 const el = ref<HTMLElement | null>(null);
@@ -32,7 +38,26 @@ let clusterer: any = null;
 let info: any = null;
 let circleObj: any = null;
 let markers: any[] = [];
+let markerById = new Map<number, any>();
+let lastHovered: number | null = null;
 let MarkerClusterer: any = null;
+
+const baseIcon = () => ({
+    path: g.maps.SymbolPath.CIRCLE,
+    scale: 6,
+    fillColor: '#8ae63c',
+    fillOpacity: 1,
+    strokeColor: '#0a1400',
+    strokeWeight: 1.4,
+});
+const hoverIcon = () => ({
+    path: g.maps.SymbolPath.CIRCLE,
+    scale: 9,
+    fillColor: '#b6f16e',
+    fillOpacity: 1,
+    strokeColor: '#0a1400',
+    strokeWeight: 1.6,
+});
 
 // A restrained dark style tuned to the ink canvas.
 const DARK_STYLE = [
@@ -87,6 +112,8 @@ onMounted(async () => {
             gestureHandling: 'greedy', // scroll-wheel zoom without holding Cmd/Ctrl
         });
         info = new g.maps.InfoWindow();
+        // Report the viewport whenever a pan/zoom settles (incl. fitBounds).
+        map.addListener('idle', emitViewport);
         loading.value = false;
         render();
     } catch (e) {
@@ -100,6 +127,17 @@ function clearMarkers() {
     if (clusterer) clusterer.clearMarkers();
     markers.forEach((m) => m.setMap(null));
     markers = [];
+    markerById.clear();
+    lastHovered = null;
+}
+
+function emitViewport() {
+    if (!map) return;
+    const b = map.getBounds();
+    if (!b) return;
+    const sw = b.getSouthWest();
+    const ne = b.getNorthEast();
+    emit('viewport', { min_lat: sw.lat(), max_lat: ne.lat(), min_lng: sw.lng(), max_lng: ne.lng() });
 }
 
 function drawCircle() {
@@ -131,22 +169,20 @@ function render() {
         markers = props.courses.map((c) => {
             const marker = new g.maps.Marker({
                 position: { lat: c.lat, lng: c.lng },
-                icon: {
-                    path: g.maps.SymbolPath.CIRCLE,
-                    scale: 6,
-                    fillColor: '#8ae63c',
-                    fillOpacity: 1,
-                    strokeColor: '#0a1400',
-                    strokeWeight: 1.4,
-                },
+                icon: props.hoveredId === c.id ? hoverIcon() : baseIcon(),
+                zIndex: props.hoveredId === c.id ? 1000 : 1,
             });
             marker.addListener('click', () => {
                 info.setContent(infoHtml(c));
                 info.open({ anchor: marker, map });
             });
+            marker.addListener('mouseover', () => emit('marker-hover', c.id));
+            marker.addListener('mouseout', () => emit('marker-hover', null));
+            markerById.set(c.id, marker);
             return marker;
         });
         clusterer = new MarkerClusterer({ map, markers });
+        lastHovered = props.hoveredId ?? null;
     }
 
     // Zoom: a circle (radius search) frames the whole radius; otherwise fit the
@@ -171,6 +207,26 @@ function render() {
 }
 
 watch([() => props.courses, () => props.circle], () => render());
+
+// Highlight the hovered course's marker (from the results list or the map).
+watch(() => props.hoveredId, (id) => {
+    if (!g) return;
+    if (lastHovered !== null && lastHovered !== id) {
+        const prev = markerById.get(lastHovered);
+        if (prev) {
+            prev.setIcon(baseIcon());
+            prev.setZIndex(1);
+        }
+    }
+    if (id != null) {
+        const curr = markerById.get(id);
+        if (curr) {
+            curr.setIcon(hoverIcon());
+            curr.setZIndex(1000);
+        }
+    }
+    lastHovered = id ?? null;
+});
 
 onBeforeUnmount(() => {
     clearMarkers();

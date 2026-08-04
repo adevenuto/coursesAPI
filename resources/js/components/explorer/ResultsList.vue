@@ -17,16 +17,22 @@ const props = defineProps<{
     area: { type: string; name: string; label: string; radius_mi?: number } | null;
     courses: ResultCourse[];
     count: number;
+    loaded?: number; // full loaded set size (courses is the map-visible subset)
     capped: boolean;
     loading: boolean;
     refreshing?: boolean;
+    hoveredId?: number | null;
 }>();
+
+const emit = defineEmits<{ (e: 'hover', id: number | null): void }>();
 
 const PER_PAGE = 20;
 const page = ref(1);
 const topAnchor = ref<HTMLElement | null>(null);
 
 const total = computed(() => props.courses.length);
+const loadedTotal = computed(() => props.loaded ?? props.courses.length);
+const filtered = computed(() => props.courses.length < loadedTotal.value);
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PER_PAGE)));
 const start = computed(() => (page.value - 1) * PER_PAGE);
 const paged = computed(() => props.courses.slice(start.value, start.value + PER_PAGE));
@@ -55,7 +61,10 @@ function go(next: number) {
                 <div class="min-w-0">
                     <h2 class="truncate font-display text-lg font-semibold text-fg">{{ area.label }}</h2>
                     <p class="mt-0.5 font-mono text-[11px] text-fg-subtle tabular-nums">
-                        <template v-if="area.radius_mi">
+                        <template v-if="filtered">
+                            {{ total.toLocaleString() }} in view · {{ count.toLocaleString() }} total
+                        </template>
+                        <template v-else-if="area.radius_mi">
                             {{ count.toLocaleString() }} course{{ count === 1 ? '' : 's' }} within {{ area.radius_mi }} mi<template v-if="capped"> · first {{ total.toLocaleString() }}</template>
                         </template>
                         <template v-else-if="capped">
@@ -96,6 +105,9 @@ function go(next: number) {
                     :key="course.id"
                     :href="course.url"
                     class="ds-card ds-card--hover flex items-center gap-3 p-4"
+                    :class="hoveredId === course.id ? 'bg-ink-800 ring-1 ring-line-lime' : ''"
+                    @mouseenter="emit('hover', course.id)"
+                    @mouseleave="emit('hover', null)"
                 >
                     <span class="ds-icon-tile shrink-0">
                         <Flag class="size-4 text-lime-500" />
@@ -119,7 +131,8 @@ function go(next: number) {
                 </Link>
             </div>
             <p v-else class="rounded-xl border border-line bg-ink-800 p-6 text-center text-sm text-fg-subtle">
-                No mapped courses in this area yet.
+                <template v-if="filtered">No courses in this map view — zoom out to see more.</template>
+                <template v-else>No mapped courses in this area yet.</template>
             </p>
         </template>
 
