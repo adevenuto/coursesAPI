@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import TeeboxEditor from '@/components/editor/TeeboxEditor.vue';
 import GreenCenterEditor from '@/components/editor/GreenCenterEditor.vue';
+import LocatorMap from '@/components/editor/LocatorMap.vue';
 
 interface Hole {
     hole: number;
@@ -158,6 +159,12 @@ function destroy() {
                             <Label for="phone">Phone</Label>
                             <Input id="phone" v-model="form.phone" class="mt-1" maxlength="50" />
                             <InputError class="mt-1" :message="form.errors.phone" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <Label>Location</Label>
+                            <div class="mt-1">
+                                <LocatorMap v-model:lat="form.lat" v-model:lng="form.lng" :maps-key="mapsKey" />
+                            </div>
                         </div>
                         <div>
                             <Label for="lat">Latitude *</Label>
