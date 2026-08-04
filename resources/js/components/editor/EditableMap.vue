@@ -95,6 +95,12 @@ onMounted(async () => {
 // Re-draw markers when greens or the active hole change.
 watch([() => props.greens, () => props.activeHole], renderMarkers, { deep: true });
 
+// Pan to a hole's green when it's selected (if it has one placed).
+watch(() => props.activeHole, (hole) => {
+    const green = props.greens.find((gc) => gc.hole === hole);
+    if (map && green) map.panTo({ lat: green.lat, lng: green.lng });
+});
+
 // Recenter if the course coordinates change materially and no greens exist yet.
 watch([() => props.lat, () => props.lng], ([lat, lng]) => {
     if (map && props.greens.length === 0) map.setCenter({ lat, lng });
