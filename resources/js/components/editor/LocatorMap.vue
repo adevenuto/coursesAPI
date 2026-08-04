@@ -7,6 +7,10 @@ const props = defineProps<{ mapsKey: string | null }>();
 const lat = defineModel<number | string | null>('lat');
 const lng = defineModel<number | string | null>('lng');
 
+const emit = defineEmits<{
+    (e: 'place', details: { address?: string; postal_code?: string; phone?: string; website?: string; name?: string }): void;
+}>();
+
 const el = ref<HTMLElement | null>(null);
 const searchInput = ref<HTMLInputElement | null>(null);
 const loading = ref(true);
@@ -80,14 +84,24 @@ onMounted(async () => {
         map.addListener('click', (e: any) => setLatLng(e.latLng.lat(), e.latLng.lng(), false));
         if (hasStart) placeMarker(startLat!, startLng!);
 
-        // Places search box → jump to an address/course.
+        // Places search box → jump to an address/course and pull its details.
         const ac = new placesLib.Autocomplete(searchInput.value, {
-            fields: ['geometry', 'name', 'formatted_address'],
+            fields: ['geometry', 'name', 'formatted_address', 'address_components', 'formatted_phone_number', 'website'],
         });
         ac.addListener('place_changed', () => {
             const place = ac.getPlace();
             const loc = place?.geometry?.location;
-            if (loc) setLatLng(loc.lat(), loc.lng(), true);
+            if (!loc) return;
+            setLatLng(loc.lat(), loc.lng(), true);
+
+            const postal = (place.address_components ?? []).find((comp: any) => comp.types?.includes('postal_code'))?.long_name;
+            emit('place', {
+                address: place.formatted_address || undefined,
+                postal_code: postal || undefined,
+                phone: place.formatted_phone_number || undefined,
+                website: place.website || undefined,
+                name: place.name || undefined,
+            });
         });
 
         loading.value = false;

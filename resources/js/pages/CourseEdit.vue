@@ -86,6 +86,15 @@ function destroy() {
         router.delete(`/courses/${props.course.id}`);
     }
 }
+
+// Selecting a place in the locator fills matching fields (only where the
+// place actually provides a value, so existing data is never blanked out).
+function onPlace(d: { address?: string; postal_code?: string; phone?: string; website?: string }) {
+    if (d.address) form.address = d.address;
+    if (d.postal_code) form.postal_code = d.postal_code;
+    if (d.phone) form.phone = d.phone;
+    if (d.website) form.website = d.website;
+}
 </script>
 
 <template>
@@ -163,7 +172,7 @@ function destroy() {
                         <div class="sm:col-span-2">
                             <Label>Location</Label>
                             <div class="mt-1">
-                                <LocatorMap v-model:lat="form.lat" v-model:lng="form.lng" :maps-key="mapsKey" />
+                                <LocatorMap v-model:lat="form.lat" v-model:lng="form.lng" :maps-key="mapsKey" @place="onPlace" />
                             </div>
                         </div>
                         <div>
