@@ -61,6 +61,15 @@ class Course extends Model
      *
      * @return array{hole_count:int|null,teeboxes:list<array<string,mixed>>}|null
      */
+    /**
+     * Public scorecard. Each teebox carries the men's rating/slope and per-hole
+     * handicap under the base keys, plus rating_women / slope_women / handicap_women
+     * siblings. Values may be stored as a scalar (men-only, the historical shape)
+     * or a [men, women] array; the *_women fields fall back to the men's value when
+     * a course has no distinct women's value, so a women's column always has a number.
+     *
+     * @return array<string, mixed>|null
+     */
     public function getScorecardAttribute(): ?array
     {
         $data = $this->layout_data;
@@ -76,15 +85,18 @@ class Course extends Model
                     'hole' => (int) preg_replace('/\D/', '', (string) $key),
                     'par' => isset($h['par']) ? (int) $h['par'] : null,
                     'yards' => isset($h['length']) ? (int) $h['length'] : null,
-                    'handicap' => isset($h['handicap']) ? (int) $h['handicap'] : null,
+                    'handicap' => isset($h['handicap']) ? (int) self::pickGender($h['handicap'], 'men') : null,
+                    'handicap_women' => isset($h['handicap']) ? (int) self::pickGender($h['handicap'], 'women') : null,
                 ];
             }
             usort($holes, fn ($a, $b) => $a['hole'] <=> $b['hole']);
 
             $teeboxes[] = [
                 'name' => $tb['name'] ?? null,
-                'rating' => isset($tb['courseRating']) ? (float) $tb['courseRating'] : null,
-                'slope' => isset($tb['slope']) ? (int) $tb['slope'] : null,
+                'rating' => isset($tb['courseRating']) ? (float) self::pickGender($tb['courseRating'], 'men') : null,
+                'rating_women' => isset($tb['courseRating']) ? (float) self::pickGender($tb['courseRating'], 'women') : null,
+                'slope' => isset($tb['slope']) ? (int) self::pickGender($tb['slope'], 'men') : null,
+                'slope_women' => isset($tb['slope']) ? (int) self::pickGender($tb['slope'], 'women') : null,
                 'total_yards' => isset($tb['totalYardage']) ? (int) $tb['totalYardage'] : null,
                 'holes' => $holes,
             ];
@@ -94,6 +106,28 @@ class Course extends Model
             'hole_count' => isset($data['hole_count']) ? (int) $data['hole_count'] : null,
             'teeboxes' => $teeboxes,
         ];
+    }
+
+    /**
+     * Pick the men's (index 0) or women's (index 1, falling back to men's) value
+     * from a gendered field. A plain scalar is treated as the men's value.
+     */
+    private static function pickGender(mixed $v, string $gender): mixed
+    {
+        if (! is_array($v)) {
+            return $v;
+        }
+
+        return $gender === 'women' ? ($v[1] ?? $v[0] ?? null) : ($v[0] ?? null);
+    }
+
+    /**
+     * The raw women's value (index 1) of a gendered field, or null when there
+     * is no distinct women's value (scalar men-only, or a one-element array).
+     */
+    private static function womenOf(mixed $v): mixed
+    {
+        return is_array($v) && isset($v[1]) ? $v[1] : null;
     }
 
     /**
@@ -175,21 +209,27 @@ class Course extends Model
         foreach (($data['teeboxes'] ?? []) as $tb) {
             $holes = [];
             foreach (($tb['holes'] ?? []) as $key => $h) {
+                $hcpWomen = self::womenOf($h['handicap'] ?? null);
                 $holes[] = [
                     'hole' => (int) preg_replace('/\D/', '', (string) $key),
                     'par' => isset($h['par']) ? (int) $h['par'] : null,
                     'length' => isset($h['length']) ? (int) $h['length'] : null,
-                    'handicap' => isset($h['handicap']) ? (int) $h['handicap'] : null,
+                    'handicap' => isset($h['handicap']) ? (int) self::pickGender($h['handicap'], 'men') : null,
+                    'handicapWomen' => $hcpWomen !== null ? (int) $hcpWomen : null,
                 ];
             }
             usort($holes, fn ($a, $b) => $a['hole'] <=> $b['hole']);
 
+            $ratingWomen = self::womenOf($tb['courseRating'] ?? null);
+            $slopeWomen = self::womenOf($tb['slope'] ?? null);
             $teeboxes[] = [
                 'name' => $tb['name'] ?? '',
                 'color' => $tb['color'] ?? null,
                 'secondaryColor' => $tb['secondaryColor'] ?? null,
-                'courseRating' => isset($tb['courseRating']) ? (float) $tb['courseRating'] : null,
-                'slope' => isset($tb['slope']) ? (int) $tb['slope'] : null,
+                'courseRating' => isset($tb['courseRating']) ? (float) self::pickGender($tb['courseRating'], 'men') : null,
+                'courseRatingWomen' => $ratingWomen !== null ? (float) $ratingWomen : null,
+                'slope' => isset($tb['slope']) ? (int) self::pickGender($tb['slope'], 'men') : null,
+                'slopeWomen' => $slopeWomen !== null ? (int) $slopeWomen : null,
                 'totalYardage' => isset($tb['totalYardage']) ? (int) $tb['totalYardage'] : null,
                 'holes' => $holes,
             ];

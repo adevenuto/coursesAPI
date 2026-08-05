@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Flag, Globe, MapPin, Navigation } from '@lucide/vue';
+import { ArrowLeft, Flag, Globe, MapPin, Navigation, Pencil } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import MarketingFooter from '@/components/marketing/MarketingFooter.vue';
@@ -23,7 +23,7 @@ interface Course {
     green_centers_available: boolean;
 }
 
-const props = defineProps<{ course: Course }>();
+const props = defineProps<{ course: Course; canEdit?: boolean }>();
 
 const place = [props.course.location.city, props.course.location.state, props.course.location.country?.name]
     .filter(Boolean)
@@ -52,6 +52,14 @@ const place = [props.course.location.city, props.course.location.state, props.co
                         <MapPin class="size-4" /> {{ place }}
                     </p>
                 </div>
+
+                <Link
+                    v-if="canEdit"
+                    :href="`/courses/${course.id}/edit`"
+                    class="ds-btn ds-btn--dark ml-auto shrink-0 gap-1.5 !px-3 !py-2 text-sm"
+                >
+                    <Pencil class="size-4" /> Edit
+                </Link>
             </div>
 
             <div class="mt-8 grid gap-4 sm:grid-cols-2">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue';
+import { nextTick, onMounted, watch } from 'vue';
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from '@lucide/vue';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,13 +9,16 @@ interface Hole {
     par: number | null;
     length: number | null;
     handicap: number | null;
+    handicapWomen: number | null;
 }
 interface Teebox {
     name: string;
     color: string | null;
     secondaryColor: string | null;
     courseRating: number | null;
+    courseRatingWomen: number | null;
     slope: number | null;
+    slopeWomen: number | null;
     totalYardage: number | null;
     holes: Hole[];
 }
@@ -32,13 +35,16 @@ const PRESETS = [
     { name: 'Green', color: '#15803D' },
     { name: 'Red', color: '#B91C1C' },
     { name: 'Silver', color: '#9CA3AF' },
+    { name: 'Purple', color: '#7E22CE' },
+    { name: 'Orange', color: '#EA580C' },
+    { name: 'Yellow', color: '#EAB308' },
 ];
 
 // Ensure each teebox has exactly holes 1..holeCount (preserving existing values).
 function reconcile(n: number) {
     for (const tee of teeboxes.value) {
         const byHole = new Map(tee.holes.map((h) => [h.hole, h]));
-        tee.holes = Array.from({ length: n }, (_, i) => byHole.get(i + 1) ?? { hole: i + 1, par: null, length: null, handicap: null });
+        tee.holes = Array.from({ length: n }, (_, i) => byHole.get(i + 1) ?? { hole: i + 1, par: null, length: null, handicap: null, handicapWomen: null });
     }
 }
 
@@ -54,9 +60,11 @@ function addTeebox() {
             color: null,
             secondaryColor: null,
             courseRating: null,
+            courseRatingWomen: null,
             slope: null,
+            slopeWomen: null,
             totalYardage: null,
-            holes: Array.from({ length: n }, (_, i) => ({ hole: i + 1, par: null, length: null, handicap: null })),
+            holes: Array.from({ length: n }, (_, i) => ({ hole: i + 1, par: null, length: null, handicap: null, handicapWomen: null })),
         },
     ];
 }
@@ -78,6 +86,17 @@ function applyPreset(tee: Teebox, p: { name: string; color: string }) {
     if (!tee.name) tee.name = p.name;
 }
 
+// Total yards is derived from the hole yards. It's recomputed only when the user
+// edits one of this teebox's yards (never on load) so a stored total isn't
+// clobbered until the yards are actually touched.
+function recomputeTotal(tee: Teebox) {
+    // nextTick so v-model.number has flushed the just-typed hole length first.
+    nextTick(() => {
+        const yards = tee.holes.reduce((sum, h) => sum + (Number(h.length) || 0), 0);
+        tee.totalYardage = yards > 0 ? yards : null;
+    });
+}
+
 // Par + handicap are course-constant; copy them from the first tee to the rest.
 function syncParHandicap() {
     const first = teeboxes.value[0];
@@ -88,6 +107,7 @@ function syncParHandicap() {
             if (src) {
                 h.par = src.par;
                 h.handicap = src.handicap;
+                h.handicapWomen = src.handicapWomen;
             }
         }
     }
@@ -126,11 +146,21 @@ function syncParHandicap() {
         <div v-for="(tee, i) in teeboxes" :key="i" class="mt-4 rounded-xl border border-line bg-ink-850 p-4">
             <!-- teebox header -->
             <div class="flex flex-wrap items-center gap-3">
-                <span class="inline-block size-5 shrink-0 rounded-full border border-line" :style="{ background: tee.color || 'transparent' }" />
+                <span class="inline-flex size-5 shrink-0 overflow-hidden rounded-full border border-line">
+                    <span class="h-full flex-1" :style="{ background: tee.color || 'transparent' }" />
+                    <span v-if="tee.secondaryColor" class="h-full flex-1" :style="{ background: tee.secondaryColor }" />
+                </span>
                 <Input v-model="tee.name" placeholder="Tee name (e.g. Blue)" class="w-40" maxlength="60" />
                 <label class="flex items-center gap-1.5 text-xs text-fg-subtle">
-                    Color
-                    <input type="color" :value="tee.color || '#8ae63c'" class="h-7 w-9 cursor-pointer rounded border border-line bg-transparent" @input="tee.color = ($event.target as HTMLInputElement).value" />
+                    Combine
+                    <select
+                        class="rounded-lg border border-line bg-ink-800 px-2 py-1 text-sm text-fg focus:border-line-lime focus:outline-none"
+                        :value="tee.secondaryColor ?? ''"
+                        @change="tee.secondaryColor = ($event.target as HTMLSelectElement).value || null"
+                    >
+                        <option value="">None</option>
+                        <option v-for="p in PRESETS" :key="p.name" :value="p.color">{{ p.name }}</option>
+                    </select>
                 </label>
                 <div class="ml-auto flex items-center gap-1">
                     <button type="button" class="grid size-7 place-items-center rounded-lg border border-line text-fg-muted enabled:cursor-pointer enabled:hover:text-fg disabled:opacity-40" :disabled="i === 0" aria-label="Move up" @click="move(i, -1)"><ChevronUp class="size-4" /></button>
@@ -152,11 +182,23 @@ function syncParHandicap() {
                 </button>
             </div>
 
-            <!-- meta -->
-            <div class="mt-4 grid grid-cols-3 gap-3">
-                <label class="text-xs text-fg-subtle">Rating<Input v-model="tee.courseRating" type="number" step="0.1" class="mt-1" /></label>
-                <label class="text-xs text-fg-subtle">Slope<Input v-model="tee.slope" type="number" class="mt-1" /></label>
-                <label class="text-xs text-fg-subtle">Total yds<Input v-model="tee.totalYardage" type="number" class="mt-1" /></label>
+            <!-- meta (rating + slope carry men's / women's values; total is shared) -->
+            <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                <div class="text-xs text-fg-subtle">
+                    Rating <span class="text-fg-subtle/70">· M / W</span>
+                    <div class="mt-1 flex gap-2">
+                        <Input v-model="tee.courseRating" type="number" step="0.1" aria-label="Men's rating" />
+                        <Input v-model="tee.courseRatingWomen" type="number" step="0.1" aria-label="Women's rating" />
+                    </div>
+                </div>
+                <div class="text-xs text-fg-subtle">
+                    Slope <span class="text-fg-subtle/70">· M / W</span>
+                    <div class="mt-1 flex gap-2">
+                        <Input v-model="tee.slope" type="number" aria-label="Men's slope" />
+                        <Input v-model="tee.slopeWomen" type="number" aria-label="Women's slope" />
+                    </div>
+                </div>
+                <label class="text-xs text-fg-subtle">Total yds<Input :model-value="tee.totalYardage ?? ''" type="number" class="mt-1" disabled title="Auto-calculated from the hole yards" /></label>
             </div>
 
             <!-- holes grid -->
@@ -175,11 +217,15 @@ function syncParHandicap() {
                         </tr>
                         <tr>
                             <td class="text-left font-mono text-[10px] tracking-widest text-fg-subtle uppercase">Yds</td>
-                            <td v-for="h in tee.holes" :key="h.hole"><input v-model.number="h.length" type="number" class="score-cell" /></td>
+                            <td v-for="h in tee.holes" :key="h.hole"><input v-model.number="h.length" type="number" class="score-cell" @input="recomputeTotal(tee)" /></td>
                         </tr>
                         <tr>
                             <td class="text-left font-mono text-[10px] tracking-widest text-fg-subtle uppercase">Hcp</td>
                             <td v-for="h in tee.holes" :key="h.hole"><input v-model.number="h.handicap" type="number" class="score-cell" /></td>
+                        </tr>
+                        <tr>
+                            <td class="text-left font-mono text-[10px] tracking-widest text-fg-subtle uppercase">Hcp W</td>
+                            <td v-for="h in tee.holes" :key="h.hole"><input v-model.number="h.handicapWomen" type="number" class="score-cell" /></td>
                         </tr>
                     </tbody>
                 </table>

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Course;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 
@@ -87,7 +88,7 @@ class CourseApiTest extends ApiTestCase
             ->assertJsonValidationErrorFor('per_page');
     }
 
-    public function test_show_returns_scorecard(): void
+    public function test_show_returns_scorecard_with_mens_and_womens_values(): void
     {
         Sanctum::actingAs($this->freeUser);
 
@@ -97,7 +98,46 @@ class CourseApiTest extends ApiTestCase
             ->assertJsonPath('data.location.country.iso2', 'US')
             ->assertJsonPath('data.scorecard.hole_count', 18)
             ->assertJsonPath('data.scorecard.teeboxes.0.name', 'Gold')
-            ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.par', 4);
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.par', 4)
+            // Men's values under the base keys; women's alongside as *_women.
+            ->assertJsonPath('data.scorecard.teeboxes.0.rating', 73.3)
+            ->assertJsonPath('data.scorecard.teeboxes.0.rating_women', 71.2)
+            ->assertJsonPath('data.scorecard.teeboxes.0.slope', 128)
+            ->assertJsonPath('data.scorecard.teeboxes.0.slope_women', 120)
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.handicap', 7)
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.handicap_women', 5)
+            // hole-2 has no women's handicap → handicap_women falls back to men's.
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.1.handicap', 1)
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.1.handicap_women', 1);
+    }
+
+    public function test_women_fields_fall_back_to_men_when_course_has_no_womens_data(): void
+    {
+        Sanctum::actingAs($this->freeUser);
+
+        // Men-only course: slope, rating, and handicap are all scalar (no women's).
+        $menOnly = Course::create([
+            'course_name' => 'Men Only GC',
+            'city_id' => 100, 'state_prov_id' => 10, 'country_id' => 1,
+            'lat' => 37.01, 'lng' => -86.44,
+            'layout_data' => [
+                'hole_count' => 18,
+                'teeboxes' => [[
+                    'name' => 'Blue', 'courseRating' => 72.4, 'slope' => 131,
+                    'holes' => ['hole-1' => ['par' => '4', 'length' => '400', 'handicap' => 9]],
+                ]],
+            ],
+        ]);
+
+        // Every *_women field mirrors the men's value.
+        $this->getJson("/api/v1/courses/{$menOnly->id}")
+            ->assertOk()
+            ->assertJsonPath('data.scorecard.teeboxes.0.rating', 72.4)
+            ->assertJsonPath('data.scorecard.teeboxes.0.rating_women', 72.4)
+            ->assertJsonPath('data.scorecard.teeboxes.0.slope', 131)
+            ->assertJsonPath('data.scorecard.teeboxes.0.slope_women', 131)
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.handicap', 9)
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.handicap_women', 9);
     }
 
     public function test_show_404_for_missing_course(): void

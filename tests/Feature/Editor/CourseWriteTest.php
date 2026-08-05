@@ -73,6 +73,9 @@ class CourseWriteTest extends TestCase
         $this->assertSame('4', $tee['holes']['hole-1']['par']);
         $this->assertSame('410', $tee['holes']['hole-1']['length']);
         $this->assertSame(5, $tee['holes']['hole-1']['handicap']);
+        // Total yards is resynced to the sum of the hole yards (410 + 175),
+        // ignoring the submitted 6500.
+        $this->assertSame(585, $tee['totalYardage']);
 
         // Green centers: hole-N object of raw floats + manual provenance.
         $this->assertSame(40.0011111, $data['greenCenters']['hole-1']['lat']);
@@ -90,6 +93,96 @@ class CourseWriteTest extends TestCase
         $this->assertSame(500, $course->city_id);
         $this->assertSame(10, $course->state_prov_id);
         $this->assertSame(1, $course->country_id);
+
+        // Men-only gendered fields stay scalar (byte-consistent with legacy data).
+        $this->assertSame(128, $tee['slope']);
+        $this->assertSame(71.5, $tee['courseRating']);
+    }
+
+    public function test_store_stores_womens_values_as_men_women_arrays(): void
+    {
+        $this->seedGeoNear();
+
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['slope'] = 128;
+        $payload['teeboxes'][0]['slopeWomen'] = 120;
+        $payload['teeboxes'][0]['courseRating'] = 71.5;
+        $payload['teeboxes'][0]['courseRatingWomen'] = 73.4;
+        $payload['teeboxes'][0]['holes'][0]['handicap'] = 5;      // hole 1 men + women
+        $payload['teeboxes'][0]['holes'][0]['handicapWomen'] = 3;
+        $payload['teeboxes'][0]['holes'][1]['handicap'] = 11;     // hole 2 men-only
+
+        $this->actingAs($this->editor())
+            ->post('/courses', $payload)
+            ->assertRedirect();
+
+        $tee = Course::where('course_name', 'Test Links')->firstOrFail()->layout_data['teeboxes'][0];
+
+        // Both values present → [men, women] array.
+        $this->assertSame([128, 120], $tee['slope']);
+        $this->assertSame([71.5, 73.4], $tee['courseRating']);
+        $this->assertSame([5, 3], $tee['holes']['hole-1']['handicap']);
+        // Women's omitted → scalar men's value, unchanged shape.
+        $this->assertSame(11, $tee['holes']['hole-2']['handicap']);
+    }
+
+    public function test_save_resyncs_total_yardage_from_hole_yards(): void
+    {
+        $this->seedGeoNear();
+
+        // Submit a deliberately wrong total; save must recompute it from the holes.
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['totalYardage'] = 9999;
+
+        $this->actingAs($this->editor())
+            ->post('/courses', $payload)
+            ->assertRedirect();
+
+        $tee = Course::where('course_name', 'Test Links')->firstOrFail()->layout_data['teeboxes'][0];
+        $this->assertSame(585, $tee['totalYardage']); // 410 + 175
+    }
+
+    public function test_large_summed_total_yardage_validates_and_stores(): void
+    {
+        $this->seedGeoNear();
+
+        // 18 holes × 800 = 14400, above the old 12000 cap — a derived total must
+        // never be rejected on save.
+        $holes = [];
+        for ($n = 1; $n <= 18; $n++) {
+            $holes[] = ['hole' => $n, 'par' => 4, 'length' => 800, 'handicap' => $n];
+        }
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['holes'] = $holes;
+        $payload['teeboxes'][0]['totalYardage'] = 14400;
+
+        $this->actingAs($this->editor())
+            ->post('/courses', $payload)
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $tee = Course::where('course_name', 'Test Links')->firstOrFail()->layout_data['teeboxes'][0];
+        $this->assertSame(14400, $tee['totalYardage']);
+    }
+
+    public function test_total_yardage_preserved_when_teebox_has_no_hole_yards(): void
+    {
+        $this->seedGeoNear();
+
+        // No per-hole yards → keep the submitted total (don't wipe a totals-only teebox).
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['totalYardage'] = 7000;
+        $payload['teeboxes'][0]['holes'] = [
+            ['hole' => 1, 'par' => 4, 'length' => null, 'handicap' => 5],
+            ['hole' => 2, 'par' => 3, 'length' => null, 'handicap' => 11],
+        ];
+
+        $this->actingAs($this->editor())
+            ->post('/courses', $payload)
+            ->assertRedirect();
+
+        $tee = Course::where('course_name', 'Test Links')->firstOrFail()->layout_data['teeboxes'][0];
+        $this->assertSame(7000, $tee['totalYardage']);
     }
 
     public function test_update_preserves_vendor_keys_like_golftraxx(): void

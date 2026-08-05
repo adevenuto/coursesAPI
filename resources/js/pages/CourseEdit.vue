@@ -18,13 +18,16 @@ interface Hole {
     par: number | null;
     length: number | null;
     handicap: number | null;
+    handicapWomen: number | null;
 }
 interface Teebox {
     name: string;
     color: string | null;
     secondaryColor: string | null;
     courseRating: number | null;
+    courseRatingWomen: number | null;
     slope: number | null;
+    slopeWomen: number | null;
     totalYardage: number | null;
     holes: Hole[];
 }

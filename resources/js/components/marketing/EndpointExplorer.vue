@@ -81,10 +81,13 @@ const tabs = [
       "hole_count": 18,
       "teeboxes": [
         {
-          "name": "Gold", "rating": 73.3, "slope": 128, "total_yards": 6800,
+          "name": "Gold",
+          "rating": 73.3, "rating_women": 71.2,
+          "slope": 128, "slope_women": 120,
+          "total_yards": 6800,
           "holes": [
-            { "hole": 1, "par": 4, "yards": 437, "handicap": 7 },
-            { "hole": 2, "par": 5, "yards": 518, "handicap": 1 }
+            { "hole": 1, "par": 4, "yards": 437, "handicap": 7, "handicap_women": 9 },
+            { "hole": 2, "par": 5, "yards": 518, "handicap": 1, "handicap_women": 1 }
           ]
         }
       ]

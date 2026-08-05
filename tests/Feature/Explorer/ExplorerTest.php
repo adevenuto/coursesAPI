@@ -6,6 +6,7 @@ use App\Models\City;
 use App\Models\Country;
 use App\Models\Course;
 use App\Models\State;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -164,8 +165,20 @@ class ExplorerTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('CourseShow')
                 ->where('course.id', $course->id)
-                ->where('course.name', 'Bowling Green Country Club'),
+                ->where('course.name', 'Bowling Green Country Club')
+                ->where('canEdit', false), // guests get no edit link
             );
+    }
+
+    public function test_course_show_exposes_can_edit_for_editors(): void
+    {
+        $course = $this->seedGeo();
+        $editor = User::factory()->create(['plan' => 'pro', 'role' => 'editor']);
+
+        $this->actingAs($editor)
+            ->get('/courses/'.$course->id.'/'.$course->urlSlug())
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('canEdit', true));
     }
 
     public function test_course_show_canonicalizes_a_wrong_slug(): void
