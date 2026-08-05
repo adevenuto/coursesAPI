@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 
 const props = defineProps<{
+    baseUrl: string;
     plan: { key: string; label: string; per_day: number; per_minute: number; premium: boolean };
     usage: { today: number; limit: number; series: { date: string; requests: number }[] };
     keys: { count: number; recent: { name: string; last_used_at: string | null } | null };
@@ -36,7 +37,7 @@ const usedPct = computed(() =>
     props.usage.limit > 0 ? Math.min(100, Math.round((props.usage.today / props.usage.limit) * 100)) : 0,
 );
 
-const snippet = `curl "${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/courses?q=pebble" \\
+const snippet = `curl "${props.baseUrl}/api/v1/courses?q=pebble" \\
   -H "Authorization: Bearer YOUR_API_KEY"`;
 const { copy, copied } = useClipboard({ source: () => snippet });
 </script>
@@ -111,10 +112,10 @@ const { copy, copied } = useClipboard({ source: () => snippet });
                     <Link href="/settings/api-keys"><Plus class="size-4" /> {{ keys.count === 0 ? 'Create your first key' : 'Create a key' }}</Link>
                 </Button>
                 <Button as-child variant="outline" class="justify-start">
-                    <Link href="/#pricing"><Crown class="size-4" /> Upgrade plan</Link>
+                    <Link href="/settings/billing"><Crown class="size-4 fill-[#f5b301] stroke-0" /> {{ plan.premium ? 'Manage plan' : 'Upgrade plan' }}</Link>
                 </Button>
                 <Button as-child variant="outline" class="justify-start">
-                    <a href="/#endpoints"><BookOpen class="size-4" /> Read the docs</a>
+                    <a href="/docs"><BookOpen class="size-4" /> Read the docs</a>
                 </Button>
                 <p v-if="keys.recent" class="mt-1 text-xs text-muted-foreground">
                     <KeyRound class="mr-1 inline size-3" />Most recent: <span class="font-medium text-foreground">{{ keys.recent.name }}</span> · last used {{ keys.recent.last_used_at ?? 'never' }}

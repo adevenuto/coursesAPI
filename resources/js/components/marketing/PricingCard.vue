@@ -8,6 +8,7 @@ defineProps<{
     price: string;
     period?: string;
     requests: string;
+    burst?: string;
     blurb: string;
     features: string[];
     cta: string;
@@ -36,7 +37,7 @@ defineProps<{
                 <span v-if="period" class="mb-1 text-sm text-fg-muted">{{ period }}</span>
             </div>
             <div class="mt-2 font-mono text-xs" style="color: var(--lime-400)">
-                {{ requests }}
+                {{ requests }}<span v-if="burst" class="text-fg-subtle"> · {{ burst }}</span>
             </div>
 
             <Link

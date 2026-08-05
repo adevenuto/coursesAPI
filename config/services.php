@@ -39,4 +39,12 @@ return [
         'places_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    // Algolia public credentials for the browser (explorer autocomplete).
+    // The search key is search-only — safe to expose. Admin indexing uses
+    // Scout's ALGOLIA_SECRET (config/scout.php), never sent to the client.
+    'algolia' => [
+        'app_id' => env('ALGOLIA_APP_ID'),
+        'search_key' => env('ALGOLIA_SEARCH_KEY'),
+    ],
+
 ];

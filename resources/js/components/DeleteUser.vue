@@ -18,6 +18,14 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
+withDefaults(
+    defineProps<{
+        subscribed?: boolean;
+        planLabel?: string;
+    }>(),
+    { subscribed: false, planLabel: '' },
+);
+
 const passwordInput = useTemplateRef('passwordInput');
 </script>
 
@@ -67,6 +75,14 @@ const passwordInput = useTemplateRef('passwordInput');
                                 account.
                             </DialogDescription>
                         </DialogHeader>
+
+                        <p
+                            v-if="subscribed"
+                            class="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400"
+                        >
+                            Your active <span class="font-medium">{{ planLabel }}</span> subscription will be
+                            canceled immediately and you won't be charged again.
+                        </p>
 
                         <div class="grid gap-2">
                             <Label for="password" class="sr-only"

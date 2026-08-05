@@ -17,6 +17,7 @@ class DashboardController extends Controller
         $recent = $tokens->clone()->latest()->first();
 
         return Inertia::render('Dashboard', [
+            'baseUrl' => rtrim((string) config('app.url'), '/'),
             'plan' => [
                 'key' => $user->planKey(),
                 'label' => $plan['label'] ?? ucfirst($user->planKey()),

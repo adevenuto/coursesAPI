@@ -24,7 +24,6 @@ class GreenCenterController extends Controller
         return response()->json([
             'data' => [
                 'course_id' => $course->id,
-                'source' => $course->green_centers_source,
                 'holes' => $greens,
             ],
         ]);

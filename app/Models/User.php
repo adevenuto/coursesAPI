@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Laravel\Cashier\Billable;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -22,6 +24,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string $plan
+ * @property string $role
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -34,7 +37,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use Billable, HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -81,5 +84,58 @@ class User extends Authenticatable implements PasskeyUser
     public function hasPremium(): bool
     {
         return (bool) ($this->planConfig()['premium'] ?? false);
+    }
+
+    // ---- Roles -------------------------------------------------------------
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isEditor(): bool
+    {
+        return in_array($this->role, ['editor', 'admin'], true);
+    }
+
+    /**
+     * Course editing is for editors/admins; editors must also be on a paid
+     * plan (admins always qualify).
+     */
+    public function canEditCourses(): bool
+    {
+        return $this->isEditor() && ($this->hasPremium() || $this->isAdmin());
+    }
+
+    /**
+     * When an account is deleted, end any live Stripe subscription (so a
+     * deleted account is never billed again) and clean up local billing
+     * records and API keys. A billing failure must never block the deletion.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (self $user): void {
+            try {
+                foreach ($user->subscriptions as $subscription) {
+                    if ($subscription->active()) {
+                        $subscription->cancelNow();
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::error('Failed to cancel Stripe subscription on account deletion', [
+                    'user_id' => $user->getKey(),
+                    'stripe_id' => $user->stripe_id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+
+            // Remove local billing records and API keys tied to the account.
+            foreach ($user->subscriptions()->get() as $subscription) {
+                $subscription->items()->delete();
+                $subscription->delete();
+            }
+
+            $user->tokens()->delete();
+        });
     }
 }

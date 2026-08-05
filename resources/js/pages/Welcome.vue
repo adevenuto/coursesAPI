@@ -46,7 +46,7 @@ withDefaults(
 </script>
 
 <template>
-    <Head title="Fairway — The Golf Course Data API">
+    <Head title="GCA — The Golf Courses API">
         <meta
             name="description"
             content="Thousands of golf courses worldwide — locations, scorecards and per-hole green-center GPS — behind one clean, fast REST API. Get a free key."

@@ -41,10 +41,7 @@ class CourseDetailResource extends JsonResource
             'scorecard' => $this->scorecard,
             'green_centers_available' => $hasGreens,
             // Premium payload — included only for paid plans that have data.
-            'green_centers' => $this->when($premium && $hasGreens, fn () => [
-                'source' => $this->green_centers_source,
-                'holes' => $this->green_centers,
-            ]),
+            'green_centers' => $this->when($premium && $hasGreens, fn () => $this->green_centers),
         ];
     }
 }

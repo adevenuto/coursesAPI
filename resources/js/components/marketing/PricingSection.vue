@@ -8,24 +8,22 @@ interface PlanConfig {
     per_day: number;
     per_minute: number;
     premium: boolean;
+    price: number;
 }
 
 const props = defineProps<{
     plans: Record<'free' | 'pro' | 'max', PlanConfig>;
 }>();
 
-// Marketing copy lives here; the per-day quota comes from config/api.php.
+// Marketing copy lives here; price and limits are pulled from config/api.php
+// (the same source billing uses) so the card numbers stay in lockstep.
 const copy: Record<'free' | 'pro' | 'max', {
-    price: string;
-    period: string;
     blurb: string;
     cta: string;
     highlighted?: boolean;
     features: string[];
 }> = {
     free: {
-        price: '$0',
-        period: '',
         blurb: 'For prototypes and hobby projects.',
         cta: 'Get free key',
         features: [
@@ -36,8 +34,6 @@ const copy: Record<'free' | 'pro' | 'max', {
         ],
     },
     pro: {
-        price: '$49',
-        period: '/mo',
         blurb: 'For production apps that ship.',
         cta: 'Start free',
         highlighted: true,
@@ -49,8 +45,6 @@ const copy: Record<'free' | 'pro' | 'max', {
         ],
     },
     max: {
-        price: '$199',
-        period: '/mo',
         blurb: 'For scale and heavy workloads.',
         cta: 'Start free',
         features: [
@@ -62,12 +56,20 @@ const copy: Record<'free' | 'pro' | 'max', {
     },
 };
 
+const priceLabel = (n: number) => (n > 0 ? `$${n.toFixed(2)}` : '$0');
+
 const tiers = computed(() =>
-    (['free', 'pro', 'max'] as const).map((key) => ({
-        name: props.plans[key].label,
-        requests: `${props.plans[key].per_day.toLocaleString()} requests / day`,
-        ...copy[key],
-    })),
+    (['free', 'pro', 'max'] as const).map((key) => {
+        const plan = props.plans[key];
+        return {
+            name: plan.label,
+            price: priceLabel(plan.price),
+            period: plan.price > 0 ? '/mo' : '',
+            requests: `${plan.per_day.toLocaleString()} requests / day`,
+            burst: `${plan.per_minute.toLocaleString()} / min burst`,
+            ...copy[key],
+        };
+    }),
 );
 </script>
 
@@ -88,8 +90,8 @@ const tiers = computed(() =>
             />
         </div>
         <p class="mt-8 text-center font-mono text-xs text-fg-subtle">
-            Early access — everyone starts on Free today; paid tiers are being
-            onboarded manually while billing launches.
+            Start on Free instantly — no credit card required. Upgrade to Pro or
+            Max anytime, and cancel whenever you like.
         </p>
     </section>
 </template>

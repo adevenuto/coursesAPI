@@ -16,7 +16,7 @@ class GreenCentersOsm extends Command
         {--radius=1500 : Overpass search radius in meters}
         {--sleep=1200 : Milliseconds between live Overpass calls}
         {--max-green-dist=60 : Max meters from a hole-way end to accept its green}
-        {--validate : Test-only vs courses that already have GolfTrax greenCenters; writes nothing}';
+        {--validate : Test-only vs courses that already have greenCenters; writes nothing}';
 
     /**
      * @var string
@@ -76,7 +76,7 @@ class GreenCentersOsm extends Command
     }
 
     /**
-     * Run the exact strict pipeline against courses that ALREADY have GolfTrax
+     * Run the exact strict pipeline against courses that ALREADY have
      * greenCenters, and compare per-hole. No writes. Proves accuracy + that the
      * green->hole assignment is correct (gross mismatches = wrong assignment).
      */
@@ -155,7 +155,7 @@ class GreenCentersOsm extends Command
         $p90 = $n ? $errors[min($n - 1, (int) floor($n * 0.9))] : 0;
         $max = $n ? end($errors) : 0;
 
-        $this->info('VALIDATION vs GolfTrax ground truth (no writes):');
+        $this->info('VALIDATION vs existing ground truth (no writes):');
         $this->line("  courses that passed the strict pipeline: {$passed}");
         $this->line("  holes compared: {$n}");
         $this->line('  per-hole error  median: '.round($median, 1).'m  p90: '.round($p90, 1).'m  max: '.round($max, 1).'m');

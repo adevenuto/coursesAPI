@@ -1,19 +1,12 @@
-<script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
-
-const name = usePage().props.name;
-</script>
-
 <template>
-    <div
-        class="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground"
-    >
-        <AppLogoIcon class="size-5 fill-current text-white dark:text-black" />
-    </div>
-    <div class="ml-1 grid flex-1 text-left text-sm">
-        <span class="mb-0.5 truncate leading-tight font-semibold">{{
-            name
-        }}</span>
+    <div class="flex flex-col leading-none">
+        <span class="font-display text-lg font-extrabold tracking-tight text-foreground">
+            <span style="color: #8ae63c">G</span>CA
+        </span>
+        <span
+            class="mt-0.5 font-mono text-[8px] font-medium tracking-[0.16em] text-muted-foreground uppercase group-data-[collapsible=icon]:hidden"
+        >
+            Golf Courses API
+        </span>
     </div>
 </template>

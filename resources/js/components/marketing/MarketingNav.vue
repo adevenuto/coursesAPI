@@ -8,10 +8,13 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user ?? null);
 const open = ref(false);
 
+// Absolute paths so anchors work from the landing (same-path hash scroll)
+// and from /docs (navigate home, then scroll).
 const links = [
-    { label: 'Features', href: '#features' },
-    { label: 'Endpoints', href: '#endpoints' },
-    { label: 'Pricing', href: '#pricing' },
+    { label: 'Explorer', href: '/explorer' },
+    { label: 'Features', href: '/#features' },
+    { label: 'Pricing', href: '/#pricing' },
+    { label: 'Docs', href: '/docs' },
 ];
 
 const close = () => (open.value = false);
@@ -23,16 +26,13 @@ const close = () => (open.value = false);
         style="background: rgba(10, 11, 10, 0.6); backdrop-filter: blur(16px)"
     >
         <nav class="mx-auto flex h-16 max-w-[1120px] items-center gap-6 px-5 sm:px-7">
-            <a href="#top" class="flex items-center gap-2.5" @click="close">
-                <span
-                    class="grid size-7 place-items-center rounded-lg"
-                    style="background: var(--grad-lime)"
-                >
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#0a1400" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M5 21V4l11 3-11 3" />
-                    </svg>
+            <a href="/" class="flex flex-col leading-none" @click="close">
+                <span class="font-display text-xl font-extrabold tracking-tight text-fg">
+                    <span style="color: var(--lime-500)">G</span>CA
                 </span>
-                <span class="font-display text-lg font-bold tracking-tight">Fairway</span>
+                <span class="mt-0.5 font-mono text-[9px] font-medium tracking-[0.2em] text-fg-subtle uppercase">
+                    Golf Courses API
+                </span>
             </a>
 
             <!-- desktop links -->

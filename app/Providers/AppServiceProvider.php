@@ -2,14 +2,17 @@
 
 namespace App\Providers;
 
+use App\Listeners\SyncPlanFromStripe;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Cashier\Events\WebhookReceived;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureRateLimiting();
+
+        // Mirror Stripe subscription changes onto users.plan.
+        Event::listen(WebhookReceived::class, SyncPlanFromStripe::class);
     }
 
     /**
@@ -50,6 +56,9 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute($user->burstLimit())->by('api-min:'.$user->id),
             ];
         });
+
+        // Public explorer geo→courses endpoints (unauthenticated, keyed by IP).
+        RateLimiter::for('explore', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
     }
 
     /**
