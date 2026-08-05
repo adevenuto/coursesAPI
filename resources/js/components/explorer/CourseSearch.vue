@@ -14,6 +14,7 @@ interface Hit {
     state?: string;
     country?: string;
     url: string;
+    green_centers_available?: boolean;
     _highlightResult?: Record<string, { value: string }>;
 }
 
@@ -201,7 +202,15 @@ const flatIndex = (g: number, h: number) =>
                         @mouseenter="active = flatIndex(gi, hi)"
                         @click="choose(hit)"
                     >
-                        <span class="hl text-sm text-fg" v-html="highlighted(hit)" />
+                        <span class="flex items-center gap-1.5">
+                            <span class="hl text-sm text-fg" v-html="highlighted(hit)" />
+                            <span
+                                v-if="hit.green_centers_available"
+                                class="size-1.5 shrink-0 rounded-full bg-lime-400"
+                                title="Green centers mapped"
+                                aria-label="Green centers mapped"
+                            />
+                        </span>
                         <span v-if="secondary(hit)" class="text-xs text-fg-subtle">{{ secondary(hit) }}</span>
                     </button>
                 </div>

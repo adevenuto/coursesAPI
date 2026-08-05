@@ -41,7 +41,7 @@ const props = defineProps<{
 }>();
 
 const area = ref<Area | null>(null);
-const courses = ref<Array<{ id: number; name: string; club: string | null; city: string | null; state: string | null; lat: number; lng: number; distance_mi?: number; url: string }>>([]);
+const courses = ref<Array<{ id: number; name: string; club: string | null; city: string | null; state: string | null; lat: number; lng: number; distance_mi?: number; url: string; green_centers_available?: boolean }>>([]);
 const count = ref(0);
 const capped = ref(false);
 const loading = ref(false); // initial skeleton

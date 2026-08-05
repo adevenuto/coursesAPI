@@ -107,11 +107,18 @@ class ExploreController extends Controller
 
         $rows = (clone $base)->with(['city:id,name', 'state:id,name'])->limit(self::MAX_MARKERS);
 
+        // Cheap "has green centers" flag — tests the layout_data JSON key without
+        // hauling the whole longText blob back for every marker.
+        $greensFlag = '(COALESCE(JSON_LENGTH(layout_data, \'$.greenCenters\'), 0) > 0) AS has_greens';
+
         // Radius keeps scopeNear's distance order + distance_km column; exact
         // mode sorts by name and can trim to just the columns it needs.
         $courses = $radius
-            ? $rows->get()
-            : $rows->orderBy('course_name')->get(['id', 'course_name', 'club_name', 'city_id', 'state_prov_id', 'lat', 'lng']);
+            ? $rows->selectRaw($greensFlag)->get()
+            : $rows->orderBy('course_name')
+                ->select(['id', 'course_name', 'club_name', 'city_id', 'state_prov_id', 'lat', 'lng'])
+                ->selectRaw($greensFlag)
+                ->get();
 
         return response()->json([
             'area' => $area,
@@ -129,6 +136,7 @@ class ExploreController extends Controller
                     'lat' => (float) $c->lat,
                     'lng' => (float) $c->lng,
                     'url' => '/courses/'.$c->id.'/'.$c->urlSlug(),
+                    'green_centers_available' => (bool) $c->has_greens,
                 ];
 
                 if ($radius && $c->distance_km !== null) {

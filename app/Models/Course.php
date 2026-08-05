@@ -130,6 +130,37 @@ class Course extends Model
     }
 
     /**
+     * Other courses on the same property: identical coordinates AND club_name,
+     * excluding this course. lat/lng alone collides with placeholder coordinates
+     * shared by unrelated clubs, so club_name is required to scope to one property.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function siblingsOnProperty(): array
+    {
+        $club = trim((string) $this->club_name);
+        if ($this->lat === null || $this->lng === null || $club === '') {
+            return [];
+        }
+
+        return static::query()
+            ->where('lat', $this->lat)
+            ->where('lng', $this->lng)
+            ->where('club_name', $this->club_name)
+            ->whereKeyNot($this->id)
+            ->orderBy('course_name')
+            ->get()
+            ->map(fn (Course $c) => [
+                'id' => $c->id,
+                'course_name' => $c->course_name,
+                'hole_count' => is_array($c->layout_data) && isset($c->layout_data['hole_count'])
+                    ? (int) $c->layout_data['hole_count'] : null,
+                'green_centers_available' => $c->hasGreenCenters(),
+                'edit_url' => '/courses/'.$c->id.'/edit',
+            ])->all();
+    }
+
+    /**
      * Full editable representation for the course editor — richer than the
      * read accessors (keeps teebox color/secondaryColor, numeric hole values,
      * and the green-center list). Order is implied by array position.
@@ -214,6 +245,7 @@ class Course extends Model
             'lat' => $this->lat,
             'lng' => $this->lng,
             'type' => 'course',
+            'green_centers_available' => $this->hasGreenCenters(),
             'url' => '/courses/'.$this->id.'/'.$this->urlSlug(),
         ];
     }
