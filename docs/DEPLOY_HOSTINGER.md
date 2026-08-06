@@ -133,10 +133,14 @@ mysql -u <db_user> -p <db_name> -e "SELECT COUNT(*) FROM courses; SELECT COUNT(*
 Only after the staging URL passes the checks below.
 
 1. hPanel → add the **real domain** to this website (same document root).
-2. Edit `.env`: `APP_URL=https://<real-domain>` → then `php8.3 artisan config:cache`.
+2. Edit the **server** `.env`: `APP_URL=https://<real-domain>` → then `php8.3 artisan config:cache`.
+   This is the value that must not stay as the `CHANGE_ME` placeholder — a wrong `APP_URL` breaks
+   Stripe checkout/portal return URLs, WebAuthn, and any absolute link the app renders. The CI/CD
+   pipeline never touches this file, so set it here once and every deploy re-caches it correctly.
 3. At your registrar, point the domain at Hostinger — **A record** to the plan's IP (shown in hPanel),
    or switch **nameservers** to Hostinger's. The domain is parked, so there's nothing to disrupt.
-4. Once DNS resolves, in hPanel issue **free SSL** (Let's Encrypt) and **force HTTPS**.
+4. Once DNS resolves, in hPanel issue **free SSL** (Let's Encrypt) and **force HTTPS**. Required
+   before login works — `SESSION_SECURE_COOKIE=true` means cookies only send over HTTPS.
 
 ---
 
@@ -164,10 +168,49 @@ Only after the staging URL passes the checks below.
 4. `GET /api/v1/courses/{id}` (with a Sanctum token) returns JSON with `scorecard` incl. `*_women`.
 5. `APP_DEBUG=false` (no debug trace on a forced error); `storage/logs/laravel.log` clean.
 
-## Redeploy (until the pipeline lands)
+## Automated deploys (GitHub Actions)
+
+Deploys run from `.github/workflows/tests.yml`. On a push to **`main`**, the `ci` job runs the test
+suite (`php artisan test`); if it passes, the `deploy` job builds the app on the runner
+(`composer install --no-dev`, `npm run build` — the shared host has no Node) and **rsyncs the built
+tree to the server over SSH**, then runs `bin/server-bootstrap.sh` remotely. The server never builds
+anything and needs no git checkout.
+
+> The gate is intentionally tests-only for now. Enabling the stricter `composer ci:check`
+> (pint + phpstan + eslint + prettier + vue-tsc) is deferred until the existing lint/format debt and
+> a PHPStan config crash (`DatabaseSeeder.php`, "Class mixed was not found") are cleaned up.
+
+The rsync **excludes** `.env`, `/storage/`, and `/bootstrap/cache/`, so production secrets, uploads,
+logs, and the server's own cached config are never overwritten. `--delete` removes stale hashed
+assets from `public/build/`.
+
+### One-time setup
+
+1. **Deploy key** (dedicated, not a personal key):
+   ```bash
+   ssh-keygen -t ed25519 -f deploy_key -N '' -C 'github-actions-deploy'
+   ```
+   Add the **public** key (`deploy_key.pub`) to Hostinger: hPanel → Advanced → SSH Access → Manage
+   SSH keys (or append it to `~/.ssh/authorized_keys` on the server).
+2. **GitHub secrets** — repo → Settings → Secrets and variables → Actions:
+   | Secret | Value |
+   |---|---|
+   | `SSH_HOST` | server host/IP from hPanel SSH Access |
+   | `SSH_PORT` | usually `65002` on Hostinger shared |
+   | `SSH_USER` | your SSH username (e.g. `u123456789`) |
+   | `SSH_PRIVATE_KEY` | contents of the private `deploy_key` |
+   | `DEPLOY_PATH` | e.g. `/home/<user>/domains/<site>/coursesApi` |
+3. Confirm the PHP 8.3 binary is `php8.3` on the server (`which php8.3`); the workflow calls it by
+   that name. Adjust the workflow if your host exposes it differently (e.g. `/opt/alt/php83/...`).
+
+The first automated run should target the **staging** subdomain (server `.env` `APP_URL` still the
+staging URL). After the real-domain cutover (§F), the same pipeline deploys to production unchanged —
+it never touches the server `.env`.
+
+### Manual fallback (if Actions is unavailable)
 
 ```bash
-bin/build-artifact.sh                     # local: rebuild
+bin/build-artifact.sh                     # local: rebuild the tarball
 # upload dist/coursesApi-deploy.tar.gz, extract over the app dir, then:
 PHP_BIN=php8.3 bin/server-bootstrap.sh    # server: migrate + re-cache
 ```

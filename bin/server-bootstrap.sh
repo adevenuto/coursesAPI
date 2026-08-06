@@ -31,7 +31,9 @@ echo "==> Linking public storage"
 
 echo "==> Caching config / routes / views"
 "$PHP" artisan config:cache
-"$PHP" artisan route:cache
+# route:cache can fail on closure-based routes; don't let it abort an automated
+# deploy (and strand the app in maintenance). config + view caching stay strict.
+"$PHP" artisan route:cache || echo "    (route:cache skipped — routes not cacheable)"
 "$PHP" artisan view:cache
 
 echo
