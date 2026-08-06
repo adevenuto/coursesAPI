@@ -69,7 +69,7 @@ class Country extends Model
             'lng' => (float) $this->longitude,
             'course_count' => $this->courses_count ?? $this->courses()->count(),
             'type' => 'country',
-            'url' => config('app.url').'/explore/country/'.$this->id,
+            'url' => '/explore/country/'.$this->id,
         ];
     }
 
