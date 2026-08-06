@@ -1,9 +1,10 @@
+/* Marketing (GCA) type — TrainerFlow DS: Sora display · Onest body · JetBrains Mono. */
+/* Must be the first statement so PostCSS keeps @import hoisted (Tailwind expands its own @import inline). */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @import 'tailwindcss';
 
 @import 'tw-animate-css';
-
-/* Marketing (GCA) type — TrainerFlow DS: Sora display · Onest body · JetBrains Mono. */
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
