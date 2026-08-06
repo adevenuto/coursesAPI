@@ -1,4 +1,4 @@
-name: tests
+name: CI
 
 on:
   push:
@@ -56,6 +56,13 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Cache Composer vendor
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
@@ -65,9 +72,106 @@ jobs:
           php artisan key:generate
 
       - name: Install & build frontend
+        # Also generates the Wayfinder route/action files (vite plugin) that
+        # eslint + vue-tsc need to resolve imports in the gate below.
         run: |
           npm ci
           npm run build
 
       - name: Run tests
+        # Gate is tests-only for now. The stricter `composer ci:check`
+        # (pint + phpstan + eslint + prettier + vue-tsc) is deferred until the
+        # existing lint/format debt and the PHPStan config crash are cleaned up.
         run: php artisan test
+
+  deploy:
+    name: Deploy to production
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    # Never let two production deploys overlap; queue them instead.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, bcmath, intl
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install PHP dependencies (production)
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare build environment
+        # Build-only .env so the Wayfinder vite plugin can enumerate routes.
+        # It is excluded from the rsync below and never reaches the server.
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Verify build output
+        run: test -f public/build/manifest.json
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # || true: a transient keyscan hiccup must not fail the deploy;
+          # StrictHostKeyChecking=accept-new below is the backstop.
+          ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Rsync built tree to server
+        # In-place deploy (no maintenance page) — brief inconsistency accepted.
+        # --delete cleans stale hashed assets in public/build. The excludes
+        # protect live server state that must never be overwritten or removed:
+        #   .env / .env.*   - production secrets live only on the server
+        #   /storage/       - uploads, logs, sessions
+        #   /bootstrap/cache - server regenerates these against its own .env
+        #   /.htaccess      - root rewrite shim into public/ (server-only, not in repo)
+        #   /.well-known/   - ACME/SSL challenge dir Hostinger may create
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=accept-new" \
+            --exclude '.git' \
+            --exclude '/.github' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude '/storage/' \
+            --exclude '/public/storage' \
+            --exclude '/public/hot' \
+            --exclude '/bootstrap/cache/' \
+            --exclude '/.htaccess' \
+            --exclude '/.well-known/' \
+            --exclude '/tests/' \
+            --exclude '/node_modules/' \
+            --exclude '.claude' \
+            --exclude '/dist' \
+            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+
+      - name: Run server bootstrap (migrate + caches)
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.SSH_PORT }}" -o StrictHostKeyChecking=accept-new \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "cd '${{ secrets.DEPLOY_PATH }}' && PHP_BIN=php bin/server-bootstrap.sh"
