@@ -8,6 +8,8 @@ namespace App\Support;
  * blob) and reproducing the canonical stored shape exactly:
  *
  *   - teebox holes keyed "hole-N"; par/length are STRINGS, handicap an INT
+ *   - gendered fields (hole handicap, teebox slope/courseRating) are a scalar
+ *     men's value, or a [men, women] array when a women's value is also set
  *   - greenCenters an OBJECT "hole-N" => {lat: float, lng: float} (raw floats)
  *
  * This is the single writer for the editor so the data stays byte-consistent
@@ -31,6 +33,7 @@ class CourseLayoutWriter
 
         foreach (array_values($teeboxes) as $i => $tb) {
             $holes = [];
+            $sumYards = 0;
             foreach (($tb['holes'] ?? []) as $h) {
                 $n = (int) ($h['hole'] ?? 0);
                 if ($n < 1) {
@@ -41,10 +44,13 @@ class CourseLayoutWriter
                     $hole['par'] = (string) (int) $h['par'];
                 }
                 if (self::filled($h['length'] ?? null)) {
-                    $hole['length'] = (string) (int) $h['length'];
+                    $len = (int) $h['length'];
+                    $hole['length'] = (string) $len;
+                    $sumYards += $len;
                 }
-                if (self::filled($h['handicap'] ?? null)) {
-                    $hole['handicap'] = (int) $h['handicap'];
+                $handicap = self::gendered($h['handicap'] ?? null, $h['handicapWomen'] ?? null, fn ($v) => (int) $v);
+                if ($handicap !== null) {
+                    $hole['handicap'] = $handicap;
                 }
                 if ($hole !== []) {
                     $holes['hole-'.$n] = $hole;
@@ -55,9 +61,15 @@ class CourseLayoutWriter
             $tee = [
                 'order' => $i,
                 'name' => (string) ($tb['name'] ?? ''),
-                'slope' => self::filled($tb['slope'] ?? null) ? (int) $tb['slope'] : null,
-                'courseRating' => self::filled($tb['courseRating'] ?? null) ? (float) $tb['courseRating'] : null,
-                'totalYardage' => self::filled($tb['totalYardage'] ?? null) ? (int) $tb['totalYardage'] : null,
+                'slope' => self::gendered($tb['slope'] ?? null, $tb['slopeWomen'] ?? null, fn ($v) => (int) $v),
+                'courseRating' => self::gendered($tb['courseRating'] ?? null, $tb['courseRatingWomen'] ?? null, fn ($v) => (float) $v),
+                // Total yards is always resynced to the sum of the hole yards on
+                // save, so every teebox stays correct without editing each one.
+                // Falls back to the submitted total only when a teebox has no
+                // per-hole yards (don't wipe a totals-only course).
+                'totalYardage' => $sumYards > 0
+                    ? $sumYards
+                    : (self::filled($tb['totalYardage'] ?? null) ? (int) $tb['totalYardage'] : null),
                 'holes' => (object) $holes, // always encode as an object
             ];
             if (self::filled($tb['color'] ?? null)) {
@@ -96,5 +108,21 @@ class CourseLayoutWriter
     private static function filled(mixed $v): bool
     {
         return $v !== null && $v !== '';
+    }
+
+    /**
+     * Build a gendered field: null when there is no men's value; the cast scalar
+     * men's value when women's is empty; a [men, women] array when both are set.
+     * Index 0 is always the men's/primary value.
+     */
+    private static function gendered(mixed $men, mixed $women, callable $cast): mixed
+    {
+        if (! self::filled($men)) {
+            return null;
+        }
+
+        $m = $cast($men);
+
+        return self::filled($women) ? [$m, $cast($women)] : $m;
     }
 }

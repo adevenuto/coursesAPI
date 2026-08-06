@@ -11,6 +11,7 @@ interface ResultCourse {
     state: string | null;
     distance_mi?: number;
     url: string;
+    green_centers_available?: boolean;
 }
 
 const props = defineProps<{
@@ -113,7 +114,15 @@ function go(next: number) {
                         <Flag class="size-4 text-lime-500" />
                     </span>
                     <span class="min-w-0 flex-1">
-                        <span class="block truncate text-sm font-medium text-fg">{{ course.name }}</span>
+                        <span class="flex items-center gap-1.5">
+                            <span class="min-w-0 truncate text-sm font-medium text-fg">{{ course.name }}</span>
+                            <span
+                                v-if="course.green_centers_available"
+                                class="size-1.5 shrink-0 rounded-full bg-lime-400"
+                                title="Green centers mapped"
+                                aria-label="Green centers mapped"
+                            />
+                        </span>
                         <span v-if="course.club && course.club !== course.name" class="block truncate text-xs text-fg-muted">
                             {{ course.club }}
                         </span>

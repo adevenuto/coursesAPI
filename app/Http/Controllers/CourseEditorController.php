@@ -30,6 +30,7 @@ class CourseEditorController extends Controller
             'course' => null,
             'mapsKey' => config('services.google.places_key'),
             'history' => [],
+            'siblings' => [],
         ]);
     }
 
@@ -42,6 +43,7 @@ class CourseEditorController extends Controller
             'course' => $course->forEditor(),
             'mapsKey' => config('services.google.places_key'),
             'history' => $this->history($course),
+            'siblings' => $course->siblingsOnProperty(),
         ]);
     }
 

@@ -24,6 +24,7 @@ class CourseShowController extends Controller
         $course->load(['city:id,name', 'state:id,name', 'country:id,name,iso2']);
 
         return Inertia::render('CourseShow', [
+            'canEdit' => (bool) request()->user()?->canEditCourses(),
             'course' => [
                 'id' => $course->id,
                 'name' => $course->course_name,

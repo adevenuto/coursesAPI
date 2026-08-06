@@ -43,9 +43,11 @@ abstract class ApiTestCase extends TestCase
             'layout_data' => [
                 'hole_count' => 18,
                 'teeboxes' => [[
-                    'name' => 'Gold', 'courseRating' => 73.3, 'slope' => 128, 'totalYardage' => 6800,
+                    // Gendered fields carry [men, women]; hole-2 handicap stays a
+                    // scalar (men-only) to exercise the women's → men's fallback.
+                    'name' => 'Gold', 'courseRating' => [73.3, 71.2], 'slope' => [128, 120], 'totalYardage' => 6800,
                     'holes' => [
-                        'hole-1' => ['par' => '4', 'length' => '437', 'handicap' => 7],
+                        'hole-1' => ['par' => '4', 'length' => '437', 'handicap' => [7, 5]],
                         'hole-2' => ['par' => '5', 'length' => '518', 'handicap' => 1],
                     ],
                 ]],

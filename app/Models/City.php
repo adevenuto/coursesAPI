@@ -58,7 +58,7 @@ class City extends Model
             'lng' => (float) $this->longitude,
             'course_count' => $this->courses_count ?? $this->courses()->count(),
             'type' => 'city',
-            'url' => config('app.url').'/explore/city/'.$this->id,
+            'url' => '/explore/city/'.$this->id,
         ];
     }
 

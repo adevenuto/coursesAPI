@@ -100,10 +100,13 @@ const resDetail = `{
       "hole_count": 18,
       "teeboxes": [
         {
-          "name": "Gold", "rating": 73.3, "slope": 128, "total_yards": 6800,
+          "name": "Gold",
+          "rating": 73.3, "rating_women": 71.2,
+          "slope": 128, "slope_women": 120,
+          "total_yards": 6800,
           "holes": [
-            { "hole": 1, "par": 4, "yards": 437, "handicap": 7 },
-            { "hole": 2, "par": 5, "yards": 518, "handicap": 1 }
+            { "hole": 1, "par": 4, "yards": 437, "handicap": 7, "handicap_women": 9 },
+            { "hole": 2, "par": 5, "yards": 518, "handicap": 1, "handicap_women": 1 }
           ]
         }
       ]
@@ -339,7 +342,11 @@ const resCities = `{
                         <p class="mt-1 font-mono text-sm text-mk-accent">GET /courses/{id}</p>
                         <p class="mt-3 max-w-2xl text-fg-muted">
                             Full detail including resolved location and the scorecard (teeboxes with
-                            per-hole par, yardage, and handicap).
+                            per-hole par, yardage, and handicap). Each teebox carries both the men's
+                            values (<code>rating</code>, <code>slope</code>, per-hole <code>handicap</code>)
+                            and the women's values as <code>rating_women</code>, <code>slope_women</code>,
+                            and per-hole <code>handicap_women</code> — the <code>*_women</code> fields fall
+                            back to the men's value where a course has no distinct women's value.
                         </p>
                         <div class="mt-5 grid gap-4">
                             <CodeBlock method="GET" label="/courses/4" :code="curl('/courses/4')" />

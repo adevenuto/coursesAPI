@@ -47,6 +47,11 @@ class CourseController extends Controller
         return new CourseCollection($courses);
     }
 
+    /**
+     * Course detail. The scorecard carries both the men's rating/slope/handicap
+     * and the women's values (as *_women fields, falling back to men's where a
+     * women's value isn't set).
+     */
     public function show(Course $course): CourseDetailResource
     {
         $course->load(['city', 'state', 'country']);

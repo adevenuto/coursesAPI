@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { ArrowLeft, ExternalLink, History, Save, Trash2 } from '@lucide/vue';
+import { ArrowLeft, ExternalLink, Flag, History, Save, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,13 +18,16 @@ interface Hole {
     par: number | null;
     length: number | null;
     handicap: number | null;
+    handicapWomen: number | null;
 }
 interface Teebox {
     name: string;
     color: string | null;
     secondaryColor: string | null;
     courseRating: number | null;
+    courseRatingWomen: number | null;
     slope: number | null;
+    slopeWomen: number | null;
     totalYardage: number | null;
     holes: Hole[];
 }
@@ -55,12 +58,20 @@ interface Revision {
     changes: Array<{ label: string; detail: string }>;
     at: string | null;
 }
+interface SiblingCourse {
+    id: number;
+    course_name: string | null;
+    hole_count: number | null;
+    green_centers_available: boolean;
+    edit_url: string;
+}
 
 const props = defineProps<{
     mode: 'create' | 'edit';
     course: EditorCourse | null;
     mapsKey: string | null;
     history?: Revision[];
+    siblings?: SiblingCourse[];
 }>();
 
 const c = props.course;
@@ -285,6 +296,41 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                             :lng="form.lng"
                             :hole-count="form.hole_count"
                         />
+                    </div>
+                </section>
+
+                <!-- Other courses on this property (siblings sharing club + coordinates) -->
+                <section v-if="siblings && siblings.length" class="ds-card p-6">
+                    <h2 class="font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase">
+                        Other courses on this property
+                    </h2>
+                    <p class="mt-1 text-xs text-fg-subtle">
+                        {{ siblings.length }} other course{{ siblings.length === 1 ? '' : 's' }} share this club and location.
+                    </p>
+                    <div class="mt-4 space-y-2">
+                        <Link
+                            v-for="s in siblings"
+                            :key="s.id"
+                            :href="s.edit_url"
+                            class="ds-card ds-card--hover flex items-center gap-3 p-4"
+                        >
+                            <span class="ds-icon-tile shrink-0">
+                                <Flag class="size-4 text-lime-500" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="flex items-center gap-1.5">
+                                    <span class="min-w-0 truncate text-sm font-medium text-fg">
+                                        {{ s.course_name || 'Untitled course' }}
+                                    </span>
+                                    <span
+                                        v-if="s.green_centers_available"
+                                        class="size-1.5 shrink-0 rounded-full bg-lime-400"
+                                        title="Green centers mapped"
+                                    />
+                                </span>
+                                <span v-if="s.hole_count" class="text-xs text-fg-subtle">{{ s.hole_count }} holes</span>
+                            </span>
+                        </Link>
                     </div>
                 </section>
             </div>
