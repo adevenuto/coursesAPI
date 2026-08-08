@@ -91,13 +91,16 @@ const { copy, copied } = useClipboard({ source: () => snippet });
 
         <!-- quick start + CTAs -->
         <div class="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-            <div class="rounded-xl border border-border p-5">
+            <!-- min-w-0: a grid item defaults to min-width:auto, so without this
+                 the long snippet sets the column's minimum width and the card
+                 pushes the page wide instead of the <pre> scrolling. -->
+            <div class="min-w-0 rounded-xl border border-border p-5">
                 <div class="flex items-center gap-2 text-sm font-medium"><Zap class="size-4 text-emerald-500" /> Quick start</div>
                 <p class="mt-1 text-sm text-muted-foreground">
                     {{ keys.count === 0 ? 'Create a key, then make your first call:' : 'Make a request with your key:' }}
                 </p>
-                <div class="relative mt-3">
-                    <pre class="overflow-x-auto rounded-lg border border-border bg-muted/40 p-3 font-mono text-xs leading-relaxed"><code>{{ snippet }}</code></pre>
+                <div class="relative mt-3 min-w-0">
+                    <pre class="min-w-0 overflow-x-auto rounded-lg border border-border bg-muted/40 p-3 pr-20 font-mono text-xs leading-relaxed"><code>{{ snippet }}</code></pre>
                     <Button type="button" variant="secondary" size="sm" class="absolute top-2 right-2" @click="copy()">
                         <component :is="copied ? Check : Copy" class="size-3.5" /> {{ copied ? 'Copied' : 'Copy' }}
                     </Button>
