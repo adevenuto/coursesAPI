@@ -36,11 +36,15 @@ $(cat "$svg")
 </body></html>
 HTML
 
+    # default-background-color=00000000 keeps the area outside the rounded
+    # corners transparent. Chrome otherwise composites onto white, which shows
+    # as white notches on a dark browser tab strip.
     "$CHROME" \
         --headless \
         --disable-gpu \
         --hide-scrollbars \
         --force-device-scale-factor=1 \
+        --default-background-color=00000000 \
         --window-size=1024,1024 \
         --virtual-time-budget=10000 \
         --screenshot="$png" \
@@ -49,14 +53,15 @@ HTML
 
 echo "==> Rasterising masters at 1024px"
 render "$SRC/icon.svg" "$TMP/master.png"
+render "$SRC/icon-opaque.svg" "$TMP/master-opaque.png"
 render "$SRC/icon-maskable.svg" "$TMP/master-maskable.png"
 
-for f in "$TMP/master.png" "$TMP/master-maskable.png"; do
+for f in "$TMP/master.png" "$TMP/master-opaque.png" "$TMP/master-maskable.png"; do
     [ -s "$f" ] || { echo "error: Chrome produced no output for $(basename "$f")"; exit 1; }
 done
 
 echo "==> Downsampling"
-php "$SRC/resize.php" "$TMP/master.png" "$TMP/master-maskable.png" "$OUT"
+php "$SRC/resize.php" "$TMP/master.png" "$TMP/master-opaque.png" "$TMP/master-maskable.png" "$OUT"
 
 echo "==> Copying favicon.svg"
 # Strip the leading comment so the served file stays lean.

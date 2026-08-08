@@ -4,9 +4,9 @@
  * Downsample the 1024px masters rendered by bin/render-icons.sh into the icon
  * set, and pack the small sizes into a multi-resolution favicon.ico.
  *
- * Usage: php resize.php <master.png> <master-maskable.png> <public-dir>
+ * Usage: php resize.php <master.png> <master-opaque.png> <master-maskable.png> <public-dir>
  */
-[, $masterPath, $maskablePath, $out] = $argv;
+[, $masterPath, $opaquePath, $maskablePath, $out] = $argv;
 
 /** Load a PNG, preserving alpha. */
 function load(string $path): GdImage
@@ -82,9 +82,11 @@ function writeIco(array $pngs, string $path): void
 }
 
 $master = load($masterPath);
+$opaque = load($opaquePath);
 $maskable = load($maskablePath);
 
-writePng(resample($master, 180), "{$out}/apple-touch-icon.png");
+// Full bleed: iOS rounds the corners itself and renders transparency as black.
+writePng(resample($opaque, 180), "{$out}/apple-touch-icon.png");
 writePng(resample($master, 192), "{$out}/icon-192.png");
 writePng(resample($master, 512), "{$out}/icon-512.png");
 writePng(resample($maskable, 512), "{$out}/icon-maskable-512.png");

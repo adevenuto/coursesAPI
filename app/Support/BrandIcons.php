@@ -19,7 +19,7 @@ class BrandIcons
      * replacing the bytes at the same URL leaves the old artwork live at the
      * edge for up to a week. Bump this whenever the artwork changes.
      */
-    public const VERSION = '2';
+    public const VERSION = '3';
 
     public const THEME_COLOR = '#0a0b0a';
 
