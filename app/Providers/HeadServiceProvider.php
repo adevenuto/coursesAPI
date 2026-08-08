@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Head\Schemas\GolfCourse;
+use App\Support\BrandIcons;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Head\Enums\ImageType;
 use Laravel\Head\Enums\OgType;
@@ -62,11 +63,14 @@ class HeadServiceProvider extends ServiceProvider
     {
         Head::inertiaGlobals(fn (HeadBuilder $head) => $head
             ->viewport('width=device-width, initial-scale=1')
-            ->themeColor('#0a0b0a')
-            ->icon(asset('favicon.svg'), type: ImageType::Svg)
-            ->icon(asset('favicon.ico'), sizes: '32x32')
-            ->appleTouchIcon(asset('apple-touch-icon.png'))
-            ->manifest(asset('site.webmanifest')));
+            ->themeColor(BrandIcons::THEME_COLOR)
+            ->icon(BrandIcons::url('favicon.svg'), type: ImageType::Svg)
+            ->icon(BrandIcons::url('favicon.ico'), sizes: '48x48 32x32 16x16')
+            ->appleTouchIcon(BrandIcons::url('apple-touch-icon.png'), sizes: '180x180')
+            // Not route('manifest'): inertiaGlobals() runs its callback during
+            // boot(), before the route table exists. The path is fixed anyway,
+            // and going through url() versions the manifest alongside the icons.
+            ->manifest(BrandIcons::url('site.webmanifest')));
     }
 
     /**

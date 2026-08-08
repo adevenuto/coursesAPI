@@ -129,6 +129,36 @@ Colours and the `G`/`CA` split mirror the footer lockup in
 geometry from `ContourGreen.vue`. Hostinger's CDN re-encodes the PNG at the edge, so the
 bytes served won't match the committed file — that's expected.
 
+## App icons and the web manifest
+
+`app/Support/BrandIcons.php` is the single source of truth: the version token, the icon
+list, and the theme colour. Both the head tags (`HeadServiceProvider`) and the manifest
+(`WebManifestController`) read from it — they were previously declared separately and had
+already drifted, the manifest claiming `#0b2410` while the meta tag said `#0a0b0a`.
+
+Artwork lives in `resources/icons/*.svg`. To change it, edit the SVG and re-render:
+
+```bash
+bin/render-icons.sh     # → apple-touch-icon 180, icon-192/512, maskable 512, favicon.svg/.ico
+```
+
+Chrome rasterises each master once at 1024px and GD downsamples, because Chrome enforces a
+minimum window width (~500px) and silently returns a larger canvas than requested for small
+sizes. The `.ico` is packed from the 48/32/16 renders — modern ICO allows embedded PNG.
+**Commit the outputs;** nothing regenerates them on deploy.
+
+Two things that bite:
+
+- **`BrandIcons::VERSION` must be bumped whenever the artwork changes.** Icons are served
+  with `max-age=604800` behind the CDN, so reusing a URL leaves the old artwork live at the
+  edge for up to a week.
+- **There must be no `public/site.webmanifest`.** Apache serves an existing file ahead of
+  the route, which is how it ended up as `text/plain` with a stale icon list. A test guards
+  this.
+
+On iOS an existing home-screen shortcut never re-fetches its icon — it has to be removed
+and re-added. That is not a caching bug.
+
 ## Verifying a deploy
 
 ```bash
