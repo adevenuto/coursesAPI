@@ -1,0 +1,125 @@
+<!doctype html>
+<!--
+    Source for public/og-image.png — the site-wide Open Graph / Twitter share
+    image referenced by HeadServiceProvider::OG_IMAGE.
+
+    Rendered to PNG with headless Chrome: bin/render-og-image.sh
+    Chrome is used rather than a design tool because Sora and JetBrains Mono are
+    loaded from Google Fonts, not installed as system fonts — any other renderer
+    silently substitutes them and the wordmark comes out wrong.
+
+    Colours and the G/CA split mirror the footer lockup in
+    resources/js/components/marketing/MarketingFooter.vue.
+-->
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>GCA — Open Graph card</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Sora:wght@800&family=JetBrains+Mono:wght@500&display=block"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --ink-900: #0a0b0a;
+                --lime-500: #8ae63c;
+                --emerald-500: #22c55e;
+                --text-primary: #f5f7f4;
+                --text-tertiary: #6b726a;
+            }
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                width: 1200px;
+                height: 630px;
+                overflow: hidden;
+            }
+
+            body {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: var(--ink-900);
+            }
+
+            /* Signature contour-green motif, bleeding off the bottom-right.
+               Kept very low contrast: at preview size it should register as
+               texture, not as a second focal point competing with the mark. */
+            .contours {
+                position: absolute;
+                /* Anchored well into the corner so the dense inner rings clear
+                   the wordmark entirely — only the faintest outer arcs reach
+                   back towards the type. */
+                right: -260px;
+                bottom: -260px;
+                width: 820px;
+                height: 780px;
+            }
+
+            .lockup {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                /* Nudge above true centre — type reads low when optically centred. */
+                margin-top: -22px;
+            }
+
+            .wordmark {
+                font-family: 'Sora', sans-serif;
+                font-weight: 800;
+                font-size: 200px;
+                line-height: 1;
+                letter-spacing: -0.02em;
+                color: var(--text-primary);
+            }
+
+            .wordmark .g {
+                color: var(--lime-500);
+            }
+
+            .tagline {
+                margin-top: 26px;
+                font-family: 'JetBrains Mono', monospace;
+                font-weight: 500;
+                font-size: 36px;
+                line-height: 1;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+                color: var(--text-tertiary);
+                /* Trailing letter-space would otherwise push the line right. */
+                text-indent: 0.2em;
+            }
+        </style>
+    </head>
+    <body>
+        <svg class="contours" viewBox="0 0 440 420" fill="none">
+            <g stroke-width="1.5">
+                <ellipse cx="232" cy="208" rx="196" ry="168" transform="rotate(-8 232 208)" stroke="#22c55e" stroke-opacity="0.05" />
+                <ellipse cx="232" cy="208" rx="168" ry="146" transform="rotate(-4 232 208)" stroke="#22c55e" stroke-opacity="0.06" />
+                <ellipse cx="232" cy="208" rx="140" ry="124" transform="rotate(3 232 208)" stroke="#22c55e" stroke-opacity="0.07" />
+                <ellipse cx="232" cy="208" rx="112" ry="100" transform="rotate(9 232 208)" stroke="#22c55e" stroke-opacity="0.08" />
+                <ellipse cx="232" cy="208" rx="84" ry="78" transform="rotate(6 232 208)" stroke="#22c55e" stroke-opacity="0.1" />
+                <ellipse cx="232" cy="208" rx="56" ry="54" transform="rotate(-2 232 208)" stroke="#8ae63c" stroke-opacity="0.12" />
+                <ellipse cx="232" cy="208" rx="30" ry="30" stroke="#8ae63c" stroke-opacity="0.16" />
+            </g>
+            <!-- green-centre pin -->
+            <circle cx="232" cy="208" r="6" fill="#8ae63c" fill-opacity="0.22" />
+        </svg>
+
+        <div class="lockup">
+            <div class="wordmark"><span class="g">G</span>CA</div>
+            <div class="tagline">Golf Courses API</div>
+        </div>
+    </body>
+</html>
