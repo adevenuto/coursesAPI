@@ -1,0 +1,21 @@
+<!--
+    Full-bleed variant for apple-touch-icon.png.
+
+    iOS applies its own corner mask to a home-screen icon, so supplying rounded
+    corners here would show ours inside Apple's. It also composites any
+    transparency onto black, so the background must run edge to edge.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+    <rect width="64" height="64" fill="#0a0b0a" />
+    <text
+        x="32"
+        y="41"
+        font-family="Sora, Inter, ui-sans-serif, system-ui, sans-serif"
+        font-size="26"
+        font-weight="800"
+        letter-spacing="-1.2"
+        text-anchor="middle"
+    >
+        <tspan fill="#8ae63c">G</tspan><tspan fill="#f5f7f4">CA</tspan>
+    </text>
+</svg>
