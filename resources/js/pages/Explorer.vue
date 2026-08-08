@@ -177,9 +177,9 @@ watch(radiusMiles, refetchForRadius);
                  course name or the map's own DOM would widen the column past the
                  viewport. The layout clips overflow rather than scrolling it, so
                  that shows up as content sliced off the right edge. -->
-            <div class="grid gap-6 lg:grid-cols-[minmax(0,440px)_1fr]">
-                <!-- left: search + results -->
-                <div class="flex min-w-0 flex-col gap-5">
+            <div class="grid gap-6 lg:grid-cols-[minmax(0,440px)_1fr] lg:grid-rows-[auto_1fr]">
+                <!-- search + radius -->
+                <div class="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
                     <CourseSearch :algolia="algolia" @select="onSelect" />
                     <RadiusControl
                         v-if="area?.type === 'city'"
@@ -187,21 +187,14 @@ watch(radiusMiles, refetchForRadius);
                         v-model:miles="radiusMiles"
                         :city="area.name"
                     />
-                    <ResultsList
-                        :area="area"
-                        :courses="visibleCourses"
-                        :count="count"
-                        :loaded="courses.length"
-                        :capped="capped"
-                        :loading="loading"
-                        :refreshing="refreshing"
-                        :hovered-id="hoveredId"
-                        @hover="hoveredId = $event"
-                    />
                 </div>
 
-                <!-- right: clustered map — sticky as the results list scrolls -->
-                <div class="ds-card relative min-h-[420px] min-w-0 overflow-hidden lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:min-h-0 lg:self-start">
+                <!-- Map. Ahead of the results in source order so that on mobile it
+                     sits directly under the search box rather than being buried
+                     below a long list; on lg it is placed back into the right
+                     column, spanning both rows, and stays sticky while the results
+                     scroll. -->
+                <div class="ds-card relative min-h-[420px] min-w-0 overflow-hidden lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[calc(100vh-8rem)] lg:min-h-0 lg:self-start">
                     <CoursesMap
                         v-if="maps.configured"
                         :maps-key="maps.key"
@@ -222,6 +215,21 @@ watch(radiusMiles, refetchForRadius);
                             </p>
                         </div>
                     </template>
+                </div>
+
+                <!-- results: last on mobile, back beneath the search box on lg -->
+                <div class="min-w-0 lg:col-start-1 lg:row-start-2">
+                    <ResultsList
+                        :area="area"
+                        :courses="visibleCourses"
+                        :count="count"
+                        :loaded="courses.length"
+                        :capped="capped"
+                        :loading="loading"
+                        :refreshing="refreshing"
+                        :hovered-id="hoveredId"
+                        @hover="hoveredId = $event"
+                    />
                 </div>
             </div>
         </div>
