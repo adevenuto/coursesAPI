@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { ArrowLeft, Flag, Globe, MapPin, Navigation, Pencil } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
@@ -31,8 +31,6 @@ const place = [props.course.location.city, props.course.location.state, props.co
 </script>
 
 <template>
-    <Head :title="`${course.name} — GCA`" />
-
     <MarketingLayout>
         <MarketingNav />
 

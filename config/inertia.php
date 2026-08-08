@@ -15,8 +15,12 @@ return [
     |
     */
 
+    // Disabled: there is no SSR entry point or bundle, and the shared host has
+    // no Node process to run one — every request was attempting a doomed
+    // connection to the SSR server and silently falling back. Laravel Head puts
+    // the SEO-critical tags in the initial HTML, so SSR isn't needed for that.
     'ssr' => [
-        'enabled' => true,
+        'enabled' => false,
         'url' => 'http://127.0.0.1:13714',
         // 'bundle' => base_path('bootstrap/ssr/ssr.mjs'),
 

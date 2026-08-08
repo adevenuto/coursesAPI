@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 import { MapPinned, Plus } from '@lucide/vue';
@@ -139,10 +139,6 @@ watch(radiusMiles, refetchForRadius);
 </script>
 
 <template>
-    <Head title="Course Explorer — GCA">
-        <meta name="description" content="Search 22,000+ golf courses by name, city, state, or country." />
-    </Head>
-
     <MarketingLayout>
         <MarketingNav />
 

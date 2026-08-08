@@ -11,8 +11,10 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
+use Laravel\Head\Facades\Head;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -48,32 +50,48 @@ class FortifyServiceProvider extends ServiceProvider
      */
     private function configureViews(): void
     {
-        Fortify::loginView(fn (Request $request) => Inertia::render('auth/Login', [
+        Fortify::loginView(fn (Request $request) => $this->page('auth/Login', 'Log in', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/ResetPassword', [
+        Fortify::resetPasswordView(fn (Request $request) => $this->page('auth/ResetPassword', 'Reset password', [
             'email' => $request->email,
             'token' => $request->route('token'),
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
         ]));
 
-        Fortify::requestPasswordResetLinkView(fn (Request $request) => Inertia::render('auth/ForgotPassword', [
+        Fortify::requestPasswordResetLinkView(fn (Request $request) => $this->page('auth/ForgotPassword', 'Forgot password', [
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/VerifyEmail', [
+        Fortify::verifyEmailView(fn (Request $request) => $this->page('auth/VerifyEmail', 'Email verification', [
             'status' => $request->session()->get('status'),
         ]));
 
-        Fortify::registerView(fn () => Inertia::render('auth/Register', [
+        Fortify::registerView(fn () => $this->page('auth/Register', 'Register', [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
         ]));
 
-        Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));
+        Fortify::twoFactorChallengeView(fn () => $this->page('auth/TwoFactorChallenge', 'Two-factor authentication'));
 
-        Fortify::confirmPasswordView(fn () => Inertia::render('auth/ConfirmPassword'));
+        Fortify::confirmPasswordView(fn () => $this->page('auth/ConfirmPassword', 'Confirm password'));
+    }
+
+    /**
+     * Render a Fortify auth page with its document title.
+     *
+     * Fortify registers its own routes, so `withHead()` can't be chained onto
+     * them — the metadata is set here instead. Auth pages are hidden from
+     * robots; nothing should surface them in search results.
+     *
+     * @param  array<string, mixed>  $props
+     */
+    private function page(string $component, string $title, array $props = []): InertiaResponse
+    {
+        Head::title($title)->hiddenFromRobots();
+
+        return Inertia::render($component, $props);
     }
 
     /**

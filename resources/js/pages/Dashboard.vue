@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useClipboard } from '@vueuse/core';
 import {
@@ -43,8 +43,6 @@ const { copy, copied } = useClipboard({ source: () => snippet });
 </script>
 
 <template>
-    <Head title="Dashboard" />
-
     <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div>
             <h1 class="text-2xl font-semibold tracking-tight">Welcome back, {{ userName }}.</h1>

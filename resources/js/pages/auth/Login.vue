@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { Form } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
 import PasskeyVerify from '@/components/PasskeyVerify.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
@@ -27,8 +27,6 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Log in" />
-
     <div
         v-if="status"
         class="mb-4 text-center text-sm font-medium text-green-600"

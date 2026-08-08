@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Head\Facades\Head;
+use Laravel\Head\Facades\Schema;
 
 class WelcomeController extends Controller
 {
@@ -22,6 +24,14 @@ class WelcomeController extends Controller
                 'greenCenters' => DB::table('courses')->where('layout_data', 'like', '%greenCenters%')->count(),
             ];
         });
+
+        Head::schema(Schema::organization()
+            ->name('GCA')
+            ->url(route('home'))
+            ->logo(asset('apple-touch-icon.png')))
+            ->schema(Schema::webSite()
+                ->name('GCA — The Golf Courses API')
+                ->url(route('home')));
 
         return Inertia::render('Welcome', [
             'stats' => $stats,

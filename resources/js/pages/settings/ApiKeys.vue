@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useClipboard } from '@vueuse/core';
 import { Check, Copy, KeyRound, Plus, Trash2 } from '@lucide/vue';
@@ -51,8 +51,6 @@ const errors = computed(() => ({ ...form.errors, ...(page.props.errors as Record
 </script>
 
 <template>
-    <Head title="API keys" />
-
     <div class="flex flex-col space-y-8">
         <Heading
             variant="small"

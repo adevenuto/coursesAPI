@@ -1,239 +1,185 @@
 # Deploying to Hostinger (Premium Web Hosting / shared)
 
-This is the runbook for the **first manual production deploy** of coursesApi to Hostinger shared
-hosting. The automated CI/CD pipeline (build on GitHub Actions → ship the artifact) is a follow-up and
-reuses the two scripts here.
+The app is **live** and deploys are **automated**: push to `main` → GitHub Actions runs the tests,
+builds the app, and rsyncs it to the server. Nothing is built on the host.
 
-## Why this app fits shared hosting
+- **Normal deploy** → [Automated deploys](#automated-deploys)
+- **Actions is down** → [Manual fallback](#manual-fallback)
+- **Rebuilding the server from scratch** → [First-time setup](#first-time-setup)
 
-- Queue, cache, and session all use the **`database`** driver — **no Redis**.
-- **No** scheduled tasks and **no** queued jobs — **no cron, no queue worker** required.
-- The only external hook is the (optional) **Stripe webhook**, handled synchronously.
+---
 
-The one constraint: **shared hosting has no Node**, so the Vite front-end is built off-server (locally
-via `bin/build-artifact.sh` for now, in GitHub Actions later) and uploaded.
+## How it fits shared hosting
 
-## Requirements
+- Queue, cache, and session all use the **`database`** driver — no Redis.
+- **No scheduled tasks and no queued jobs** — no cron, no queue worker. The only external hook is
+  the Stripe webhook, handled synchronously.
+- Shared hosting has **no Node**, so Vite assets are built off-server (in Actions, or locally via
+  `bin/build-artifact.sh`) and shipped compiled.
 
-| Thing | Value |
+| | |
 |---|---|
-| PHP | **8.3+** with `pdo_mysql, mbstring, bcmath, intl` (+ standard Laravel set) |
-| Database | **MySQL 8** |
-| Node (build only) | 22 (local/CI — not needed on the server) |
-| Composer | 2.x |
+| PHP | **8.3** (host default `php` is 8.3.x — there is no `php8.3` alias) |
+| Extensions | `pdo_mysql, mbstring, bcmath, intl` |
+| Database | MySQL 8 |
+| Node | 22 — build machines only |
+| App root | `~/domains/<domain>/public_html` (see layout below) |
 
 ---
 
-## A. Create the website + prep (hPanel)
+## Automated deploys
 
-1. hPanel → **Websites** → **Add website** → **Empty website** (not WordPress/builder).
-2. **Stage first:** create it on a **subdomain already on this account** (e.g.
-   `gca.your-existing-domain`) or Hostinger's **temporary domain** — working DNS + SSL immediately, so
-   we deploy and test without touching the real (parked) domain. The real domain is attached in **F**.
-3. **Advanced → SSH Access** → enable. Note the **host, port, username**.
-4. **Advanced → PHP Configuration** → set **PHP 8.3**; enable `mbstring, bcmath, intl, pdo_mysql`.
-   Bump `memory_limit` (e.g. 512M) if composer runs on the server.
-5. **Databases → MySQL Databases** → create a **database + user**. Note **db name, user, password**
-   (host is normally `localhost`).
-6. **Document root:** point the site's root at the app's **`public/`** folder. Plan: deploy the app to
-   `~/domains/<site>/coursesApi` and set the document root to `coursesApi/public`.
-   *Fallback* (if the root can't be changed): move the contents of `public/` into `public_html` and
-   edit the two `require` paths in `public_html/index.php` to point up into `../coursesApi`.
+Defined in `.github/workflows/tests.yml` (workflow name: **CI**).
 
----
+**Triggers:** push to `main`, or the **Run workflow** button on the Actions tab
+(`workflow_dispatch`) for an on-demand redeploy. Pull requests run the `ci` job only.
 
-## B. Build the artifact (local machine)
+**Flow:**
 
-```bash
-bin/build-artifact.sh
-```
+1. `ci` — MySQL 8 service, `php artisan test`.
+2. `deploy` (only on `main`, only if `ci` passed) — `composer install --no-dev`, `npm run build`,
+   asserts `public/build/manifest.json` exists, rsyncs the tree, then runs `bin/server-bootstrap.sh`
+   over SSH (migrate + `storage:link` + config/route/view cache).
 
-Produces `dist/coursesApi-deploy.tar.gz` with prod `vendor/` (no-dev) + compiled `public/build/`.
-Runs in a temp copy, so your dev `vendor/`/`node_modules/` are untouched.
+Deploys are serialized (`concurrency: deploy-production`) and **in-place** — no maintenance page, a
+few seconds of possible inconsistency, accepted at this traffic.
 
----
+> The gate is intentionally tests-only. Enabling `composer ci:check` (pint + phpstan + eslint +
+> prettier + vue-tsc) is deferred until the existing lint/format debt and a PHPStan config crash
+> (`DatabaseSeeder.php`, "Class mixed was not found") are cleaned up.
 
-## C. Get the code on the server
+### Server layout
 
-SSH in (`ssh -p <port> <user>@<host>`), then either:
+The app is deployed **directly into `public_html`** — that folder *is* the Laravel root. A
+server-only root **`.htaccess` shim** (not in the repo) rewrites requests into `public/`.
 
-**Option 1 — upload the artifact (simplest, no composer/Node on server):**
-```bash
-# from your local machine:
-scp -P <port> dist/coursesApi-deploy.tar.gz <user>@<host>:~/domains/<site>/
-# on the server:
-mkdir -p ~/domains/<site>/coursesApi
-tar -xzf ~/domains/<site>/coursesApi-deploy.tar.gz -C ~/domains/<site>/coursesApi
-```
+The rsync uses `--delete` (to clear stale hashed assets) and therefore **excludes** everything that
+lives only on the server: `.env` / `.env.*`, `/storage/`, `/bootstrap/cache/`, `/.htaccess`,
+`/.well-known/`, `/public/storage`, `/public/hot`. **The pipeline never touches the server `.env`.**
 
-**Option 2 — git clone + composer on the server** (better for iterating; needs a read-only deploy key):
-```bash
-git clone git@github.com:<you>/coursesApi.git ~/domains/<site>/coursesApi
-cd ~/domains/<site>/coursesApi
-composer install --no-dev --optimize-autoloader
-# then upload the locally-built public/build/ (the server can't run Vite):
-# scp -P <port> -r public/build <user>@<host>:~/domains/<site>/coursesApi/public/
-```
+### One-time setup (already done — for rebuilds)
 
----
-
-## D. Configure environment + bootstrap (server)
-
-```bash
-cd ~/domains/<site>/coursesApi
-cp .env.production.example .env
-# edit .env: set DB_DATABASE / DB_USERNAME / DB_PASSWORD and APP_URL (the staging URL for now)
-nano .env
-
-# key gen, migrate, storage:link, cache config/routes/views (idempotent):
-PHP_BIN=php bin/server-bootstrap.sh
-```
-
-Ensure `storage/` and `bootstrap/cache/` are writable (usually already are):
-```bash
-chmod -R ug+rw storage bootstrap/cache
-```
-
-> If `php` on SSH isn't 8.3, find the right binary (`ls /usr/bin/php*` or `/opt/alt/php83/...`) and
-> pass it via `PHP_BIN=...`. If `route:cache` errors, skip it — config + view cache are the important ones.
-
----
-
-## E. Load the course + geo data (local dump → server import)
-
-Your local `courses_api` DB already has the ~22k courses and the geo tables, already linked — so we
-dump and import the data directly (no need to re-run the `geo:import` / `courses:import` commands).
-
-**On your local machine** — dump *data only* for the reference tables (app tables like users/sessions
-stay fresh on prod):
-```bash
-mysqldump --no-create-info --complete-insert --single-transaction \
-  courses_api courses countries states cities regions subregions > prod_data.sql
-scp -P <port> prod_data.sql <user>@<host>:~/domains/<site>/
-```
-
-**On the server** — import with FK checks off (step D already created the empty tables via migrate):
-```bash
-mysql -u <db_user> -p <db_name> \
-  -e "SET FOREIGN_KEY_CHECKS=0; SOURCE ~/domains/<site>/prod_data.sql; SET FOREIGN_KEY_CHECKS=1;"
-```
-
-Sanity check:
-```bash
-mysql -u <db_user> -p <db_name> -e "SELECT COUNT(*) FROM courses; SELECT COUNT(*) FROM cities;"
-```
-
-> phpMyAdmin will time out on this size — import over SSH as above. If `mysqldump` warns about
-> credentials, add `-u <local_user> -p` (and `-h 127.0.0.1` if needed).
-
----
-
-## F. Cutover to the real domain
-
-Only after the staging URL passes the checks below.
-
-1. hPanel → add the **real domain** to this website (same document root).
-2. Edit the **server** `.env`: `APP_URL=https://<real-domain>` → then `php artisan config:cache`.
-   This is the value that must not stay as the `CHANGE_ME` placeholder — a wrong `APP_URL` breaks
-   Stripe checkout/portal return URLs, WebAuthn, and any absolute link the app renders. The CI/CD
-   pipeline never touches this file, so set it here once and every deploy re-caches it correctly.
-3. At your registrar, point the domain at Hostinger — **A record** to the plan's IP (shown in hPanel),
-   or switch **nameservers** to Hostinger's. The domain is parked, so there's nothing to disrupt.
-4. Once DNS resolves, in hPanel issue **free SSL** (Let's Encrypt) and **force HTTPS**. Required
-   before login works — `SESSION_SECURE_COOKIE=true` means cookies only send over HTTPS.
-
----
-
-## G. Go-live tasks
-
-- **Admin user:** register an account on the site, then:
-  ```bash
-  php artisan user:role you@example.com admin
-  ```
-- **Algolia (optional):** set `SCOUT_DRIVER=algolia` + `ALGOLIA_APP_ID/SECRET/SEARCH_KEY`, then
-  `php artisan scout:sync-index-settings` and `scout:import` for Course/City/State/Country.
-  See `docs/ALGOLIA_SETUP.md`.
-- **Stripe (optional):** live keys, `php artisan stripe:sync-products --write-env`, add the webhook
-  at `https://<domain>/stripe/webhook` and set `STRIPE_WEBHOOK_SECRET`. See `docs/STRIPE_SETUP.md`.
-- **Google Maps (optional):** set `GOOGLE_MAPS_API_KEY` for the explorer map.
-
----
-
-## Verify
-
-1. Home page loads over HTTPS (valid cert).
-2. `/explorer` → search a city → returns courses (confirms DB + geo data + built assets).
-3. A course page `/courses/{id}` shows the scorecard; as admin the **Edit** link appears and the
-   editor loads.
-4. `GET /api/v1/courses/{id}` (with a Sanctum token) returns JSON with `scorecard` incl. `*_women`.
-5. `APP_DEBUG=false` (no debug trace on a forced error); `storage/logs/laravel.log` clean.
-
-## Automated deploys (GitHub Actions)
-
-Deploys run from `.github/workflows/tests.yml`. On a push to **`main`**, the `ci` job runs the test
-suite (`php artisan test`); if it passes, the `deploy` job builds the app on the runner
-(`composer install --no-dev`, `npm run build` — the shared host has no Node) and **rsyncs the built
-tree to the server over SSH**, then runs `bin/server-bootstrap.sh` remotely. The server never builds
-anything and needs no git checkout.
-
-> The gate is intentionally tests-only for now. Enabling the stricter `composer ci:check`
-> (pint + phpstan + eslint + prettier + vue-tsc) is deferred until the existing lint/format debt and
-> a PHPStan config crash (`DatabaseSeeder.php`, "Class mixed was not found") are cleaned up.
-
-**Server layout:** the app is deployed **directly into `public_html`** (it is the app root), and a
-small server-only **root `.htaccess` shim** rewrites web requests into `public/`. That `.htaccess`
-is not in the repo, so the rsync must protect it. The rsync **excludes** `.env` / `.env.*`,
-`/storage/`, `/bootstrap/cache/`, **`/.htaccess`**, and `/.well-known/`, so production secrets,
-uploads, logs, the server's cached config, the rewrite shim, and SSL challenge files are never
-overwritten or deleted. `--delete` removes stale hashed assets from `public/build/`. The deploy is
-**in-place** (no maintenance page) — a few seconds of possible inconsistency, accepted at this
-traffic.
-
-### One-time setup
-
-1. **Deploy key** (dedicated, not a personal key):
+1. Generate a dedicated deploy key and add the **public** half in hPanel → Advanced → SSH Access:
    ```bash
    ssh-keygen -t ed25519 -f deploy_key -N '' -C 'github-actions-deploy'
    ```
-   Add the **public** key (`deploy_key.pub`) to Hostinger: hPanel → Advanced → SSH Access → Manage
-   SSH keys (or append it to `~/.ssh/authorized_keys` on the server).
-2. **GitHub secrets** — repo → Settings → Secrets and variables → Actions:
+2. Repo → Settings → Secrets and variables → Actions:
+
    | Secret | Value |
    |---|---|
-   | `SSH_HOST` | server host/IP from hPanel SSH Access |
-   | `SSH_PORT` | usually `65002` on Hostinger shared |
-   | `SSH_USER` | your SSH username (e.g. `u123456789`) |
+   | `SSH_HOST` | server host/IP from hPanel |
+   | `SSH_PORT` | `65002` on Hostinger shared |
+   | `SSH_USER` | e.g. `u123456789` |
    | `SSH_PRIVATE_KEY` | contents of the private `deploy_key` |
-   | `DEPLOY_PATH` | the `public_html` app root, e.g. `/home/<user>/domains/<primary-domain>/public_html` |
-3. PHP binary: on this host the default `php` is already **8.3.30** (`php -v`), so the workflow
-   uses `PHP_BIN=php`. There is no `php8.3` alias here — don't use it. If a future host's default
-   differs, pin `PHP_BIN` to the versioned CloudLinux binary (`/opt/alt/php83/usr/bin/php`).
+   | `DEPLOY_PATH` | `/home/<user>/domains/<domain>/public_html` |
 
-The first automated run should target the **staging** subdomain (server `.env` `APP_URL` still the
-staging URL). After the real-domain cutover (§F), the same pipeline deploys to production unchanged —
-attach the real domain to the **same website / document root** so the `public_html` folder (and thus
-`DEPLOY_PATH`) doesn't change. The pipeline never touches the server `.env`.
-
-After a deploy, sanity-check that the new hashed assets actually shipped:
+### After a deploy
 
 ```bash
-curl -s https://<host>/build/manifest.json    # should match local public/build/manifest.json
+curl -s https://<domain>/build/manifest.json   # should match local public/build/manifest.json
 ```
 
-### Manual fallback (if Actions is unavailable)
+---
+
+## Manual fallback
 
 ```bash
-bin/build-artifact.sh                     # local: rebuild the tarball
-# upload dist/coursesApi-deploy.tar.gz, extract over the app dir, then:
-PHP_BIN=php bin/server-bootstrap.sh    # server: migrate + re-cache
+bin/build-artifact.sh                    # local: dist/coursesApi-deploy.tar.gz (prod vendor/ + public/build/)
+scp -P <port> dist/coursesApi-deploy.tar.gz <user>@<host>:~/
+# on the server: extract over the app root, preserving .env / storage / .htaccess
+tar -xzf ~/coursesApi-deploy.tar.gz -C ~/domains/<domain>/public_html
+PHP_BIN=php bin/server-bootstrap.sh      # migrate + re-cache
 ```
+
+`build-artifact.sh` runs in a temp copy, so your dev `vendor/` and `node_modules/` are untouched.
+
+---
+
+## First-time setup
+
+Only needed to stand up a new server or rebuild this one.
+
+### 1. Site + services (hPanel)
+
+- **Websites → Add website → Empty website.** Stage on a subdomain or Hostinger's temporary domain
+  first if the real domain is live.
+- **Advanced → SSH Access** → enable; note host, port, user.
+- **Advanced → PHP Configuration** → PHP 8.3, enable `mbstring, bcmath, intl, pdo_mysql`.
+- **Databases → MySQL Databases** → create a database + user (host `localhost`).
+- Document root stays `public_html`; add the root `.htaccess` shim that rewrites into `public/`.
+
+### 2. Code + environment
+
+Ship the code via [Manual fallback](#manual-fallback) above, then:
+
+```bash
+cd ~/domains/<domain>/public_html
+cp .env.production.example .env
+nano .env      # fill every CHANGE_ME
+PHP_BIN=php bin/server-bootstrap.sh
+chmod -R ug+rw storage bootstrap/cache
+```
+
+Required in `.env`: `APP_URL` (real https URL — a stale value breaks Stripe return URLs, WebAuthn,
+and every absolute link), `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD`. `MAIL_MAILER` defaults to
+`log`, so **password resets and verification emails silently go nowhere until SMTP is configured** —
+uncomment the Hostinger SMTP block. `APP_KEY` is generated by the bootstrap script.
+
+Anytime `.env` changes: `php artisan config:cache` (cached config ignores the live file).
+
+### 3. Load courses + geo data
+
+The local `courses_api` DB already holds the ~22k linked courses and the geo tables, so dump the
+data rather than re-running the import commands. App tables (users, sessions) stay fresh on prod.
+
+```bash
+# local
+mysqldump --no-create-info --complete-insert --single-transaction \
+  courses_api courses countries states cities regions subregions > prod_data.sql
+scp -P <port> prod_data.sql <user>@<host>:~/
+
+# server (bootstrap already created the empty tables via migrate)
+mysql -u <db_user> -p <db_name> \
+  -e "SET FOREIGN_KEY_CHECKS=0; SOURCE ~/prod_data.sql; SET FOREIGN_KEY_CHECKS=1;"
+mysql -u <db_user> -p <db_name> -e "SELECT COUNT(*) FROM courses; SELECT COUNT(*) FROM cities;"
+```
+
+> phpMyAdmin times out at this size — import over SSH.
+
+### 4. Domain + SSL
+
+Point the domain at Hostinger (A record to the plan IP, or Hostinger nameservers), attach it to the
+**same website / document root** so `DEPLOY_PATH` never changes, then issue free SSL and force
+HTTPS. Required before login works — `SESSION_SECURE_COOKIE=true` means cookies are HTTPS-only.
+Finally set the real `APP_URL` and `php artisan config:cache`.
+
+### 5. Integrations
+
+| | |
+|---|---|
+| **Admin user** | register on the site, then `php artisan user:role you@example.com admin` |
+| **Algolia** (explorer search) | set `SCOUT_DRIVER=algolia` + `ALGOLIA_*`, then `scout:sync-index-settings` and `scout:import` for Course/City/State/Country — see `docs/ALGOLIA_SETUP.md` |
+| **Stripe** (billing) | live keys, `php artisan stripe:sync-products --write-env`, webhook at `https://<domain>/stripe/webhook` + `STRIPE_WEBHOOK_SECRET` — see `docs/STRIPE_SETUP.md` |
+| **Google Maps** | `GOOGLE_MAPS_API_KEY` for the explorer/editor maps |
+
+---
+
+## Smoke test
+
+1. Home page over HTTPS with a valid cert.
+2. `/explorer` → search a city → results (confirms Algolia + DB + built assets).
+3. `/courses/{id}` shows the scorecard; as admin the **Edit** link works.
+4. `GET /api/v1/courses/{id}` with a Sanctum token returns `scorecard` including `*_women`.
+5. `APP_DEBUG=false` (no trace on a forced error) and `storage/logs/laravel.log` is clean.
+
+---
 
 ## Troubleshooting
 
-- **Blank page / 500:** temporarily set `APP_DEBUG=true` + `php artisan config:cache`, reload,
-  read `storage/logs/laravel.log`, then set it back to `false`.
-- **"Vite manifest not found":** `public/build/manifest.json` didn't get uploaded — re-upload
-  `public/build/`.
-- **Stale config after an `.env` change:** `php artisan config:cache` (cached config ignores live
-  `.env` until you do).
-- **Composer OOM on server:** use **Option 1** (bundled `vendor/`) instead of running composer there.
+| Symptom | Fix |
+|---|---|
+| Blank page / 500 | temporarily `APP_DEBUG=true` + `config:cache`, read `storage/logs/laravel.log`, set back to `false` |
+| "Vite manifest not found" | `public/build/manifest.json` didn't ship — re-run the deploy |
+| `.env` change had no effect | `php artisan config:cache` |
+| Composer OOM on the server | don't run composer there — ship the artifact with `vendor/` bundled |
+| SSH logins hang / freeze | shared hosting (CloudLinux LVE) has a low process limit; kill orphans from dropped sessions — `pkill -x vim`, kill stale `bash`. Don't leave an editor open on `.env`. |
