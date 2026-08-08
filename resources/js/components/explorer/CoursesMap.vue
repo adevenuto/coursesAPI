@@ -109,7 +109,11 @@ onMounted(async () => {
             zoomControl: true,
             backgroundColor: '#0a0b0a',
             minZoom: 2,
-            gestureHandling: 'greedy', // scroll-wheel zoom without holding Cmd/Ctrl
+            // Cooperative: a plain scroll moves the page rather than zooming the
+            // map, so the map can't trap the scroll when it fills the screen on
+            // mobile. Pinch, or Cmd/Ctrl + scroll, still zooms. Matches the
+            // editor maps.
+            gestureHandling: 'cooperative',
         });
         info = new g.maps.InfoWindow();
         // Report the viewport whenever a pan/zoom settles (incl. fitBounds).
