@@ -1,3 +1,12 @@
+<!--
+    Master GCA app icon. Rendered to the PNG/ICO set by bin/render-icons.sh and
+    copied verbatim to public/favicon.svg.
+
+    Palette is the design system: ink-900 canvas, lime-500 G, text-primary CA.
+    The font stack stays generic because a favicon SVG is rasterised by the
+    browser, which will not load a webfont for it — the letterforms need to hold
+    up in whatever bold grotesque is available.
+-->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
     <rect x="0.5" y="0.5" width="63" height="63" rx="14" fill="#0a0b0a" stroke="#262925" />
     <text

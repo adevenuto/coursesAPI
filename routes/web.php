@@ -7,6 +7,7 @@ use App\Http\Controllers\DocsController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\ExplorerController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\WebManifestController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Middleware\EnsureCourseEditor;
 use Illuminate\Support\Facades\Route;
@@ -55,6 +56,10 @@ Route::get('courses/{course}/{slug?}', CourseShowController::class)
 // Crawler-facing endpoints (plain text / XML, not Inertia pages). robots.txt is
 // a route so its Sitemap line tracks APP_URL; there is no public/robots.txt.
 Route::get('robots.txt', [SitemapController::class, 'robots'])->name('robots');
+
+// Web app manifest — a route so the icon URLs stay versioned and the theme
+// colour comes from the same constant as the meta tag. No static file exists.
+Route::get('site.webmanifest', WebManifestController::class)->name('manifest');
 Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.index');
 Route::get('sitemap/pages.xml', [SitemapController::class, 'pages'])->name('sitemap.pages');
 Route::get('sitemap/courses-{page}.xml', [SitemapController::class, 'courses'])
