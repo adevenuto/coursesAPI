@@ -15,9 +15,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', WelcomeController::class)
     ->name('home')
     ->withHead(
-        // `exact` opts out of the inherited " — GCA" suffix; the brand is
-        // already in this title.
-        title: ['value' => 'GCA — The Golf Courses API', 'exact' => true],
+        // `exact` opts out of the inherited " — GCA" suffix. The brand is left
+        // out entirely because Google appends the site name itself, so this
+        // renders as "The Golf Courses API - GCA" in results.
+        title: ['value' => 'The Golf Courses API', 'exact' => true],
         description: 'Thousands of golf courses worldwide — locations, scorecards and per-hole green-center GPS — behind one clean, fast REST API. Get a free key.',
     );
 
