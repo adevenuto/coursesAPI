@@ -152,27 +152,62 @@ jobs:
         #   /bootstrap/cache - server regenerates these against its own .env
         #   /.htaccess      - root rewrite shim into public/ (server-only, not in repo)
         #   /.well-known/   - ACME/SSL challenge dir Hostinger may create
+        #
+        # Retried: the host intermittently drops connections from GitHub runner
+        # IPs, which surfaces as "connect ... Connection timed out" after the
+        # default ~2 minute TCP timeout. ConnectTimeout caps that wait so a bad
+        # attempt fails fast and the retry gets a fresh connection; rsync is
+        # idempotent, so a partial transfer simply resumes.
         run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=accept-new" \
-            --exclude '.git' \
-            --exclude '/.github' \
-            --exclude '.env' \
-            --exclude '.env.*' \
-            --exclude '/storage/' \
-            --exclude '/public/storage' \
-            --exclude '/public/hot' \
-            --exclude '/bootstrap/cache/' \
-            --exclude '/.htaccess' \
-            --exclude '/.well-known/' \
-            --exclude '/tests/' \
-            --exclude '/node_modules/' \
-            --exclude '.claude' \
-            --exclude '/dist' \
-            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+          SSH_OPTS="-i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+
+          for attempt in 1 2 3; do
+            if rsync -az --delete \
+              -e "ssh $SSH_OPTS" \
+              --exclude '.git' \
+              --exclude '/.github' \
+              --exclude '.env' \
+              --exclude '.env.*' \
+              --exclude '/storage/' \
+              --exclude '/public/storage' \
+              --exclude '/public/hot' \
+              --exclude '/bootstrap/cache/' \
+              --exclude '/.htaccess' \
+              --exclude '/.well-known/' \
+              --exclude '/tests/' \
+              --exclude '/node_modules/' \
+              --exclude '.claude' \
+              --exclude '/dist' \
+              ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"; then
+              echo "rsync succeeded on attempt $attempt"
+              exit 0
+            fi
+
+            echo "::warning::rsync attempt $attempt failed"
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 30)); fi
+          done
+
+          echo "::error::rsync failed after 3 attempts — the host is refusing connections from this runner"
+          exit 1
 
       - name: Run server bootstrap (migrate + caches)
+        # Retried for the same connectivity reason as the rsync. The script is
+        # idempotent, so a retry after a dropped connection is safe — but note a
+        # failure here leaves new code on the server against old caches, so it
+        # must not be allowed to pass silently.
         run: |
-          ssh -i ~/.ssh/deploy_key -p "${{ secrets.SSH_PORT }}" -o StrictHostKeyChecking=accept-new \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "cd '${{ secrets.DEPLOY_PATH }}' && PHP_BIN=php bin/server-bootstrap.sh"
+          SSH_OPTS="-i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+
+          for attempt in 1 2 3; do
+            if ssh $SSH_OPTS "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+              "cd '${{ secrets.DEPLOY_PATH }}' && PHP_BIN=php bin/server-bootstrap.sh"; then
+              echo "bootstrap succeeded on attempt $attempt"
+              exit 0
+            fi
+
+            echo "::warning::bootstrap attempt $attempt failed"
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 30)); fi
+          done
+
+          echo "::error::bootstrap failed after 3 attempts — the server may be running new code against stale caches"
+          exit 1
