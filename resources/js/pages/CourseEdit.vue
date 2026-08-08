@@ -277,7 +277,11 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                     <h2 class="font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase">Teeboxes &amp; scorecard</h2>
                     <InputError class="mt-1" :message="form.errors.teeboxes" />
                     <div class="mt-4">
-                        <TeeboxEditor v-model="form.teeboxes" v-model:hole-count="form.hole_count" />
+                        <TeeboxEditor
+                            v-model="form.teeboxes"
+                            v-model:hole-count="form.hole_count"
+                            :can-set-hole-count="!isEdit"
+                        />
                     </div>
                 </section>
 

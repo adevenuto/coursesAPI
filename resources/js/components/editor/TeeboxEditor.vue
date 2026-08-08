@@ -23,6 +23,14 @@ interface Teebox {
     holes: Hole[];
 }
 
+withDefaults(
+    defineProps<{
+        /** Hole count is only selectable while creating a course. */
+        canSetHoleCount?: boolean;
+    }>(),
+    { canSetHoleCount: false },
+);
+
 const teeboxes = defineModel<Teebox[]>({ required: true });
 const holeCount = defineModel<number>('holeCount', { required: true });
 
@@ -117,7 +125,10 @@ function syncParHandicap() {
 <template>
     <div>
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <label class="flex items-center gap-2 text-sm text-fg-muted">
+            <!-- Only offered while creating: changing the count on an existing
+                 course reconciles every teebox to 1..n, which silently discards
+                 the holes beyond it. -->
+            <label v-if="canSetHoleCount" class="flex items-center gap-2 text-sm text-fg-muted">
                 Holes
                 <select
                     v-model.number="holeCount"
@@ -125,11 +136,9 @@ function syncParHandicap() {
                 >
                     <option :value="9">9</option>
                     <option :value="18">18</option>
-                    <option :value="27">27</option>
-                    <option :value="36">36</option>
                 </select>
             </label>
-            <div class="flex items-center gap-2">
+            <div class="ml-auto flex items-center gap-2">
                 <Button v-if="teeboxes.length > 1" type="button" variant="ghost" size="sm" @click="syncParHandicap">
                     <Copy class="size-4" /> Sync par/handicap
                 </Button>
