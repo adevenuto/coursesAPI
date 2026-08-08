@@ -106,18 +106,28 @@ function recomputeTotal(tee: Teebox) {
 }
 
 // Par + handicap are course-constant; copy them from the first tee to the rest.
-function syncParHandicap() {
-    const first = teeboxes.value[0];
-    if (!first) return;
-    for (const tee of teeboxes.value.slice(1)) {
-        for (const h of tee.holes) {
-            const src = first.holes.find((x) => x.hole === h.hole);
-            if (src) {
-                h.par = src.par;
-                h.handicap = src.handicap;
-                h.handicapWomen = src.handicapWomen;
-            }
-        }
+/**
+ * Copy par and stroke index onto one teebox from the first.
+ *
+ * Both belong to the hole rather than the tee — the 7th is a par 4 from every
+ * set of tees, and only yardage changes. A teebox added to an existing course
+ * starts with empty holes, so this is offered on each one after the first
+ * rather than as a single action over all of them.
+ */
+function copyParFrom(index: number) {
+    const source = teeboxes.value[0];
+    const target = teeboxes.value[index];
+
+    if (!source || !target) return;
+
+    for (const hole of target.holes) {
+        const from = source.holes.find((h) => h.hole === hole.hole);
+
+        if (!from) continue;
+
+        hole.par = from.par;
+        hole.handicap = from.handicap;
+        hole.handicapWomen = from.handicapWomen;
     }
 }
 </script>
@@ -139,9 +149,6 @@ function syncParHandicap() {
                 </select>
             </label>
             <div class="ml-auto flex items-center gap-2">
-                <Button v-if="teeboxes.length > 1" type="button" variant="ghost" size="sm" @click="syncParHandicap">
-                    <Copy class="size-4" /> Sync par/handicap
-                </Button>
                 <Button type="button" variant="secondary" size="sm" @click="addTeebox">
                     <Plus class="size-4" /> Add teebox
                 </Button>
@@ -172,6 +179,15 @@ function syncParHandicap() {
                     </select>
                 </label>
                 <div class="ml-auto flex items-center gap-1">
+                    <button
+                        v-if="i > 0"
+                        type="button"
+                        class="mr-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line px-2 py-1 text-xs text-fg-muted transition hover:border-line-lime hover:text-fg"
+                        :title="`Copy par and stroke index from ${teeboxes[0].name || 'the first teebox'} — only yardage differs between tees`"
+                        @click="copyParFrom(i)"
+                    >
+                        <Copy class="size-3.5" /> Copy par/index
+                    </button>
                     <button type="button" class="grid size-7 place-items-center rounded-lg border border-line text-fg-muted enabled:cursor-pointer enabled:hover:text-fg disabled:opacity-40" :disabled="i === 0" aria-label="Move up" @click="move(i, -1)"><ChevronUp class="size-4" /></button>
                     <button type="button" class="grid size-7 place-items-center rounded-lg border border-line text-fg-muted enabled:cursor-pointer enabled:hover:text-fg disabled:opacity-40" :disabled="i === teeboxes.length - 1" aria-label="Move down" @click="move(i, 1)"><ChevronDown class="size-4" /></button>
                     <button type="button" class="grid size-7 place-items-center rounded-lg border border-line text-destructive enabled:cursor-pointer hover:border-destructive/50" aria-label="Remove teebox" @click="removeTeebox(i)"><Trash2 class="size-4" /></button>
