@@ -144,7 +144,7 @@ watch(radiusMiles, refetchForRadius);
 
         <div class="mx-auto max-w-[1120px] px-5 pt-10 pb-16 sm:px-7">
             <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-                <div>
+                <div class="min-w-0">
                     <div class="flex items-center gap-2">
                         <GlowBadge>Explorer</GlowBadge>
                         <span v-if="canEdit" class="ds-badge ds-badge--lime font-mono text-[10px] tracking-widest uppercase">Editor</span>
@@ -172,9 +172,14 @@ watch(radiusMiles, refetchForRadius);
                 importer (see <code class="font-mono">docs/ALGOLIA_SETUP.md</code>) to enable the explorer.
             </div>
 
+            <!-- min-w-0 on both columns: a grid item defaults to min-width:auto and
+                 refuses to shrink below its content's intrinsic width, so a long
+                 course name or the map's own DOM would widen the column past the
+                 viewport. The layout clips overflow rather than scrolling it, so
+                 that shows up as content sliced off the right edge. -->
             <div class="grid gap-6 lg:grid-cols-[minmax(0,440px)_1fr]">
                 <!-- left: search + results -->
-                <div class="flex flex-col gap-5">
+                <div class="flex min-w-0 flex-col gap-5">
                     <CourseSearch :algolia="algolia" @select="onSelect" />
                     <RadiusControl
                         v-if="area?.type === 'city'"
@@ -196,7 +201,7 @@ watch(radiusMiles, refetchForRadius);
                 </div>
 
                 <!-- right: clustered map — sticky as the results list scrolls -->
-                <div class="ds-card relative min-h-[420px] overflow-hidden lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:min-h-0 lg:self-start">
+                <div class="ds-card relative min-h-[420px] min-w-0 overflow-hidden lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:min-h-0 lg:self-start">
                     <CoursesMap
                         v-if="maps.configured"
                         :maps-key="maps.key"
