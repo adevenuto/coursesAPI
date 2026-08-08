@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Head\Facades\Head;
 
 /**
  * Editor-only course CRUD (paid users with the editor/admin role). Gated by
@@ -37,6 +38,8 @@ class CourseEditorController extends Controller
     public function edit(Course $course): Response
     {
         $course->load('updatedBy:id,name');
+
+        Head::title(trim((string) $course->course_name) ?: 'Edit course');
 
         return Inertia::render('CourseEdit', [
             'mode' => 'edit',

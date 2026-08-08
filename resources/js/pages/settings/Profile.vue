@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head, usePage } from '@inertiajs/vue3';
+import { Form, usePage } from '@inertiajs/vue3';
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
@@ -28,8 +28,6 @@ const user = computed(() => page.props.auth.user);
 </script>
 
 <template>
-    <Head title="Profile settings" />
-
     <h1 class="sr-only">Profile settings</h1>
 
     <div class="flex flex-col space-y-6">

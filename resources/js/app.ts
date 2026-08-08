@@ -5,10 +5,11 @@ import AuthLayout from '@/layouts/AuthLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
-
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    // Titles and meta are resolved server-side by Laravel Head and delivered in
+    // the initial HTML. `serverHead` tells Inertia to adopt those elements and
+    // keep them in sync across visits — do not add a `title` callback here.
+    serverHead: true,
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':

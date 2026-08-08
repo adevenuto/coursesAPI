@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { Form } from '@inertiajs/vue3';
 import {
     index as confirmOptions,
     store as confirmStore,
@@ -22,8 +22,6 @@ defineOptions({
 </script>
 
 <template>
-    <Head title="Confirm password" />
-
     <PasskeyVerify
         :routes="{
             options: confirmOptions(),

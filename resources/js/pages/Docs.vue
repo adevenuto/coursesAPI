@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { register } from '@/routes';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
@@ -170,10 +170,6 @@ const resCities = `{
 </script>
 
 <template>
-    <Head title="API Documentation — GCA">
-        <meta name="description" content="Golf Courses API (GCA) documentation: authentication, rate limits, pagination, and endpoint reference with live examples." />
-    </Head>
-
     <MarketingLayout>
         <MarketingNav />
 

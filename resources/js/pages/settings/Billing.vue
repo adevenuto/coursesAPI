@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { Check, CreditCard, Crown, ExternalLink, Zap } from '@lucide/vue';
 import Heading from '@/components/Heading.vue';
@@ -116,8 +116,6 @@ const ctaLabel = (plan: PlanCard): string => {
 </script>
 
 <template>
-    <Head title="Billing" />
-
     <div class="flex flex-col space-y-8">
         <Heading
             variant="small"

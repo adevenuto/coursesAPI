@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { ArrowLeft, ExternalLink, Flag, History, Save, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
@@ -133,8 +133,6 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
 </script>
 
 <template>
-    <Head :title="`${title} — GCA`" />
-
     <MarketingLayout>
         <MarketingNav />
 

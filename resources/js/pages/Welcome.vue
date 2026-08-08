@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import HeroSection from '@/components/marketing/HeroSection.vue';
@@ -46,19 +45,6 @@ withDefaults(
 </script>
 
 <template>
-    <Head title="GCA — The Golf Courses API">
-        <meta
-            name="description"
-            content="Thousands of golf courses worldwide — locations, scorecards and per-hole green-center GPS — behind one clean, fast REST API. Get a free key."
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-            rel="preconnect"
-            href="https://fonts.gstatic.com"
-            crossorigin
-        />
-    </Head>
-
     <MarketingLayout>
         <MarketingNav />
         <main>
