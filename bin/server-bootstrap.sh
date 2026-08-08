@@ -17,6 +17,22 @@ PHP="${PHP_BIN:-php}"
 
 echo "==> PHP: $("$PHP" -v | head -1)"
 
+# Purge the stale bootstrap caches before touching artisan.
+#
+# Composer runs on the build machine, and bootstrap/cache/ is excluded from the
+# deploy, so the server can be left holding a package manifest and provider
+# cache that predate a newly added dependency. Its service provider then never
+# loads, and any app provider depending on it dies during boot — which takes
+# every artisan command with it ("Target class [...] does not exist").
+#
+# These are plain file removals precisely because they must work when the app
+# can no longer boot. Laravel rebuilds all three on the next boot.
+echo "==> Clearing stale bootstrap caches"
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php bootstrap/cache/config.php
+
+echo "==> Discovering packages"
+"$PHP" artisan package:discover
+
 # Generate APP_KEY only if one isn't already set.
 if ! grep -qE '^APP_KEY=base64:' .env; then
   echo "==> Generating APP_KEY"
@@ -27,7 +43,8 @@ echo "==> Migrating database (--force)"
 "$PHP" artisan migrate --force
 
 echo "==> Linking public storage"
-"$PHP" artisan storage:link 2>/dev/null || echo "    (storage link already exists — skipping)"
+# storage:link reports an existing link as an error on stdout, not stderr.
+"$PHP" artisan storage:link >/dev/null 2>&1 || echo "    (storage link already exists — skipping)"
 
 echo "==> Caching config / routes / views"
 "$PHP" artisan config:cache
