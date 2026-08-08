@@ -152,7 +152,7 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                         Last edited by <span class="text-fg-muted">{{ lastEditor.name || 'someone' }}</span> · {{ lastEditor.at }}
                     </p>
                 </div>
-                <div class="flex shrink-0 items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     <Button v-if="isEdit" type="button" variant="ghost" size="sm" @click="showHistory = true">
                         <History class="size-4" /> History
                     </Button>
