@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, watch } from 'vue';
+import { computed, nextTick, onMounted, watch } from 'vue';
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from '@lucide/vue';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -105,6 +105,13 @@ function recomputeTotal(tee: Teebox) {
     });
 }
 
+/**
+ * Every teebox needs a name — the server enforces it (teeboxes.*.name is
+ * required), and an unnamed tee is meaningless on a scorecard. Blocking here
+ * stops unnamed cards piling up only to fail on save.
+ */
+const hasUnnamedTeebox = computed(() => teeboxes.value.some((tee) => !String(tee.name ?? '').trim()));
+
 const filled = (value: unknown) => value !== null && value !== undefined && value !== '';
 
 /** A teebox nobody has entered any hole data into yet. */
@@ -165,7 +172,15 @@ function copyFromPrevious(index: number) {
                 </select>
             </label>
             <div class="ml-auto flex items-center gap-2">
-                <Button type="button" variant="secondary" size="sm" @click="addTeebox">
+                <span v-if="hasUnnamedTeebox" class="text-xs text-fg-subtle"> Name every teebox first </span>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    :disabled="hasUnnamedTeebox"
+                    :title="hasUnnamedTeebox ? 'Give every teebox a name before adding another' : undefined"
+                    @click="addTeebox"
+                >
                     <Plus class="size-4" /> Add teebox
                 </Button>
             </div>
