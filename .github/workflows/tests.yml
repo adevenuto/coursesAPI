@@ -51,7 +51,10 @@ jobs:
           tools: composer:v2
           coverage: none
 
+      # Node is only needed to produce the deploy artifact. The test suite stubs
+      # out @vite (see tests/TestCase.php), so pull requests skip npm entirely.
       - name: Setup Node
+        if: github.event_name != 'pull_request'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
@@ -72,10 +75,10 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
-      - name: Install & build frontend
-        # Required by the tests themselves: they render real pages through the
-        # Blade root template, whose @vite call needs a manifest. Also generates
-        # the Wayfinder route/action files the vite plugin produces.
+      - name: Build frontend
+        # Solely to produce the artifact the deploy job consumes — the tests no
+        # longer need compiled assets.
+        if: github.event_name != 'pull_request'
         run: |
           npm ci
           npm run build
@@ -83,6 +86,7 @@ jobs:
       - name: Upload built assets
         # Handed to the deploy job so it never repeats the npm install + build.
         # Same commit, same assets — rebuilding there was pure duplication.
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: build-assets

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, watch } from 'vue';
+import { computed, nextTick, onMounted, watch } from 'vue';
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from '@lucide/vue';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -105,17 +105,35 @@ function recomputeTotal(tee: Teebox) {
     });
 }
 
-// Par + handicap are course-constant; copy them from the first tee to the rest.
 /**
- * Copy par and stroke index onto one teebox from the first.
- *
- * Both belong to the hole rather than the tee — the 7th is a par 4 from every
- * set of tees, and only yardage changes. A teebox added to an existing course
- * starts with empty holes, so this is offered on each one after the first
- * rather than as a single action over all of them.
+ * Every teebox needs a name — the server enforces it (teeboxes.*.name is
+ * required), and an unnamed tee is meaningless on a scorecard. Blocking here
+ * stops unnamed cards piling up only to fail on save.
  */
-function copyParFrom(index: number) {
-    const source = teeboxes.value[0];
+const hasUnnamedTeebox = computed(() => teeboxes.value.some((tee) => !String(tee.name ?? '').trim()));
+
+const filled = (value: unknown) => value !== null && value !== undefined && value !== '';
+
+/** A teebox nobody has entered any hole data into yet. */
+function isBlank(tee: Teebox): boolean {
+    return tee.holes.every(
+        (h) => !filled(h.par) && !filled(h.length) && !filled(h.handicap) && !filled(h.handicapWomen),
+    );
+}
+
+/**
+ * Seed a blank teebox from the one above it, copying every hole value that is
+ * actually set — par, yardage and stroke index.
+ *
+ * Par and stroke index are properties of the hole and carry across unchanged;
+ * yardage does differ per tee, but starting from the neighbouring card and
+ * adjusting is far less work than typing 18 numbers from scratch.
+ *
+ * Deliberately not copied: course rating and slope. Those are measured per tee,
+ * so an inherited value would look authoritative while being wrong.
+ */
+function copyFromPrevious(index: number) {
+    const source = teeboxes.value[index - 1];
     const target = teeboxes.value[index];
 
     if (!source || !target) return;
@@ -125,10 +143,15 @@ function copyParFrom(index: number) {
 
         if (!from) continue;
 
-        hole.par = from.par;
-        hole.handicap = from.handicap;
-        hole.handicapWomen = from.handicapWomen;
+        if (filled(from.par)) hole.par = from.par;
+        if (filled(from.length)) hole.length = from.length;
+        if (filled(from.handicap)) hole.handicap = from.handicap;
+        if (filled(from.handicapWomen)) hole.handicapWomen = from.handicapWomen;
     }
+
+    // The total only recalculates on the yardage input event, which copying
+    // never fires.
+    recomputeTotal(target);
 }
 </script>
 
@@ -149,7 +172,15 @@ function copyParFrom(index: number) {
                 </select>
             </label>
             <div class="ml-auto flex items-center gap-2">
-                <Button type="button" variant="secondary" size="sm" @click="addTeebox">
+                <span v-if="hasUnnamedTeebox" class="text-xs text-fg-subtle"> Name every teebox first </span>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    :disabled="hasUnnamedTeebox"
+                    :title="hasUnnamedTeebox ? 'Give every teebox a name before adding another' : undefined"
+                    @click="addTeebox"
+                >
                     <Plus class="size-4" /> Add teebox
                 </Button>
             </div>
@@ -179,14 +210,16 @@ function copyParFrom(index: number) {
                     </select>
                 </label>
                 <div class="ml-auto flex items-center gap-1">
+                    <!-- Only while this card is still blank: once it holds data,
+                         copying over it would silently overwrite real edits. -->
                     <button
-                        v-if="i > 0"
+                        v-if="i > 0 && isBlank(tee) && !isBlank(teeboxes[i - 1])"
                         type="button"
                         class="mr-1 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-line px-2 py-1 text-xs text-fg-muted transition hover:border-line-lime hover:text-fg"
-                        :title="`Copy par and stroke index from ${teeboxes[0].name || 'the first teebox'} — only yardage differs between tees`"
-                        @click="copyParFrom(i)"
+                        :title="`Copy par, yardage and stroke index from ${teeboxes[i - 1].name || 'the teebox above'}, then adjust the yardages`"
+                        @click="copyFromPrevious(i)"
                     >
-                        <Copy class="size-3.5" /> Copy par/index
+                        <Copy class="size-3.5" /> Copy from {{ teeboxes[i - 1].name || 'previous tee' }}
                     </button>
                     <button type="button" class="grid size-7 place-items-center rounded-lg border border-line text-fg-muted enabled:cursor-pointer enabled:hover:text-fg disabled:opacity-40" :disabled="i === 0" aria-label="Move up" @click="move(i, -1)"><ChevronUp class="size-4" /></button>
                     <button type="button" class="grid size-7 place-items-center rounded-lg border border-line text-fg-muted enabled:cursor-pointer enabled:hover:text-fg disabled:opacity-40" :disabled="i === teeboxes.length - 1" aria-label="Move down" @click="move(i, 1)"><ChevronDown class="size-4" /></button>
