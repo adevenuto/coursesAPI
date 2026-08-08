@@ -76,11 +76,13 @@ class CourseShowController extends Controller
                     country: $course->country?->iso2,
                 )
                 ->geo($course->lat, $course->lng))
-            ->schema(Schema::breadcrumbs()->items([
-                'Home' => route('home'),
-                'Course Explorer' => route('explorer'),
-                $name => $url,
-            ]));
+            // Built with item() rather than items([...]): the course name would
+            // be an array key there, and PHP casts integer-like keys to int —
+            // which blows up on the 42 courses actually named "2018", "2004"...
+            ->schema(Schema::breadcrumbs()
+                ->item('Home', route('home'))
+                ->item('Course Explorer', route('explorer'))
+                ->item($name, $url));
     }
 
     /**

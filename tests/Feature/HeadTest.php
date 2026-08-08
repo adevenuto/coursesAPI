@@ -125,6 +125,26 @@ class HeadTest extends TestCase
         $this->fail('No GolfCourse JSON-LD block was rendered.');
     }
 
+    public function test_a_course_named_like_a_number_still_renders(): void
+    {
+        // 42 real courses are named "2018", "2004" and so on. Passing such a
+        // name as an array key casts it to int and blows up the breadcrumb
+        // builder, which 500'd the page.
+        $course = Course::create([
+            'course_name' => '2018',
+            'club_name' => 'Sobienie Krolewskie GCC',
+            'layout_data' => ['hole_count' => 18, 'teeboxes' => []],
+        ]);
+
+        $html = $this->get(route('courses.show', ['course' => $course->id, 'slug' => $course->urlSlug()]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('<title data-inertia="title">2018 — GCA</title>', $html);
+        $this->assertStringContainsString('"@type":"BreadcrumbList"', $html);
+        $this->assertStringContainsString('"name":"2018"', $html);
+    }
+
     public function test_course_canonical_points_at_the_slugged_url(): void
     {
         $course = $this->seedCourse();
