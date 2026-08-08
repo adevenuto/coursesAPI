@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\BrandIcons;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -25,12 +26,18 @@ class WelcomeController extends Controller
             ];
         });
 
+        // Google derives the site name it appends to every result title, and
+        // treats WebSite structured data as the strongest signal. It must match
+        // og:site_name (HeadServiceProvider) and Organization below, or results
+        // get inconsistent suffixes — which is how one page ended up rendering
+        // as "GCA — The Golf Courses API - GCA".
         Head::schema(Schema::organization()
             ->name('GCA')
             ->url(route('home'))
-            ->logo(asset('apple-touch-icon.png')))
+            ->logo(BrandIcons::url('icon-512.png')))
             ->schema(Schema::webSite()
-                ->name('GCA — The Golf Courses API')
+                ->name('GCA')
+                ->alternateName('Golf Courses API')
                 ->url(route('home')));
 
         return Inertia::render('Welcome', [

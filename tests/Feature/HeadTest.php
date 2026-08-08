@@ -38,7 +38,7 @@ class HeadTest extends TestCase
     {
         $html = $this->get('/')->assertOk()->getContent();
 
-        $this->assertStringContainsString('<title data-inertia="title">GCA — The Golf Courses API</title>', $html);
+        $this->assertStringContainsString('<title data-inertia="title">The Golf Courses API</title>', $html);
         $this->assertStringContainsString('name="description"', $html);
         $this->assertStringContainsString('rel="canonical"', $html);
         $this->assertStringContainsString('property="og:site_name" content="GCA"', $html);
@@ -52,6 +52,44 @@ class HeadTest extends TestCase
 
         $this->assertStringContainsString('"@type":"Organization"', $html);
         $this->assertStringContainsString('"@type":"WebSite"', $html);
+    }
+
+    public function test_every_site_name_signal_agrees(): void
+    {
+        // Google builds the site name it appends to result titles from these,
+        // weighting WebSite structured data highest. When they disagreed, two
+        // pages got different suffixes and one rendered the brand twice.
+        $html = $this->get('/')->assertOk()->getContent();
+
+        preg_match('/property="og:site_name" content="([^"]*)"/', $html, $og);
+
+        $schemaNames = [];
+
+        preg_match_all('#<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>#s', $html, $blocks);
+
+        foreach ($blocks[1] as $json) {
+            $decoded = json_decode($json, true);
+
+            if (in_array($decoded['@type'] ?? null, ['Organization', 'WebSite'], true)) {
+                $schemaNames[$decoded['@type']] = $decoded['name'] ?? null;
+            }
+        }
+
+        $this->assertSame('GCA', $og[1] ?? null, 'og:site_name');
+        $this->assertSame('GCA', $schemaNames['Organization'] ?? null, 'Organization name');
+        $this->assertSame('GCA', $schemaNames['WebSite'] ?? null, 'WebSite name');
+    }
+
+    public function test_the_home_title_does_not_repeat_the_site_name(): void
+    {
+        // Google appends the site name, so a title containing it renders twice.
+        preg_match(
+            '/<title[^>]*>([^<]*)</',
+            $this->get('/')->assertOk()->getContent(),
+            $title,
+        );
+
+        $this->assertStringNotContainsString('GCA', $title[1]);
     }
 
     public function test_static_pages_use_their_own_titles(): void

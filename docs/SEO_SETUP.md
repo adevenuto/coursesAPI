@@ -87,6 +87,24 @@ Note: Google's Rich Results Test reports **only** `BreadcrumbList`, because ther
 Google rich-result feature for `GolfCourse`. That is not a failure — use
 [validator.schema.org](https://validator.schema.org) to check that block.
 
+### The site name must agree in three places
+
+Google derives a **site name** and appends it to every result title, weighting `WebSite`
+structured data highest. It has to match `og:site_name` and the `Organization` name:
+
+| Signal | Where |
+|---|---|
+| `WebSite.name` | `WelcomeController` |
+| `Organization.name` | `WelcomeController` |
+| `og:site_name` | `HeadServiceProvider::registerDefaults()` |
+
+All three say **`GCA`**. When they disagreed, two pages picked up *different* suffixes and
+the home page rendered as `GCA — The Golf Courses API - GCA`. A test in `HeadTest` asserts
+they match.
+
+For the same reason the home page title is `The Golf Courses API` with no brand in it —
+Google supplies the ` - GCA`. Don't put the site name back into that title.
+
 ## Sitemaps and robots.txt
 
 `app/Http/Controllers/SitemapController.php`, routed in `routes/web.php`.
