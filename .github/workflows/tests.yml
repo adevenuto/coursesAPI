@@ -73,11 +73,22 @@ jobs:
           php artisan key:generate
 
       - name: Install & build frontend
-        # Also generates the Wayfinder route/action files (vite plugin) that
-        # eslint + vue-tsc need to resolve imports in the gate below.
+        # Required by the tests themselves: they render real pages through the
+        # Blade root template, whose @vite call needs a manifest. Also generates
+        # the Wayfinder route/action files the vite plugin produces.
         run: |
           npm ci
           npm run build
+
+      - name: Upload built assets
+        # Handed to the deploy job so it never repeats the npm install + build.
+        # Same commit, same assets — rebuilding there was pure duplication.
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: build-assets
+          path: public/build
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Run tests
         # Gate is tests-only for now. The stricter `composer ci:check`
@@ -110,26 +121,18 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '22'
-          cache: 'npm'
-
       - name: Install PHP dependencies (production)
+        # Still needed here: the ci job installs dev dependencies, so its vendor/
+        # is not what production should run.
         run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
 
-      - name: Prepare build environment
-        # Build-only .env so the Wayfinder vite plugin can enumerate routes.
-        # It is excluded from the rsync below and never reaches the server.
-        run: |
-          cp .env.example .env
-          php artisan key:generate
-
-      - name: Build frontend
-        run: |
-          npm ci
-          npm run build
+      - name: Download built assets
+        # Built once by the ci job, which this job already depends on. No Node,
+        # no npm ci, no vite build, and no throwaway .env needed here.
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: build-assets
+          path: public/build
 
       - name: Verify build output
         run: test -f public/build/manifest.json
