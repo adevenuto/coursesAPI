@@ -21,9 +21,16 @@ builds the app, and rsyncs it to the server. Nothing is built on the host.
 |---|---|
 | PHP | **8.3** (host default `php` is 8.3.x — there is no `php8.3` alias) |
 | Extensions | `pdo_mysql, mbstring, bcmath, intl` |
-| Database | MySQL 8 |
+| Database | **MariaDB 11.8** (Hostinger shared; not MySQL — see below) |
 | Node | 22 — build machines only |
 | App root | `~/domains/<domain>/public_html` (see layout below) |
+
+> **The production database is MariaDB, not MySQL.** Hostinger shared reports `11.8.8`.
+> Laravel's `mysql` driver speaks to it fine and nothing in the app needs changing, but two
+> things follow: CI runs its test suite against MariaDB so the suite matches production, and
+> MySQL Workbench will warn about an "incompatible/nonstandard server version" because it
+> only recognises MySQL version numbers. Use TablePlus, Sequel Ace or DBeaver instead —
+> they support MariaDB natively.
 
 ---
 
@@ -36,7 +43,7 @@ Defined in `.github/workflows/tests.yml` (workflow name: **CI**).
 
 **Flow:**
 
-1. `ci` — MySQL 8 service, `php artisan test`.
+1. `ci` — MariaDB 11.8 service (matching production), `php artisan test`.
 2. `deploy` (only on `main`, only if `ci` passed) — `composer install --no-dev`, `npm run build`,
    asserts `public/build/manifest.json` exists, rsyncs the tree, then runs `bin/server-bootstrap.sh`
    over SSH (migrate + `storage:link` + config/route/view cache).

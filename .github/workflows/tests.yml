@@ -14,22 +14,29 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
-    # MySQL for the test suite (the app + tests use MySQL, not sqlite).
+    # MariaDB, matching production: Hostinger shared runs MariaDB 11.8, not
+    # MySQL. The suite needs a real server either way (it uses SQL maths that
+    # sqlite lacks), so it may as well be the engine we actually deploy to.
     services:
-      mysql:
-        image: mysql:8.0
+      mariadb:
+        image: mariadb:11.8
         env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: courses_api_test
+          MARIADB_ROOT_PASSWORD: password
+          MARIADB_DATABASE: courses_api_test
         ports:
           - 3306:3306
+        # MariaDB ships its own healthcheck; the mysql-named binaries are
+        # deprecated in 11.x.
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppassword"
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=15
 
     env:
+      # Still the `mysql` driver: that is what production's .env uses to talk to
+      # MariaDB. Switching to Laravel's `mariadb` driver here would swap one
+      # dev/prod divergence for another.
       DB_CONNECTION: mysql
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
