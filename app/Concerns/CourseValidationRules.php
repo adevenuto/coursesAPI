@@ -26,6 +26,16 @@ trait CourseValidationRules
             'lng' => ['required', 'numeric', 'between:-180,180'],
             'hole_count' => ['nullable', 'integer', 'between:1,36'],
 
+            // Google Places address components for the place the editor just
+            // picked, used to reconcile city_id/state_prov_id/country_id on save.
+            // Absent on a plain save; never stored verbatim.
+            'place_country_code' => ['nullable', 'string', 'max:120'],
+            'place_country_name' => ['nullable', 'string', 'max:120'],
+            'place_state_code' => ['nullable', 'string', 'max:120'],
+            'place_state_name' => ['nullable', 'string', 'max:120'],
+            'place_city_candidates' => ['nullable', 'array', 'max:6'],
+            'place_city_candidates.*' => ['string', 'max:120'],
+
             'teeboxes' => ['present', 'array', 'max:12'],
             'teeboxes.*.name' => ['required', 'string', 'max:60'],
             'teeboxes.*.color' => ['nullable', $hex],

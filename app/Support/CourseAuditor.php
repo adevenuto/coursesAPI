@@ -38,6 +38,8 @@ class CourseAuditor
             'website' => $course->website,
             'lat' => $course->lat,
             'lng' => $course->lng,
+            'location' => collect([$course->city?->name, $course->state?->name, $course->country?->name])
+                ->filter()->implode(', '),
             'teeboxes' => $data['teeboxes'] ?? [],
             'green_centers' => $course->green_centers ?? [],
         ];
@@ -63,6 +65,10 @@ class CourseAuditor
         if ((string) ($before['lat'] ?? '') !== (string) ($after['lat'] ?? '')
             || (string) ($before['lng'] ?? '') !== (string) ($after['lng'] ?? '')) {
             $changes[] = ['label' => 'Coordinates', 'detail' => 'moved'];
+        }
+
+        if (($before['location'] ?? '') !== ($after['location'] ?? '')) {
+            $changes[] = ['label' => 'Location', 'detail' => self::val($before['location'] ?? null).' → '.self::val($after['location'] ?? null)];
         }
 
         if (json_encode($before['teeboxes'] ?? []) !== json_encode($after['teeboxes'] ?? [])) {
