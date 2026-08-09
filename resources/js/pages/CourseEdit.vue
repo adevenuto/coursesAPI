@@ -91,6 +91,13 @@ const form = useForm({
     hole_count: c?.hole_count ?? 18,
     teeboxes: (c?.teeboxes ?? []) as Teebox[],
     green_centers: (c?.green_centers ?? []) as GreenCenter[],
+    // Address components of the place picked in the locator, if any. The server
+    // uses them to correct city/state/country instead of guessing from lat/lng.
+    place_country_code: '',
+    place_country_name: '',
+    place_state_code: '',
+    place_state_name: '',
+    place_city_candidates: [] as string[],
 });
 
 // Child editors normalize their data on mount (e.g. reconciling holes); reset
@@ -124,11 +131,38 @@ function destroy() {
 
 // Selecting a place in the locator fills matching fields (only where the
 // place actually provides a value, so existing data is never blanked out).
-function onPlace(d: { address?: string; postal_code?: string; phone?: string; website?: string }) {
+// The country/state/city components ride along to the server, which reconciles
+// the stored city_id / state_prov_id / country_id against them on save.
+function onPlace(d: {
+    address?: string;
+    postal_code?: string;
+    phone?: string;
+    website?: string;
+    country_code?: string;
+    country_name?: string;
+    state_code?: string;
+    state_name?: string;
+    city_candidates?: string[];
+}) {
     if (d.address) form.address = d.address;
     if (d.postal_code) form.postal_code = d.postal_code;
     if (d.phone) form.phone = d.phone;
     if (d.website) form.website = d.website;
+
+    form.place_country_code = d.country_code ?? '';
+    form.place_country_name = d.country_name ?? '';
+    form.place_state_code = d.state_code ?? '';
+    form.place_state_name = d.state_name ?? '';
+    form.place_city_candidates = d.city_candidates ?? [];
+}
+
+// Moving the pin by hand invalidates the picked place's components.
+function onPlaceCleared() {
+    form.place_country_code = '';
+    form.place_country_name = '';
+    form.place_state_code = '';
+    form.place_state_name = '';
+    form.place_city_candidates = [];
 }
 </script>
 
@@ -253,7 +287,13 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                         <div class="sm:col-span-2">
                             <Label>Location</Label>
                             <div class="mt-1">
-                                <LocatorMap v-model:lat="form.lat" v-model:lng="form.lng" :maps-key="mapsKey" @place="onPlace" />
+                                <LocatorMap
+                                    v-model:lat="form.lat"
+                                    v-model:lng="form.lng"
+                                    :maps-key="mapsKey"
+                                    @place="onPlace"
+                                    @place-cleared="onPlaceCleared"
+                                />
                             </div>
                         </div>
                         <div>
@@ -268,7 +308,8 @@ function onPlace(d: { address?: string; postal_code?: string; phone?: string; we
                         </div>
                     </div>
                     <p class="mt-3 text-xs text-fg-subtle">
-                        City, state, and country are assigned automatically from the coordinates when you save.
+                        City, state, and country are assigned on save — from the searched place when you pick one,
+                        otherwise from the coordinates.
                     </p>
                 </section>
 

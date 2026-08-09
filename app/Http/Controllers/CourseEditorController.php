@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreCourseRequest;
 use App\Http\Requests\UpdateCourseRequest;
+use App\Models\City;
+use App\Models\Country;
 use App\Models\Course;
 use App\Models\CourseRevision;
+use App\Models\State;
 use App\Models\User;
 use App\Support\CourseAuditor;
 use App\Support\CourseLayoutWriter;
@@ -113,11 +116,17 @@ class CourseEditorController extends Controller
         $course->needs_review = false;
         $course->updated_by = $editor->id;
 
-        $this->deriveGeo($course);
+        $previousGeo = [$course->city_id, $course->state_prov_id, $course->country_id];
+
+        $this->deriveGeo($course, $v);
 
         $course->save(); // Scout syncs the course to Algolia automatically
 
-        $this->reindexGeo($course);
+        // The geo relations were loaded against the old ids; drop them so the
+        // after-snapshot reads the location we just assigned.
+        $course->unsetRelation('city')->unsetRelation('state')->unsetRelation('country');
+
+        $this->reindexGeo($course, $previousGeo);
 
         $changes = CourseAuditor::diff($before, CourseAuditor::snapshot($course));
         if ($isNew || $changes) {
@@ -156,30 +165,76 @@ class CourseEditorController extends Controller
         ])->all();
     }
 
-    /** Assign city/state/country from the coordinates (nearest dr5hn city). */
-    private function deriveGeo(Course $course): void
+    /**
+     * Assign city/state/country.
+     *
+     * When the editor picked a place in the locator, Google's address components
+     * come along with the payload and win: they're authoritative for country and
+     * state, so the coordinate only chooses a city inside them. Without them we
+     * fall back to the nearest dr5hn city — but only when the coordinates moved
+     * or the ids are missing, so an unrelated edit can't revert a good match.
+     *
+     * @param  array<string, mixed>  $v
+     */
+    private function deriveGeo(Course $course, array $v): void
     {
         if ($course->lat === null || $course->lng === null) {
             return;
         }
 
-        $city = app(GeoResolver::class)->nearestCity((float) $course->lat, (float) $course->lng);
+        $lat = (float) $course->lat;
+        $lng = (float) $course->lng;
+        $resolver = app(GeoResolver::class);
 
-        if ($city !== null) {
-            $course->city_id = $city->id;
-            $course->state_prov_id = $city->state_id;
-            $course->country_id = $city->country_id;
+        $parts = [
+            'country_code' => $v['place_country_code'] ?? null,
+            'country_name' => $v['place_country_name'] ?? null,
+            'state_code' => $v['place_state_code'] ?? null,
+            'state_name' => $v['place_state_name'] ?? null,
+            'city_candidates' => $v['place_city_candidates'] ?? [],
+        ];
+
+        if (array_filter($parts, fn ($part) => filled($part))) {
+            $match = $resolver->fromAddressComponents($parts, $lat, $lng);
+        } elseif ($course->isDirty(['lat', 'lng']) || $course->city_id === null
+            || $course->state_prov_id === null || $course->country_id === null) {
+            $match = $resolver->nearestCity($lat, $lng);
+        } else {
+            return; // Nothing about the location changed — leave the ids alone.
+        }
+
+        if ($match !== null) {
+            $course->city_id = $match->id;
+            $course->state_prov_id = $match->state_id;
+            $course->country_id = $match->country_id;
         }
     }
 
-    /** Keep the explorer's geo indices in sync (a newly-populated city, etc.). */
-    private function reindexGeo(Course $course): void
+    /**
+     * Keep the explorer's geo indices in sync (a newly-populated city, etc.).
+     * Rows the course just left are reindexed too, so their course counts and
+     * shouldBeSearchable() state stay honest when a correction moves it.
+     *
+     * @param  array{0:?int,1:?int,2:?int}  $previousGeo
+     */
+    private function reindexGeo(Course $course, array $previousGeo = [null, null, null]): void
     {
         try {
             $course->loadMissing('city', 'state', 'country');
             $course->city?->searchable();
             $course->state?->searchable();
             $course->country?->searchable();
+
+            [$cityId, $stateId, $countryId] = $previousGeo;
+            if ($cityId !== null && $cityId !== $course->city_id) {
+                City::find($cityId)?->searchable();
+            }
+            if ($stateId !== null && $stateId !== $course->state_prov_id) {
+                State::find($stateId)?->searchable();
+            }
+            if ($countryId !== null && $countryId !== $course->country_id) {
+                Country::find($countryId)?->searchable();
+            }
         } catch (\Throwable) {
             // Non-fatal: search reindex must never block a save.
         }

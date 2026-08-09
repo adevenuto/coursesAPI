@@ -7,8 +7,22 @@ const props = defineProps<{ mapsKey: string | null }>();
 const lat = defineModel<number | string | null>('lat');
 const lng = defineModel<number | string | null>('lng');
 
+interface PlaceDetails {
+    address?: string;
+    postal_code?: string;
+    phone?: string;
+    website?: string;
+    name?: string;
+    country_code?: string;
+    country_name?: string;
+    state_code?: string;
+    state_name?: string;
+    city_candidates: string[];
+}
+
 const emit = defineEmits<{
-    (e: 'place', details: { address?: string; postal_code?: string; phone?: string; website?: string; name?: string }): void;
+    (e: 'place', details: PlaceDetails): void;
+    (e: 'place-cleared'): void;
 }>();
 
 const el = ref<HTMLElement | null>(null);
@@ -26,6 +40,25 @@ const num = (v: unknown) => {
     return Number.isFinite(n) && v !== '' && v !== null ? n : null;
 };
 
+// Google's locality shape varies by country, so collect every plausible city
+// name in priority order and let the server try them in turn.
+const CITY_TYPES = ['locality', 'postal_town', 'administrative_area_level_2', 'administrative_area_level_3', 'sublocality_level_1'];
+
+function parseComponents(components: any[]): PlaceDetails {
+    const pick = (type: string) => components.find((comp) => comp.types?.includes(type));
+    const country = pick('country');
+    const state = pick('administrative_area_level_1');
+
+    return {
+        postal_code: pick('postal_code')?.long_name || undefined,
+        country_code: country?.short_name || undefined, // ISO 3166-1 alpha-2
+        country_name: country?.long_name || undefined,
+        state_code: state?.short_name || undefined,
+        state_name: state?.long_name || undefined,
+        city_candidates: CITY_TYPES.map((type) => pick(type)?.long_name).filter(Boolean),
+    };
+}
+
 function placeMarker(la: number, ln: number) {
     if (!map || !g) return;
     if (!marker) {
@@ -42,7 +75,10 @@ function placeMarker(la: number, ln: number) {
                 strokeWeight: 1.6,
             },
         });
-        marker.addListener('dragend', (e: any) => setLatLng(e.latLng.lat(), e.latLng.lng(), false));
+        marker.addListener('dragend', (e: any) => {
+            setLatLng(e.latLng.lat(), e.latLng.lng(), false);
+            emit('place-cleared'); // the pin no longer matches the searched place
+        });
     } else {
         marker.setPosition({ lat: la, lng: ln });
     }
@@ -81,7 +117,10 @@ onMounted(async () => {
             zoomControl: true,
             tilt: 0,
         });
-        map.addListener('click', (e: any) => setLatLng(e.latLng.lat(), e.latLng.lng(), false));
+        map.addListener('click', (e: any) => {
+            setLatLng(e.latLng.lat(), e.latLng.lng(), false);
+            emit('place-cleared');
+        });
         if (hasStart) placeMarker(startLat!, startLng!);
 
         // Places search box → jump to an address/course and pull its details.
@@ -94,10 +133,9 @@ onMounted(async () => {
             if (!loc) return;
             setLatLng(loc.lat(), loc.lng(), true);
 
-            const postal = (place.address_components ?? []).find((comp: any) => comp.types?.includes('postal_code'))?.long_name;
             emit('place', {
+                ...parseComponents(place.address_components ?? []),
                 address: place.formatted_address || undefined,
-                postal_code: postal || undefined,
                 phone: place.formatted_phone_number || undefined,
                 website: place.website || undefined,
                 name: place.name || undefined,
