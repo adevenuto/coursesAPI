@@ -61,16 +61,29 @@ out of prose, so there's no fragile extraction step and every key is always
 present. The schema and the reading instructions live in the same class because
 they change together.
 
-Two departures from the shape you'd write by hand, both forced by structured
-outputs (which requires `additionalProperties: false` and every key in
-`required`, and rejects numeric constraints):
+Departures from the shape you'd write by hand, all forced by structured outputs.
+It requires `additionalProperties: false` and every key in `required`, rejects
+numeric constraints, and — the binding one — **allows at most 16 union-typed
+parameters** across the whole schema. Exceed it and every parse 400s with
+"exponential compilation cost". The first draft had 41.
 
-- `holeSource` is a list of `{hole, teeId}`, not a `holeNumber => teeId` map.
-- Ranges (par 3–6, handicap 1–18) live in the instructions and are enforced
-  afterwards by `ScorecardVerifier`.
+| Convention | Why |
+|---|---|
+| Ranges (par 3–6, handicap 1–18) live in the instructions | Schema rejects numeric constraints; `ScorecardVerifier` enforces them |
+| Absent text is `""`, not `null` | Unambiguous for text, and each nullable string costs a union |
+| `cartPathOnly` is `yes｜no｜unknown` | Keeps the three-state at no union cost |
+| `par` is required, never null | Every card prints it for every hole, and it's bound to 3–6 |
+| Combination tees aren't captured structurally | They cost 9 of the 16 unions alone — the instructions ask for them in `parseNotes` instead |
+
+The 10 unions that remain are where absence is real and unguessable: ratings,
+slopes, printed Out/In/Total yardages, and stroke indexes.
+
+`ScorecardSchemaTest` guards both the ceiling and fixture/schema agreement — the
+ceiling is invisible locally (the SDK serializes an over-budget schema happily;
+only the API objects), so keep headroom when adding fields.
 
 `parseNotes` is the model's channel for anything the schema can't express — a
-sum that didn't reconcile, an illegible cell, an ambiguous arrow convention.
+sum that didn't reconcile, an illegible cell, a combination tee.
 
 ### Verify
 
@@ -117,9 +130,12 @@ scan, and listed in the preview under *Read, but not stored* — a disclosure, n
 a silent drop:
 
 hole names · pace of play and per-hole target times · cart-path-only flags ·
-combination tees · metres (numbers are stored as printed, never converted) ·
-card ID and print date · printed Out/In/Total (recomputed from the holes on
-save) · **gender-split par** (par is stored per tee, not per gender).
+metres (numbers are stored as printed, never converted) · card ID and print date ·
+printed Out/In/Total (recomputed from the holes on save) · **gender-split par**
+(par is stored per tee, not per gender).
+
+Combination tees aren't captured structurally at all (see the union ceiling
+above) — if a card has one, it shows up as prose in `parseNotes`.
 
 ### Heads-up: the `*_women` API fields
 

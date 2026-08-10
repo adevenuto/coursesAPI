@@ -1,6 +1,6 @@
 {
     "name": "Bolingbrook Golf Club",
-    "cardId": null,
+    "cardId": "",
     "printDate": "07/2012",
     "address": "2001 Rodeo Dr., Bolingbrook, IL 60490",
     "phone": "(630) 771-9400",
@@ -103,14 +103,13 @@
             }
         }
     ],
-    "combinationTees": null,
     "holes": [
         {
             "number": 1,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 5
@@ -140,10 +139,10 @@
         },
         {
             "number": 2,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 4
@@ -173,10 +172,10 @@
         },
         {
             "number": 3,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 3,
                 "women": 3
@@ -206,10 +205,10 @@
         },
         {
             "number": 4,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 5,
                 "women": 5
@@ -239,10 +238,10 @@
         },
         {
             "number": 5,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 4
@@ -272,10 +271,10 @@
         },
         {
             "number": 6,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 4
@@ -305,10 +304,10 @@
         },
         {
             "number": 7,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 5
@@ -338,10 +337,10 @@
         },
         {
             "number": 8,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 3,
                 "women": 3
@@ -371,10 +370,10 @@
         },
         {
             "number": 9,
-            "name": null,
+            "name": "",
             "nine": "out",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 5,
                 "women": 5
@@ -404,10 +403,10 @@
         },
         {
             "number": 10,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 5
@@ -437,10 +436,10 @@
         },
         {
             "number": 11,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 3,
                 "women": 3
@@ -470,10 +469,10 @@
         },
         {
             "number": 12,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 5,
                 "women": 5
@@ -503,10 +502,10 @@
         },
         {
             "number": 13,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 4
@@ -536,10 +535,10 @@
         },
         {
             "number": 14,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 4
@@ -569,10 +568,10 @@
         },
         {
             "number": 15,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 3,
                 "women": 4
@@ -602,10 +601,10 @@
         },
         {
             "number": 16,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 4
@@ -635,10 +634,10 @@
         },
         {
             "number": 17,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 5,
                 "women": 5
@@ -668,10 +667,10 @@
         },
         {
             "number": 18,
-            "name": null,
+            "name": "",
             "nine": "in",
-            "maxTime": null,
-            "cartPathOnly": null,
+            "maxTime": "",
+            "cartPathOnly": "unknown",
             "par": {
                 "men": 4,
                 "women": 4
@@ -700,5 +699,5 @@
             ]
         }
     ],
-    "parseNotes": null
+    "parseNotes": ""
 }

@@ -12,6 +12,10 @@ namespace App\Support\Scorecard;
  * the editor exactly what was read but won't be saved — the raw parse is kept on
  * the scan either way, so nothing is actually lost.
  *
+ * Note the schema uses "" rather than null for absent text (unions are capped in
+ * a structured-output schema), so emptiness is tested with self::text(), not a
+ * null check.
+ *
  * Gendered fields are only emitted as a pair when the women's value genuinely
  * differs. CourseLayoutWriter would happily store [16, 16], but that reads as
  * "this card distinguishes the two" when it doesn't.
@@ -126,8 +130,8 @@ class ScorecardMapper
             ));
         }
 
-        $pace = array_filter($parse['paceOfPlay'] ?? [], fn ($v) => $v !== null);
-        $paced = array_filter($holes, fn ($h) => ($h['maxTime'] ?? null) !== null);
+        $pace = array_filter($parse['paceOfPlay'] ?? [], fn ($v) => self::text($v) !== null);
+        $paced = array_filter($holes, fn ($h) => self::text($h['maxTime'] ?? null) !== null);
         if ($pace !== [] || $paced !== []) {
             $unmapped[] = self::note('Pace of play', trim(sprintf(
                 '%s %s',
@@ -136,18 +140,10 @@ class ScorecardMapper
             )));
         }
 
-        $cartPath = array_filter($holes, fn ($h) => ($h['cartPathOnly'] ?? null) === true);
+        $cartPath = array_filter($holes, fn ($h) => ($h['cartPathOnly'] ?? null) === 'yes');
         if ($cartPath !== []) {
             $unmapped[] = self::note('Cart path only', sprintf(
                 '%d hole(s) marked cart-path-only.', count($cartPath)
-            ));
-        }
-
-        if (is_array($parse['combinationTees'] ?? null) && $parse['combinationTees'] !== []) {
-            $names = array_map(fn ($c) => (string) ($c['name'] ?? '?'), $parse['combinationTees']);
-            $unmapped[] = self::note('Combination tees', sprintf(
-                '%s. These have a rating and slope but no yardage row of their own, and are not stored.',
-                implode(', ', $names)
             ));
         }
 

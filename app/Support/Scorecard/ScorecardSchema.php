@@ -11,14 +11,26 @@ namespace App\Support\Scorecard;
  * that contradicts the schema is a silent accuracy regression. Keeping them in
  * one versioned class makes either change a reviewable diff.
  *
- * Two deliberate departures from the shape a human would write by hand, both
- * forced by structured outputs (which requires `additionalProperties: false` and
- * every key in `required`, and rejects numeric/length constraints):
+ * Departures from the shape a human would write by hand, all forced by
+ * structured outputs (which requires `additionalProperties: false` and every key
+ * in `required`, rejects numeric/length constraints, and — the binding one —
+ * allows at most 16 union-typed parameters across the whole schema):
  *
- *  - `holeSource` is a list of {hole, teeId} rather than a holeNumber => teeId
- *    map, because a free-form key map can't be expressed.
  *  - Ranges (par 3-6, handicap 1-18) are stated in the instructions instead of
  *    the schema, and enforced afterwards by ScorecardVerifier.
+ *  - Optional text uses "" rather than null. An empty string is an unambiguous
+ *    "not printed" for text, and each nullable string would cost a union.
+ *  - `cartPathOnly` is a three-state enum rather than boolean|null, preserving
+ *    marked / not-marked / no-such-column at no union cost.
+ *  - Par is not nullable. It is the one field every scorecard prints for every
+ *    hole, and it is range-bound to 3-6, so requiring a value risks little.
+ *  - Combination tees are not captured structurally at all. Your spec called
+ *    them a nice-to-have that must never compromise the core parse, and they
+ *    cost 9 of the 16 unions on their own; the instructions ask for them in
+ *    parseNotes instead.
+ *
+ * The unions that remain are the ones where absence is real and unguessable:
+ * ratings, slopes, printed Out/In/Total yardages, and stroke indexes.
  */
 class ScorecardSchema
 {
@@ -28,28 +40,30 @@ class ScorecardSchema
     public static function jsonSchema(): array
     {
         return self::object([
-            // ---- card identity ----
-            'name' => self::nullable('string'),
-            'cardId' => self::nullable('string'),
-            'printDate' => self::nullable('string'),
-            'address' => self::nullable('string'),
-            'phone' => self::nullable('string'),
-            'website' => self::nullable('string'),
+            // ---- card identity ---- ("" when the card doesn't print it)
+            'name' => self::text(),
+            'cardId' => self::text(),
+            'printDate' => self::text(),
+            'address' => self::text(),
+            'phone' => self::text(),
+            'website' => self::text(),
 
             // Always present so the key is never absent; only "metres" changes
             // how downstream treats the numbers, and nothing is ever converted.
             'units' => ['type' => 'string', 'enum' => ['yards', 'metres']],
 
             // ---- course totals ----
+            // Par is required rather than nullable: every scorecard prints it
+            // for every hole, and it is range-bound to 3-6.
             'par' => self::object([
-                'out' => self::gendered('integer'),
-                'in' => self::gendered('integer'),
-                'total' => self::gendered('integer'),
+                'out' => self::genderedRequired('integer'),
+                'in' => self::genderedRequired('integer'),
+                'total' => self::genderedRequired('integer'),
             ]),
             'paceOfPlay' => self::object([
-                'out' => self::nullable('string'),
-                'in' => self::nullable('string'),
-                'total' => self::nullable('string'),
+                'out' => self::text(),
+                'in' => self::text(),
+                'total' => self::text(),
             ]),
 
             // ---- tees ----
@@ -57,7 +71,9 @@ class ScorecardSchema
                 'id' => ['type' => 'integer'],
                 'slug' => ['type' => 'string'],
                 'name' => ['type' => 'string'],
-                'hex' => self::nullable('string'),
+                'hex' => self::text(),
+                // Genuinely absent on many cards — partial rating coverage is
+                // normal, so these keep their nulls.
                 'rating' => self::gendered('number'),
                 'slope' => self::gendered('integer'),
                 'yardage' => self::object([
@@ -67,36 +83,15 @@ class ScorecardSchema
                 ]),
             ])],
 
-            'combinationTees' => ['anyOf' => [
-                ['type' => 'null'],
-                ['type' => 'array', 'items' => self::object([
-                    'slug' => ['type' => 'string'],
-                    'name' => ['type' => 'string'],
-                    'rating' => self::gendered('number'),
-                    'slope' => self::gendered('integer'),
-                    'yardage' => self::object([
-                        'out' => self::nullable('integer'),
-                        'in' => self::nullable('integer'),
-                        'total' => self::nullable('integer'),
-                    ]),
-                    'holeSource' => ['anyOf' => [
-                        ['type' => 'null'],
-                        ['type' => 'array', 'items' => self::object([
-                            'hole' => ['type' => 'integer'],
-                            'teeId' => ['type' => 'integer'],
-                        ])],
-                    ]],
-                ])],
-            ]],
-
             // ---- holes ----
             'holes' => ['type' => 'array', 'items' => self::object([
                 'number' => ['type' => 'integer'],
-                'name' => self::nullable('string'),
+                'name' => self::text(),
                 'nine' => ['type' => 'string', 'enum' => ['out', 'in']],
-                'maxTime' => self::nullable('string'),
-                'cartPathOnly' => ['type' => ['boolean', 'null']],
-                'par' => self::gendered('integer'),
+                'maxTime' => self::text(),
+                // marked / has a column but unmarked / no such column on the card
+                'cartPathOnly' => ['type' => 'string', 'enum' => ['yes', 'no', 'unknown']],
+                'par' => self::genderedRequired('integer'),
                 'handicap' => self::gendered('integer'),
                 'yardages' => ['type' => 'array', 'items' => self::object([
                     'teeId' => ['type' => 'integer'],
@@ -105,10 +100,10 @@ class ScorecardSchema
             ])],
 
             // Free-text channel for anything the schema can't express: a sum
-            // that doesn't reconcile, an illegible cell, an ambiguous arrow
-            // convention. A stated uncertainty is worth more than a clean-looking
-            // guess, and this is where the editor gets to see it.
-            'parseNotes' => self::nullable('string'),
+            // that doesn't reconcile, an illegible cell, a combination tee. A
+            // stated uncertainty is worth more than a clean-looking guess, and
+            // this is where the editor gets to see it.
+            'parseNotes' => self::text(),
         ]);
     }
 
@@ -153,46 +148,38 @@ class ScorecardSchema
         - `nine` is "out" for holes 1-9 and "in" for 10-18. On a nine-hole card use
           "out" for all nine and say so in parseNotes.
         - `handicap` is the stroke index (labelled "Course HCP", "Handicap", "Index" or
-          "SI"). Valid values are 1-18 for an eighteen-hole card.
-        - `par` is normally 3-6.
-        - `holes[].name` is the printed hole name where the card gives one, else null.
+          "SI"). Valid values are 1-18 for an eighteen-hole card. Null it when the card
+          prints no stroke index — many don't.
+        - `par` is 3-6 and is always required. Every scorecard prints a par for every
+          hole; read it rather than leaving it out.
+        - `holes[].name` is the printed hole name where the card gives one, else "".
         - `holes[].maxTime` and `paceOfPlay` capture a cumulative pace-of-play clock
-          where printed, as strings like "1:57", else null.
-        - `cartPathOnly` is true only where the card explicitly marks it, false where
-          the card has a cart-path column and this hole is not marked, and null where
-          the card has no such column at all. Absence of the field is not a marked
-          negative.
+          where printed, as strings like "1:57", else "".
+        - `cartPathOnly` is "yes" only where the card explicitly marks the hole, "no"
+          where the card has a cart-path column and this hole is not marked, and
+          "unknown" where the card has no such column at all. A card without the column
+          is not a card full of "no".
         - Yardage lives on the hole, keyed by teeId — never duplicated onto the tee.
           Tees carry only their printed Out/In/Total.
         - `units` is "yards" unless the card is in metres. Do NOT convert; report the
           printed numbers and set units to "metres".
 
-        Combination tees — optional, low priority
+        Combination tees
 
-        Some cards list a rating and slope for a combo tee (Wht/Slvr, Blue/White) that
-        has no yardage row of its own, defined instead by small arrow markers in the two
-        parent rows indicating which tee each hole plays from. Capture these in
-        `combinationTees` only when the markers are clearly legible. This is a
-        nice-to-have: never let it compromise the core parse.
-
-        - `holeSource` maps hole number to teeId. Store the mapping only; do not
-          materialise the derived yardages.
-        - If the markers are faint, ambiguous, or the arrow convention is unclear, give
-          rating and slope with `holeSource: null` and say so in parseNotes. A stated
-          uncertainty beats a careful-looking guess.
-        - Sanity check when you do read them: the combo's implied total should fall
-          between its two parent tees' totals, consistent with its rating sitting
-          between theirs. If it doesn't, you have likely inverted the arrow convention —
-          flag it in parseNotes rather than reporting it as read.
-        - When a card prints a full yardage row for a combo tee, that is not a
-          combination tee — it is an ordinary entry in `tees`.
-        - Set `combinationTees` to null when the card prints none.
+        Some cards list a rating and slope for a combo tee (Wht/Slvr, Blue/White) with
+        no yardage row of its own, defined instead by small arrow markers in the two
+        parent rows showing which tee each hole plays from. There is no structured field
+        for these. If the card has one, describe it in parseNotes — its name, its rating
+        and slope, and which tees it draws from — and otherwise ignore it. Do not invent
+        an entry in `tees` for it. A combo tee that DOES print a full yardage row is not
+        a combination tee at all; that is an ordinary entry in `tees`.
 
         Missing data
 
-        Any field the card does not print is null. Never infer a plausible value from
-        surrounding numbers. A null is correct; a guess is a silent error that survives
-        into the database.
+        Text the card does not print is "" (empty string). Numbers the card does not
+        print are null, except par, which is always read. Never infer a plausible value
+        from surrounding numbers: a blank is correct, and a guess is a silent error that
+        survives into the database.
 
         Verify before returning
 
@@ -216,8 +203,8 @@ class ScorecardSchema
         and note it; partial rating coverage; nine-hole, 27-hole or composite courses;
         metres; non-monotonic yardage, where a hole occasionally plays longer from a
         shorter tee (this is real, not a misread — report it in parseNotes so downstream
-        validation doesn't reject it); and illegible cells, which are null with a note
-        naming the cell and why. Never interpolate.
+        validation doesn't reject it); and illegible cells, which are left blank with a
+        note naming the cell and why. Never interpolate.
         TXT;
     }
 
@@ -246,6 +233,17 @@ class ScorecardSchema
     }
 
     /**
+     * Optional text. Not nullable — "" carries the same meaning at no union cost,
+     * and unions are the scarce resource in a structured-output schema.
+     *
+     * @return array<string, mixed>
+     */
+    private static function text(): array
+    {
+        return ['type' => 'string'];
+    }
+
+    /**
      * A men/women pair. Both keys always present; either may be null.
      *
      * @return array<string, mixed>
@@ -255,6 +253,19 @@ class ScorecardSchema
         return self::object([
             'men' => self::nullable($type),
             'women' => self::nullable($type),
+        ]);
+    }
+
+    /**
+     * A men/women pair that must always carry a value.
+     *
+     * @return array<string, mixed>
+     */
+    private static function genderedRequired(string $type): array
+    {
+        return self::object([
+            'men' => ['type' => $type],
+            'women' => ['type' => $type],
         ]);
     }
 }

@@ -139,14 +139,7 @@ class ScorecardMapperTest extends TestCase
         $card['cardId'] = 'BGC-4417';
         $card['holes'][0]['name'] = 'Burn';
         $card['holes'][0]['maxTime'] = '0:13';
-        $card['holes'][1]['cartPathOnly'] = true;
-        $card['combinationTees'] = [[
-            'slug' => 'whiteSilver', 'name' => 'Wht/Slvr',
-            'rating' => ['men' => 70.0, 'women' => null],
-            'slope' => ['men' => 129, 'women' => null],
-            'yardage' => ['out' => null, 'in' => null, 'total' => null],
-            'holeSource' => null,
-        ]];
+        $card['holes'][1]['cartPathOnly'] = 'yes';
 
         $labels = $this->labels($this->mapper->map($card)['unmapped']);
 
@@ -154,7 +147,6 @@ class ScorecardMapperTest extends TestCase
         $this->assertContains('Hole names', $labels);
         $this->assertContains('Pace of play', $labels);
         $this->assertContains('Cart path only', $labels);
-        $this->assertContains('Combination tees', $labels);
         $this->assertContains('Card ID', $labels);
         $this->assertContains('Print date', $labels);
         // The fixture's women's par differs from the men's on several holes.
@@ -164,11 +156,11 @@ class ScorecardMapperTest extends TestCase
     public function test_a_card_with_no_extras_reports_almost_nothing(): void
     {
         $card = $this->card();
-        $card['printDate'] = null;
+        $card['printDate'] = '';
         foreach ($card['holes'] as $i => $hole) {
             $card['holes'][$i]['par']['women'] = $hole['par']['men'];
         }
-        $card['paceOfPlay'] = ['out' => null, 'in' => null, 'total' => null];
+        $card['paceOfPlay'] = ['out' => '', 'in' => '', 'total' => ''];
 
         $labels = $this->labels($this->mapper->map($card)['unmapped']);
 
@@ -182,7 +174,7 @@ class ScorecardMapperTest extends TestCase
         $card['tees'][0]['hex'] = '2c2c2a';   // missing #
         $card['tees'][1]['hex'] = '#ABC';     // shorthand
         $card['tees'][2]['hex'] = 'black';    // not a colour at all
-        $card['tees'][3]['hex'] = null;
+        $card['tees'][3]['hex'] = '';         // not printed
 
         $teeboxes = $this->mapper->map($card)['teeboxes'];
 
