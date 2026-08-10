@@ -28,6 +28,14 @@ class ParseScorecardScan implements ShouldQueue
     /** One attempt — a re-parse is an explicit editor action, not an automatic retry. */
     public int $tries = 1;
 
+    /**
+     * A dense card takes 30-90s to read. `queue:work` defaults to killing a job
+     * at 60s, so a worker would reap this mid-call and leave the scan stuck
+     * while still billing for the request. Ignored under dispatchSync, but this
+     * is the value that matters the day a worker is switched on.
+     */
+    public int $timeout = 300;
+
     public function __construct(public readonly int $scanId) {}
 
     public function handle(ScorecardParser $parser, ScorecardVerifier $verifier): void
