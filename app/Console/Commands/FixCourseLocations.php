@@ -531,7 +531,24 @@ class FixCourseLocations extends Command
             return;
         }
 
-        $fh = fopen($path, 'w');
+        // "--csv=~/out.csv" arrives with a literal tilde: bash only expands it
+        // after an '=' in a variable assignment, not in a command argument.
+        if (str_starts_with($path, '~/')) {
+            $home = getenv('HOME') ?: getenv('USERPROFILE');
+            if ($home) {
+                $path = $home.substr($path, 1);
+            }
+        }
+
+        $fh = @fopen($path, 'w');
+
+        if ($fh === false) {
+            // Never let a bad output path throw away a completed run's report.
+            $this->error("Could not write the CSV to {$path} — the run itself was unaffected.");
+
+            return;
+        }
+
         fputcsv($fh, array_keys($this->changes[0]));
         foreach ($this->changes as $row) {
             fputcsv($fh, $row);
