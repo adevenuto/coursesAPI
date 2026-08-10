@@ -44,6 +44,7 @@ class FixCourseLocations extends Command
         {--threshold=50 : Max distance (km) to accept a fallback city_id}
         {--sleep=100 : Milliseconds between API calls}
         {--limit=0 : Stop after this many courses (0 = no limit)}
+        {--no-index : Skip Scout syncing during the run (reindex separately afterwards)}
         {--chunk=500 : Courses per batch}
         {--csv= : Write every proposed change to this path}';
 
@@ -94,7 +95,7 @@ class FixCourseLocations extends Command
 
         DB::disableQueryLog();
 
-        try {
+        $run = function () use ($only, $parser, $geo, $rg, $threshold, $apply, $limit) {
             if ($only === 'all' || $only === 'suspect') {
                 $this->runSuspects($parser, $geo, $rg, $threshold, $apply, $limit);
             }
@@ -102,6 +103,18 @@ class FixCourseLocations extends Command
             if ($only === 'all' || $only === 'missing') {
                 $this->borrowFromSiblings($apply);
                 $this->runMissing($geo, $rg, $threshold, $apply, $limit);
+            }
+        };
+
+        try {
+            // Scout syncs inline unless SCOUT_QUEUE is on, so a thousand saves is
+            // a thousand blocking Algolia round-trips. On a shared host that is
+            // the difference between a run that finishes and an SSH session that
+            // dies holding the connection. Reindex afterwards instead.
+            if ($this->option('no-index')) {
+                Course::withoutSyncingToSearch($run);
+            } else {
+                $run();
             }
         } catch (\RuntimeException $e) {
             $this->newLine(2);
@@ -457,6 +470,10 @@ class FixCourseLocations extends Command
 
     private function reindex(array $before, array $after): void
     {
+        if ($this->option('no-index')) {
+            return;
+        }
+
         try {
             foreach (array_unique(array_filter([$before[0], $after[0]])) as $id) {
                 City::find($id)?->searchable();
