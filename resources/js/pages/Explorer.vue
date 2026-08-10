@@ -2,7 +2,7 @@
 import { Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
-import { MapPinned, Plus } from '@lucide/vue';
+import { MapPinned, Plus, ScanLine } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import MarketingFooter from '@/components/marketing/MarketingFooter.vue';
@@ -158,9 +158,14 @@ watch(radiusMiles, refetchForRadius);
                     </p>
                 </div>
 
-                <Link v-if="canEdit" href="/courses/create" class="ds-btn ds-btn--primary shrink-0 px-4 py-2.5 text-sm">
-                    <Plus class="size-4" /> New course
-                </Link>
+                <div v-if="canEdit" class="flex shrink-0 items-center gap-2">
+                    <Link href="/scorecard-scans/create" class="ds-btn ds-btn--dark px-4 py-2.5 text-sm">
+                        <ScanLine class="size-4" /> Scan a scorecard
+                    </Link>
+                    <Link href="/courses/create" class="ds-btn ds-btn--primary px-4 py-2.5 text-sm">
+                        <Plus class="size-4" /> New course
+                    </Link>
+                </div>
             </div>
 
             <!-- not-configured (dev) state -->
