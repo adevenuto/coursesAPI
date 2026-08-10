@@ -153,9 +153,15 @@ class ScorecardScanController extends Controller
     /**
      * Kick off the parse.
      *
-     * Under QUEUE_CONNECTION=sync this runs inline, so the request is held for
-     * the length of the vision call. set_time_limit covers the PHP-side ceiling;
-     * the page shows a spinner and re-renders on the redirect.
+     * dispatchSync, not dispatch: QUEUE_CONNECTION is `database` in every real
+     * environment and nothing drains that queue — no worker, no cron. A plain
+     * dispatch would file the job and leave the scan stuck on "parsing" with no
+     * error to show for it. Running inline holds the request for the length of
+     * the vision call, which set_time_limit covers and the page spinners over.
+     *
+     * If a cron-driven `queue:work --stop-when-empty` is ever added (see
+     * docs/SCORECARD_SCANNING.md), this becomes dispatch() and the page's
+     * existing status polling takes over.
      */
     public function parse(Request $request, ScorecardScan $scan): RedirectResponse
     {
@@ -167,7 +173,7 @@ class ScorecardScanController extends Controller
             @set_time_limit(300);
         }
 
-        ParseScorecardScan::dispatch($scan->id);
+        ParseScorecardScan::dispatchSync($scan->id);
 
         return to_route('scorecard-scans.show', $scan);
     }

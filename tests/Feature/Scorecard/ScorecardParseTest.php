@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\Scorecard\ScorecardParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\FakeAnthropicTransport;
 use Tests\TestCase;
@@ -233,6 +234,25 @@ class ScorecardParseTest extends TestCase
 
         $this->assertSame(ScorecardScan::STATUS_PARSED, $scan->status);
         $this->assertNull($scan->error);
+    }
+
+    public function test_parsing_runs_inline_even_on_a_queued_connection(): void
+    {
+        // phpunit.xml forces QUEUE_CONNECTION=sync, which hides the case that
+        // actually ships: every real .env uses `database`, and nothing drains
+        // that queue. A plain dispatch() would file the job and leave the scan
+        // stuck on "parsing" forever, so pin the inline behaviour explicitly.
+        config(['queue.default' => 'database']);
+
+        $this->transport->pushParse($this->fixture());
+
+        $editor = $this->editor();
+        $scan = $this->uploadAs($editor);
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/parse");
+
+        $this->assertSame(ScorecardScan::STATUS_PARSED, $scan->refresh()->status);
+        $this->assertSame(1, $this->transport->callCount());
+        $this->assertSame(0, DB::table('jobs')->count(), 'the parse must not be left sitting in the queue');
     }
 
     public function test_only_the_owner_or_an_admin_can_trigger_a_parse(): void
