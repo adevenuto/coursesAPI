@@ -42,10 +42,15 @@ class GeoResolver
      * Resolve the city/state/country trio from Google Places address components,
      * falling back to the coordinate wherever a component can't be matched.
      *
+     * $maxCityKm gates only the *fallback* city (the nearest one in the resolved
+     * state), not an exact name match — a threshold guards a guess, not a match.
+     * Null, the default, accepts any distance: the editor deliberately always
+     * takes the nearest in-state city.
+     *
      * @param  array{country_code?:?string,country_name?:?string,state_code?:?string,state_name?:?string,city_candidates?:array<int,string>}  $parts
      * @return object{id:?int,state_id:?int,country_id:?int}|null
      */
-    public function fromAddressComponents(array $parts, float $lat, float $lng): ?object
+    public function fromAddressComponents(array $parts, float $lat, float $lng, ?float $maxCityKm = null): ?object
     {
         $country = $this->matchCountry($parts['country_code'] ?? null, $parts['country_name'] ?? null);
 
@@ -67,8 +72,17 @@ class GeoResolver
             return $this->trio($city) ?? (object) ['id' => null, 'state_id' => null, 'country_id' => (int) $country->id];
         }
 
-        $city = $this->matchCityInState($stateId, $parts['city_candidates'] ?? [], $lat, $lng)
-            ?? $this->nearestCityInState($stateId, $lat, $lng);
+        $city = $this->matchCityInState($stateId, $parts['city_candidates'] ?? [], $lat, $lng);
+
+        if ($city === null) {
+            $city = $this->nearestCityInState($stateId, $lat, $lng);
+
+            // Too far to be this course's city (rural areas the dataset thins out
+            // over). Keep the state and country, which are still right.
+            if ($city !== null && $maxCityKm !== null && (float) $city->km > $maxCityKm) {
+                $city = null;
+            }
+        }
 
         // Read the trio off the chosen city row so the three ids are always
         // internally consistent. A state with no cities keeps state + country.

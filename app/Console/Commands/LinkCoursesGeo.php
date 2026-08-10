@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Support\AddressComponents;
 use App\Support\GeoResolver;
+use App\Support\LayoutCoordinates;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -21,8 +23,7 @@ class LinkCoursesGeo extends Command
      */
     protected $description = 'Backfill courses.city_id/state_prov_id/country_id/postal_code by matching against the geo tables.';
 
-    /** token (lowercased) => country id */
-    private array $countryMap = [];
+    private AddressComponents $addresses;
 
     private GeoResolver $geo;
 
@@ -40,7 +41,7 @@ class LinkCoursesGeo extends Command
     public function handle(): int
     {
         $this->geo = new GeoResolver;
-        $this->buildCountryMap();
+        $this->addresses = new AddressComponents;
 
         $threshold = (float) $this->option('threshold');
         $box = (float) $this->option('box');
@@ -98,7 +99,7 @@ class LinkCoursesGeo extends Command
         // Fallback coordinate source: hole-level lat/lng embedded in layout_data.
         $fromLayout = false;
         if (($lat === null || $lng === null)) {
-            $coord = $this->coordFromLayout(
+            $coord = LayoutCoordinates::fromJson(
                 DB::table('courses')->where('id', $course->id)->value('layout_data')
             );
             if ($coord !== null) {
@@ -154,89 +155,14 @@ class LinkCoursesGeo extends Command
         ]);
     }
 
-    /**
-     * Recursively find the first sane [lat, lng] pair embedded in layout_data.
-     *
-     * @return array{0:float,1:float}|null
-     */
-    private function coordFromLayout(?string $json): ?array
-    {
-        if ($json === null || $json === '') {
-            return null;
-        }
-
-        $data = json_decode($json, true);
-
-        return is_array($data) ? $this->searchCoord($data) : null;
-    }
-
-    /**
-     * @param  array<mixed>  $data
-     * @return array{0:float,1:float}|null
-     */
-    private function searchCoord(array $data): ?array
-    {
-        if (isset($data['lat'], $data['lng']) && is_numeric($data['lat']) && is_numeric($data['lng'])) {
-            $lat = (float) $data['lat'];
-            $lng = (float) $data['lng'];
-            if (abs($lat) > 0.0001 && abs($lat) <= 90 && abs($lng) > 0.0001 && abs($lng) <= 180) {
-                return [$lat, $lng];
-            }
-        }
-
-        foreach ($data as $value) {
-            if (is_array($value)) {
-                $found = $this->searchCoord($value);
-                if ($found !== null) {
-                    return $found;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private function buildCountryMap(): void
-    {
-        foreach (DB::table('countries')->get(['id', 'name', 'iso2', 'iso3']) as $c) {
-            foreach ([$c->name, $c->iso2, $c->iso3] as $token) {
-                $key = $this->normalizeToken($token);
-                if ($key !== '' && ! isset($this->countryMap[$key])) {
-                    $this->countryMap[$key] = $c->id;
-                }
-            }
-        }
-
-        // Common address tokens that are not the canonical name/iso codes.
-        $aliases = [
-            'usa' => 'US', 'us' => 'US', 'united states of america' => 'US', 'u.s.a.' => 'US', 'u.s.' => 'US',
-            'uk' => 'GB', 'u.k.' => 'GB', 'england' => 'GB', 'scotland' => 'GB', 'wales' => 'GB',
-            'northern ireland' => 'GB', 'great britain' => 'GB',
-            'uae' => 'AE', 'south korea' => 'KR', 'north korea' => 'KP', 'russia' => 'RU',
-            'the netherlands' => 'NL', 'holland' => 'NL', 'ivory coast' => 'CI', 'czech republic' => 'CZ',
-        ];
-        foreach ($aliases as $token => $iso2) {
-            $id = $this->countryMap[$this->normalizeToken($iso2)] ?? null;
-            if ($id !== null) {
-                $this->countryMap[$token] = $id;
-            }
-        }
-    }
-
     private function countryFromStreet(?string $street): ?int
     {
-        if ($street === null || trim($street) === '') {
-            return null;
-        }
-        $parts = array_map('trim', explode(',', $street));
-        $last = end($parts);
-
-        return $this->countryMap[$this->normalizeToken($last)] ?? null;
+        return $this->addresses->countryIdFromTail($street);
     }
 
     private function countryCodeById(int $id): ?string
     {
-        return DB::table('countries')->where('id', $id)->value('iso2');
+        return $this->addresses->iso2For($id);
     }
 
     private function parsePostal(?string $street, ?string $countryCode): ?string
@@ -271,10 +197,5 @@ class LinkCoursesGeo extends Command
         }
 
         return null;
-    }
-
-    private function normalizeToken(?string $token): string
-    {
-        return trim(strtolower((string) $token), " \t\n\r\0\x0B.");
     }
 }
