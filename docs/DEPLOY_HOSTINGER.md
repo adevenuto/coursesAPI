@@ -13,14 +13,16 @@ builds the app, and rsyncs it to the server. Nothing is built on the host.
 
 - Queue, cache, and session all use the **`database`** driver — no Redis.
 - **No scheduled tasks and no queued jobs** — no cron, no queue worker. The only external hook is
-  the Stripe webhook, handled synchronously.
+  the Stripe webhook, handled synchronously. Scorecard parsing is written as a queued job but runs
+  inline under `QUEUE_CONNECTION=sync`; see `docs/SCORECARD_SCANNING.md` for what enabling a
+  cron-driven worker would take.
 - Shared hosting has **no Node**, so Vite assets are built off-server (in Actions, or locally via
   `bin/build-artifact.sh`) and shipped compiled.
 
 | | |
 |---|---|
 | PHP | **8.3** (host default `php` is 8.3.x — there is no `php8.3` alias) |
-| Extensions | `pdo_mysql, mbstring, bcmath, intl` |
+| Extensions | `pdo_mysql, mbstring, bcmath, intl, gd` (+ `exif`, optional) |
 | Database | **MariaDB 11.8** (Hostinger shared; not MySQL — see below) |
 | Node | 22 — build machines only |
 | App root | `~/domains/<domain>/public_html` (see layout below) |
@@ -111,7 +113,8 @@ Only needed to stand up a new server or rebuild this one.
 - **Websites → Add website → Empty website.** Stage on a subdomain or Hostinger's temporary domain
   first if the real domain is live.
 - **Advanced → SSH Access** → enable; note host, port, user.
-- **Advanced → PHP Configuration** → PHP 8.3, enable `mbstring, bcmath, intl, pdo_mysql`.
+- **Advanced → PHP Configuration** → PHP 8.3, enable `mbstring, bcmath, intl, pdo_mysql, gd`
+  (`gd` resizes scorecard uploads; `exif` too if available, so rotated phone photos straighten).
 - **Databases → MySQL Databases** → create a database + user (host `localhost`).
 - Document root stays `public_html`; add the root `.htaccess` shim that rewrites into `public/`.
 
@@ -168,6 +171,7 @@ Finally set the real `APP_URL` and `php artisan config:cache`.
 | **Algolia** (explorer search) | set `SCOUT_DRIVER=algolia` + `ALGOLIA_*`, then `scout:sync-index-settings` and `scout:import` for Course/City/State/Country — see `docs/ALGOLIA_SETUP.md` |
 | **Stripe** (billing) | live keys, `php artisan stripe:sync-products --write-env`, webhook at `https://<domain>/stripe/webhook` + `STRIPE_WEBHOOK_SECRET` — see `docs/STRIPE_SETUP.md` |
 | **Google Maps** | `GOOGLE_MAPS_API_KEY` for the explorer/editor maps |
+| **Anthropic** (scorecard scanning) | `ANTHROPIC_API_KEY` + the `gd` extension — see `docs/SCORECARD_SCANNING.md` |
 
 ---
 

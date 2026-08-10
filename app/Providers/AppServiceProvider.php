@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use Anthropic\Client as AnthropicClient;
 use App\Listeners\SyncPlanFromStripe;
+use App\Support\Scorecard\ScorecardParser;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -13,6 +15,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Cashier\Events\WebhookReceived;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,7 +24,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Scorecard parsing. Bound (not newed at the call site) so the queued
+        // job gets it by method injection and tests can swap in a client with a
+        // stubbed transport. The key is still read from config here, once.
+        $this->app->bind(ScorecardParser::class, function () {
+            $key = (string) config('services.anthropic.key');
+
+            if ($key === '') {
+                throw new RuntimeException(
+                    'Missing ANTHROPIC_API_KEY. Scorecard scanning needs a server-side Anthropic key.'
+                );
+            }
+
+            return new ScorecardParser(
+                new AnthropicClient(apiKey: $key),
+                (string) config('services.anthropic.model'),
+            );
+        });
     }
 
     /**
