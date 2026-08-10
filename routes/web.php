@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\ExplorerController;
+use App\Http\Controllers\ScorecardScanController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WebManifestController;
 use App\Http\Controllers\WelcomeController;
@@ -48,6 +49,22 @@ Route::withHead(robots: 'noindex, nofollow')->middleware(['auth', 'verified', En
     Route::get('courses/{course}/edit', [CourseEditorController::class, 'edit'])->name('courses.edit');
     Route::put('courses/{course}', [CourseEditorController::class, 'update'])->name('courses.update');
     Route::delete('courses/{course}', [CourseEditorController::class, 'destroy'])->name('courses.destroy');
+
+    // Scorecard scanning: upload a card, parse it, review the diff, apply what
+    // you accept. Staged on scorecard_scans — nothing reaches a course until
+    // the apply step.
+    Route::get('scorecard-scans/create', [ScorecardScanController::class, 'create'])
+        ->name('scorecard-scans.create')
+        ->withHead(title: 'Scan a scorecard');
+    Route::post('scorecard-scans', [ScorecardScanController::class, 'store'])->name('scorecard-scans.store');
+    Route::get('scorecard-scans/{scan}', [ScorecardScanController::class, 'show'])->name('scorecard-scans.show');
+    Route::post('scorecard-scans/{scan}/parse', [ScorecardScanController::class, 'parse'])->name('scorecard-scans.parse');
+    // Images live on the private disk, so they're streamed rather than served.
+    Route::get('scorecard-scans/{scan}/images/{index}', [ScorecardScanController::class, 'image'])
+        ->whereNumber('index')
+        ->name('scorecard-scans.image');
+    Route::post('scorecard-scans/{scan}/apply', [ScorecardScanController::class, 'apply'])->name('scorecard-scans.apply');
+    Route::delete('scorecard-scans/{scan}', [ScorecardScanController::class, 'destroy'])->name('scorecard-scans.destroy');
 });
 
 Route::get('courses/{course}/{slug?}', CourseShowController::class)

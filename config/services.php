@@ -55,4 +55,25 @@ return [
         'search_key' => env('ALGOLIA_SEARCH_KEY'),
     ],
 
+    // Scorecard parsing (editor-only). Server-side key — never sent to the
+    // browser. Without it the scan feature reports a configuration error
+    // rather than failing silently on every upload.
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-opus-5'),
+
+        // Where the vision call runs. Inline (the default) holds the HTTP
+        // request for the 30-90s it takes, which is simple and needs no
+        // infrastructure but is exposed to the server's request timeout.
+        //
+        // Set SCORECARD_INLINE_PARSE=false only if that timeout is actually
+        // cutting parses off, and only once a cron-driven
+        // `queue:work --stop-when-empty` is confirmed to be draining the queue.
+        // Queued is slower for a single card (it adds a cron interval before the
+        // parse even starts), so it's a remedy rather than an upgrade. Defaults
+        // to inline so deploying the code before any cron exists can't leave
+        // every parse hanging.
+        'inline_parse' => (bool) env('SCORECARD_INLINE_PARSE', true),
+    ],
+
 ];

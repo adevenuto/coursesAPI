@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { ArrowLeft, ExternalLink, Flag, History, Save, Trash2 } from '@lucide/vue';
+import { ArrowLeft, ExternalLink, Flag, History, Save, ScanLine, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -187,6 +187,13 @@ function onPlaceCleared() {
                     </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
+                    <Link
+                        v-if="isEdit && course"
+                        :href="`/scorecard-scans/create?course_id=${course.id}`"
+                        class="ds-btn ds-btn--dark px-3 py-2 text-sm"
+                    >
+                        <ScanLine class="size-4" /> Scan card
+                    </Link>
                     <Button v-if="isEdit" type="button" variant="ghost" size="sm" @click="showHistory = true">
                         <History class="size-4" /> History
                     </Button>
