@@ -153,12 +153,18 @@ visible change for scanned courses.
 
 ## Processing model
 
-`ParseScorecardScan` is a queued job, but production runs `QUEUE_CONNECTION=sync`
-— the host has no worker and no cron — so it executes inline in the parse
-request (`set_time_limit(300)`, spinner in the UI).
+`ParseScorecardScan` is a queued job dispatched with **`dispatchSync()`**, so it
+runs inline in the parse request (`set_time_limit(300)`, spinner in the UI)
+regardless of the queue driver.
 
-It's shaped this way so switching to real background processing is a config
-change, not a rewrite. If you enable cron in hPanel:
+That's deliberate rather than incidental: `QUEUE_CONNECTION=database` in every
+real `.env` and nothing drains that queue — no worker, no cron. A plain
+`dispatch()` would file the job and leave the scan stuck on `parsing` with no
+error to show for it, which is exactly what happened the first time.
+
+It stays a job so switching to real background processing is a one-line change
+plus a cron entry, not a rewrite. If you enable cron in hPanel, swap
+`dispatchSync` for `dispatch` and add:
 
 ```
 * * * * * cd <APP_PATH> && php artisan queue:work --stop-when-empty --max-time=55 >> /dev/null 2>&1
