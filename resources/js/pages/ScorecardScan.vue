@@ -6,6 +6,8 @@ import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import { Button } from '@/components/ui/button';
 import ScanUploader from '@/components/scorecard/ScanUploader.vue';
+import ScanDiff, { type DiffSection } from '@/components/scorecard/ScanDiff.vue';
+import ScanIssues from '@/components/scorecard/ScanIssues.vue';
 
 interface ScanImage {
     index: number;
@@ -35,9 +37,16 @@ interface ScanCourse {
     club_name: string | null;
 }
 
+interface Diff {
+    sections: DiffSection[];
+    unmapped: Array<{ label: string; detail: string }>;
+    is_new: boolean;
+}
+
 const props = defineProps<{
     scan: Scan | null;
     course: ScanCourse | null;
+    diff?: Diff | null;
     maxImages: number;
     maxImageMb: number;
 }>();
@@ -161,14 +170,20 @@ function discard() {
                     </div>
                 </section>
 
-                <!-- Parsed, awaiting the diff preview -->
-                <section v-if="hasParsed" class="ds-card p-6">
-                    <h2 class="font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase">Parsed</h2>
-                    <p class="mt-3 text-sm text-fg-muted">
-                        The card was read successfully. The change preview is added in the next step — nothing has been
-                        written to a course.
-                    </p>
-                </section>
+                <!-- Verification findings + what the card carried that a course can't hold -->
+                <ScanIssues
+                    v-if="hasParsed && diff"
+                    :verification="scan?.verification ?? null"
+                    :unmapped="diff.unmapped"
+                />
+
+                <!-- The diff the editor confirms against -->
+                <ScanDiff
+                    v-if="hasParsed && diff && scan"
+                    :scan-id="scan.id"
+                    :sections="diff.sections"
+                    :is-new="diff.is_new"
+                />
             </div>
         </div>
     </MarketingLayout>

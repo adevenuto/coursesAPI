@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ApplyScorecardScanRequest;
 use App\Http\Requests\StoreScorecardScanRequest;
 use App\Jobs\ParseScorecardScan;
 use App\Models\Course;
 use App\Models\ScorecardScan;
+use App\Support\Scorecard\ScorecardApplier;
+use App\Support\Scorecard\ScorecardDiff;
 use App\Support\Scorecard\ScorecardImage;
+use App\Support\Scorecard\ScorecardMapper;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -84,13 +88,15 @@ class ScorecardScanController extends Controller
         return to_route('scorecard-scans.show', $scan);
     }
 
-    public function show(Request $request, ScorecardScan $scan): Response
+    public function show(Request $request, ScorecardScan $scan, ScorecardMapper $mapper, ScorecardDiff $differ): Response
     {
         $this->authorizeScan($request, $scan);
 
-        $scan->load('course:id,course_name,club_name');
+        $scan->load('course');
 
         Head::title('Scorecard scan');
+
+        $parse = $scan->parsed();
 
         return Inertia::render('ScorecardScan', [
             'scan' => $this->present($scan),
@@ -99,9 +105,49 @@ class ScorecardScanController extends Controller
                 'course_name' => $scan->course->course_name,
                 'club_name' => $scan->course->club_name,
             ] : null,
+            'diff' => $parse === null ? null : $differ->build($scan->course, $mapper->map($parse)),
             'maxImages' => 4,
             'maxImageMb' => 12,
         ]);
+    }
+
+    /**
+     * Write the sections the editor accepted. This is the only place a scan
+     * touches a course, and it goes through the same writer the manual editor
+     * uses, so the revision it leaves is indistinguishable from a hand edit.
+     */
+    public function apply(
+        ApplyScorecardScanRequest $request,
+        ScorecardScan $scan,
+        ScorecardApplier $applier,
+    ): RedirectResponse {
+        $this->authorizeScan($request, $scan);
+
+        abort_unless($scan->isApplyable(), 409);
+
+        $creating = $scan->course_id === null;
+
+        try {
+            $course = $applier->apply($scan, $request->validated()['sections'], $request->user());
+        } catch (\RuntimeException $e) {
+            throw ValidationException::withMessages(['sections' => $e->getMessage()]);
+        }
+
+        $scan->update([
+            'status' => ScorecardScan::STATUS_APPLIED,
+            'applied_at' => now(),
+            'course_id' => $course->id,
+            'applied_revision_id' => $course->revisions()->first()?->id,
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $creating ? 'Course created from scorecard.' : 'Scorecard applied.',
+        ]);
+
+        // Land in the editor: a course built from a card still needs a location,
+        // and an updated one is where you'd want to eyeball the result anyway.
+        return to_route('courses.edit', $course);
     }
 
     /**

@@ -63,6 +63,7 @@ Route::withHead(robots: 'noindex, nofollow')->middleware(['auth', 'verified', En
     Route::get('scorecard-scans/{scan}/images/{index}', [ScorecardScanController::class, 'image'])
         ->whereNumber('index')
         ->name('scorecard-scans.image');
+    Route::post('scorecard-scans/{scan}/apply', [ScorecardScanController::class, 'apply'])->name('scorecard-scans.apply');
     Route::delete('scorecard-scans/{scan}', [ScorecardScanController::class, 'destroy'])->name('scorecard-scans.destroy');
 });
 
