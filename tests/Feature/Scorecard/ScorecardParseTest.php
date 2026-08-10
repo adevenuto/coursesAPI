@@ -80,6 +80,49 @@ class ScorecardParseTest extends TestCase
         $this->assertSame('claude-opus-5', $scan->model);
         $this->assertSame(5120, $scan->usage['input_tokens']);
         $this->assertSame(1, $this->transport->callCount());
+
+        // The card is re-checked in PHP, not taken on the model's word.
+        $this->assertTrue($scan->verification['passed']);
+        $this->assertSame([], $scan->verification['issues']);
+    }
+
+    public function test_a_card_that_does_not_reconcile_is_parsed_but_flagged(): void
+    {
+        $card = $this->fixture();
+        $card['tees'][0]['yardage']['total'] += 30;
+        $this->transport->pushParse($card);
+
+        $editor = $this->editor();
+        $scan = $this->uploadAs($editor);
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/parse");
+
+        $scan->refresh();
+
+        // Still parsed — the editor needs to see it and decide, not be blocked.
+        $this->assertSame(ScorecardScan::STATUS_PARSED, $scan->status);
+        $this->assertFalse($scan->verification['passed']);
+        $this->assertStringContainsString(
+            'prints a total of',
+            $scan->verification['issues'][0]['message'],
+        );
+    }
+
+    public function test_a_reused_parse_is_re_verified_rather_than_copied(): void
+    {
+        $this->transport->pushParse($this->fixture());
+
+        $editor = $this->editor();
+        $first = $this->uploadAs($editor);
+        $this->actingAs($editor)->post("/scorecard-scans/{$first->id}/parse");
+
+        // Blank the stored verification so a copy would be visibly wrong.
+        $first->update(['verification' => null]);
+
+        $second = $this->uploadAs($editor);
+        $this->actingAs($editor)->post("/scorecard-scans/{$second->id}/parse");
+
+        $this->assertTrue($second->refresh()->verification['passed']);
+        $this->assertSame(1, $this->transport->callCount());
     }
 
     public function test_request_carries_the_image_and_the_constrained_schema(): void

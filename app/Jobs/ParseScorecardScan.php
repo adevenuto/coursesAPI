@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\ScorecardScan;
 use App\Support\Scorecard\ScorecardParser;
+use App\Support\Scorecard\ScorecardVerifier;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -29,7 +30,7 @@ class ParseScorecardScan implements ShouldQueue
 
     public function __construct(public readonly int $scanId) {}
 
-    public function handle(ScorecardParser $parser): void
+    public function handle(ScorecardParser $parser, ScorecardVerifier $verifier): void
     {
         $scan = ScorecardScan::find($this->scanId);
 
@@ -44,12 +45,14 @@ class ParseScorecardScan implements ShouldQueue
 
             if ($reused !== null) {
                 // An identical card has already been read. Copying the earlier
-                // parse keeps a re-upload free.
+                // parse keeps a re-upload free. Verification is re-run rather
+                // than copied, so a change to the rules applies to old parses too.
                 $scan->update([
                     'status' => ScorecardScan::STATUS_PARSED,
                     'raw_parse' => $reused->raw_parse,
                     'model' => $reused->model,
                     'usage' => ['reused_from_scan' => $reused->id],
+                    'verification' => $verifier->verify($reused->parsed() ?? []),
                 ]);
 
                 return;
@@ -62,6 +65,7 @@ class ParseScorecardScan implements ShouldQueue
                 'raw_parse' => json_encode($result['parse'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 'model' => $result['usage']['model'] ?? null,
                 'usage' => $result['usage'],
+                'verification' => $verifier->verify($result['parse']),
             ]);
         } catch (Throwable $e) {
             report($e);
