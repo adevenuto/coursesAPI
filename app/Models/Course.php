@@ -164,34 +164,94 @@ class Course extends Model
     }
 
     /**
-     * Other courses on the same property: identical coordinates AND club_name,
-     * excluding this course. lat/lng alone collides with placeholder coordinates
-     * shared by unrelated clubs, so club_name is required to scope to one property.
+     * Courses within a short radius, nearest first, with same-club courses
+     * pinned to the top.
      *
-     * @return array<int, array<string, mixed>>
+     * The ordering is what preserves the old "other routings of this facility"
+     * signal: genuine multi-course clubs almost always share one exact
+     * coordinate (1,619 of ~1,635 in this dataset), so they sort first at 0.0mi
+     * and carry `same_club`. Everything else is a real neighbour.
+     *
+     * Capped because density is wildly uneven — a typical course has 2-3
+     * neighbours within 5 miles, Pinehurst and Scottsdale have 24-30.
+     *
+     * @return array{
+     *     radius_mi: float,
+     *     placeholder: array{courses:int, clubs:int}|null,
+     *     courses: array<int, array<string, mixed>>
+     * }
      */
-    public function siblingsOnProperty(): array
+    public function nearbyCourses(): array
     {
-        $club = trim((string) $this->club_name);
-        if ($this->lat === null || $this->lng === null || $club === '') {
-            return [];
+        $radiusMi = (float) config('api.nearby_radius_mi', 5);
+        $empty = ['radius_mi' => $radiusMi, 'placeholder' => null, 'courses' => []];
+
+        if ($this->lat === null || $this->lng === null) {
+            return $empty;
         }
 
-        return static::query()
-            ->where('lat', $this->lat)
-            ->where('lng', $this->lng)
-            ->where('club_name', $this->club_name)
+        // A coordinate shared by many *different* clubs is a geocoding
+        // placeholder, not a neighbourhood — one centroid in this dataset holds
+        // 87 courses from 81 unrelated clubs. Listing those as neighbours would
+        // be noise; saying so is useful.
+        if ($placeholder = $this->placeholderCoordinate()) {
+            return [...$empty, 'placeholder' => $placeholder];
+        }
+
+        $club = trim((string) $this->club_name);
+
+        $query = static::query()
+            ->near((float) $this->lat, (float) $this->lng, $radiusMi * 1.60934)
             ->whereKeyNot($this->id)
-            ->orderBy('course_name')
+            // scopeNear ends with orderBy('distance_km'); clear it so same-club
+            // sorts first rather than landing behind distance and doing nothing.
+            ->reorder();
+
+        if ($club !== '') {
+            $query->orderByRaw('CASE WHEN club_name = ? THEN 0 ELSE 1 END', [$club]);
+        }
+
+        return [...$empty, 'courses' => $query
+            ->orderBy('distance_km')
+            ->limit((int) config('api.nearby_limit', 12))
             ->get()
             ->map(fn (Course $c) => [
                 'id' => $c->id,
                 'course_name' => $c->course_name,
+                'club_name' => $c->club_name,
                 'hole_count' => is_array($c->layout_data) && isset($c->layout_data['hole_count'])
                     ? (int) $c->layout_data['hole_count'] : null,
                 'green_centers_available' => $c->hasGreenCenters(),
+                'distance_mi' => round(((float) $c->distance_km) * 0.621371, 1),
+                'same_club' => $club !== '' && trim((string) $c->club_name) === $club,
                 'edit_url' => '/courses/'.$c->id.'/edit',
-            ])->all();
+            ])->all()];
+    }
+
+    /**
+     * Is this course sitting on a shared placeholder coordinate?
+     *
+     * Thresholds are set against real rows: Haig Point (14 courses, 1 club) and
+     * Pinehurst (9, 1) are genuine facilities and must not trip this; the
+     * Australian centroid (87, 81), Cairns (13, 13) and Brisbane (12, 12) must.
+     *
+     * @return array{courses:int, clubs:int}|null
+     */
+    private function placeholderCoordinate(): ?array
+    {
+        $shared = static::query()
+            ->where('lat', $this->lat)
+            ->where('lng', $this->lng)
+            ->whereKeyNot($this->id)
+            ->selectRaw('COUNT(*) AS courses, COUNT(DISTINCT club_name) AS clubs')
+            ->first();
+
+        $courses = (int) ($shared->courses ?? 0);
+        $clubs = (int) ($shared->clubs ?? 0);
+
+        return $courses >= 5 && $clubs >= 3
+            ? ['courses' => $courses, 'clubs' => $clubs]
+            : null;
     }
 
     /**

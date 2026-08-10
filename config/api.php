@@ -61,4 +61,16 @@ return [
 
     // Max radius (km) accepted by the near-me query.
     'max_radius_km' => 100,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Nearby courses (editor)
+    |--------------------------------------------------------------------------
+    | The "Nearby courses" panel on the course editor. The cap matters more than
+    | it looks: a 5-mile radius returns 2-3 courses for a typical course but
+    | 24-30 around Pinehurst, Scottsdale and Myrtle Beach, which is exactly
+    | where an editor works.
+    */
+    'nearby_radius_mi' => 5,
+    'nearby_limit' => 12,
 ];
