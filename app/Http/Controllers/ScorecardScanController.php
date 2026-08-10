@@ -49,6 +49,7 @@ class ScorecardScanController extends Controller
                 'course_name' => $course->course_name,
                 'club_name' => $course->club_name,
             ] : null,
+            'queuedParsing' => ! config('services.anthropic.inline_parse'),
             'maxImages' => 4,
             'maxImageMb' => 12,
         ]);
@@ -106,6 +107,9 @@ class ScorecardScanController extends Controller
                 'club_name' => $scan->course->club_name,
             ] : null,
             'diff' => $parse === null ? null : $differ->build($scan->course, $mapper->map($parse)),
+            // Tells the page how to read a `parsing` status: work in flight on a
+            // worker, or a request that died partway through.
+            'queuedParsing' => ! config('services.anthropic.inline_parse'),
             'maxImages' => 4,
             'maxImageMb' => 12,
         ]);
@@ -153,15 +157,14 @@ class ScorecardScanController extends Controller
     /**
      * Kick off the parse.
      *
-     * dispatchSync, not dispatch: QUEUE_CONNECTION is `database` in every real
-     * environment and nothing drains that queue — no worker, no cron. A plain
-     * dispatch would file the job and leave the scan stuck on "parsing" with no
-     * error to show for it. Running inline holds the request for the length of
-     * the vision call, which set_time_limit covers and the page spinners over.
+     * Inline by default — nothing drains the queue unless a cron worker has been
+     * set up, and a plain dispatch into an undrained queue would leave the scan
+     * stuck on "parsing" with no error to show for it. Inline is also simply
+     * better for one card at a time, which is how this is used.
      *
-     * If a cron-driven `queue:work --stop-when-empty` is ever added (see
-     * docs/SCORECARD_SCANNING.md), this becomes dispatch() and the page's
-     * existing status polling takes over.
+     * SCORECARD_INLINE_PARSE=false hands the page straight back and leaves the
+     * work to a worker instead. That trades latency for immunity to the request
+     * timeout, so it's worth doing only if the timeout is actually biting.
      */
     public function parse(Request $request, ScorecardScan $scan): RedirectResponse
     {
@@ -169,11 +172,21 @@ class ScorecardScanController extends Controller
 
         abort_if($scan->status === ScorecardScan::STATUS_APPLIED, 409);
 
-        if (function_exists('set_time_limit')) {
-            @set_time_limit(300);
+        if (config('services.anthropic.inline_parse')) {
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(300);
+            }
+
+            ParseScorecardScan::dispatchSync($scan->id);
+
+            return to_route('scorecard-scans.show', $scan);
         }
 
-        ParseScorecardScan::dispatchSync($scan->id);
+        // Mark it queued up front so the page shows "reading" rather than a
+        // pending scan that looks like nothing happened.
+        $scan->update(['status' => ScorecardScan::STATUS_PARSING, 'error' => null]);
+
+        ParseScorecardScan::dispatch($scan->id);
 
         return to_route('scorecard-scans.show', $scan);
     }

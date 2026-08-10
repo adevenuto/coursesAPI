@@ -153,27 +153,49 @@ visible change for scanned courses.
 
 ## Processing model
 
-`ParseScorecardScan` is a queued job dispatched with **`dispatchSync()`**, so it
-runs inline in the parse request (`set_time_limit(300)`, spinner in the UI)
-regardless of the queue driver.
+`ParseScorecardScan` runs one of two ways, chosen by `SCORECARD_INLINE_PARSE`.
 
-That's deliberate rather than incidental: `QUEUE_CONNECTION=database` in every
-real `.env` and nothing drains that queue — no worker, no cron. A plain
-`dispatch()` would file the job and leave the scan stuck on `parsing` with no
-error to show for it, which is exactly what happened the first time.
+**Inline (`true`, the default)** — `dispatchSync()` runs the parse in the request
+that started it, `set_time_limit(300)`, spinner in the UI. No infrastructure, and
+the result is there when the request returns. Exposed to the server's request
+timeout: a card that takes 90s behind a 60s ceiling gets cut off, having already
+been billed for. A scan left in `parsing` in this mode means exactly that, and
+the page offers a retry.
 
-It stays a job so switching to real background processing is a one-line change
-plus a cron entry, not a rewrite. If you enable cron in hPanel, swap
-`dispatchSync` for `dispatch` and add:
+**Queued (`false`)** — `dispatch()` files the job and returns immediately; the
+page polls every 4s until it lands. Needs a cron worker (below). Immune to the
+request timeout, but **slower for a single card**: it adds up to one cron
+interval before the parse even starts, plus a polling round-trip.
+
+**Inline is the right default.** This is a per-course widget — one card at a
+time, from a course's edit page — and for that, queued only adds latency. Turn
+the worker on if, and only if, the request timeout is actually cutting parses
+off in production. It's a remedy, not an upgrade.
+
+Inline is also the safe default for deployment: dispatching into a queue nothing
+drains would leave every parse hanging, so the code can ship before any cron
+exists.
+
+### Enabling the worker (only if inline times out)
+
+Hostinger hPanel → Advanced → Cron Jobs → **Custom** (not PHP — that mode takes a
+script path, and this needs arguments), every minute:
 
 ```
-* * * * * cd <APP_PATH> && php artisan queue:work --stop-when-empty --max-time=55 >> /dev/null 2>&1
+cd /home/<user>/domains/<domain>/public_html && /usr/bin/php artisan queue:work --stop-when-empty --max-time=55 --timeout=300 >/dev/null 2>&1
 ```
 
-**Never a persistent daemon** — CloudLinux LVE has a low process limit (see
-`DEPLOY_HOSTINGER.md` troubleshooting). Check the minimum cron interval your plan
-allows first: at 5-minute granularity, background processing is worse UX than the
-inline call.
+- `--stop-when-empty` exits the moment the queue drains, and `--max-time=55`
+  caps the process below the interval, so this never becomes the persistent
+  daemon CloudLinux's process limit punishes.
+- `--timeout=300` matches `ParseScorecardScan::$timeout`. The `queue:work`
+  default is **60s**, which would reap a parse mid-call.
+
+Then set `SCORECARD_INLINE_PARSE=false` and `php artisan config:cache`. To roll
+back, set it to `true` and re-cache — no deploy needed.
+
+Whichever mode is active, `ParseScorecardScan::failed()` marks the scan failed if
+the worker kills the job, so it can't sit on `parsing` with no explanation.
 
 ---
 

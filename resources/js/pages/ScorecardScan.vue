@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { AlertTriangle, ArrowLeft, Loader2, ScanLine, Sparkles, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
@@ -47,6 +47,9 @@ const props = defineProps<{
     scan: Scan | null;
     course: ScanCourse | null;
     diff?: Diff | null;
+    // True when parses run on a worker, so a `parsing` status means work is in
+    // flight rather than a request that died.
+    queuedParsing: boolean;
     maxImages: number;
     maxImageMb: number;
 }>();
@@ -64,16 +67,22 @@ const backHref = computed(() => (props.course ? `/courses/${props.course.id}/edi
 
 const parsing = ref(false);
 
-// `parsing` counts as retryable. Nothing runs the queue, so the parse only ever
-// happens inline in the request that started it — a scan still sitting in
-// `parsing` on a fresh page load means that request died (a server timeout on a
-// slow card, most likely), not that work is happening somewhere.
+const isParsing = computed(() => props.scan?.status === 'parsing');
+
+// A worker is doing the work; wait for it.
+const inFlight = computed(() => isParsing.value && props.queuedParsing);
+
+// Nothing drains the queue in inline mode, so the parse only ever happens in the
+// request that started it. A scan still sitting in `parsing` on a fresh page
+// load therefore means that request died — most likely a server timeout on a
+// slow card — not that work is happening somewhere.
+const wasInterrupted = computed(() => isParsing.value && !props.queuedParsing);
+
 const canParse = computed(
     () => props.scan?.status === 'pending'
         || props.scan?.status === 'failed'
-        || props.scan?.status === 'parsing',
+        || wasInterrupted.value,
 );
-const wasInterrupted = computed(() => props.scan?.status === 'parsing');
 const hasParsed = computed(() => props.scan?.status === 'parsed');
 
 function parse() {
@@ -85,6 +94,42 @@ function parse() {
         { onFinish: () => (parsing.value = false) },
     );
 }
+
+// Poll while a worker is reading the card. Only the scan and the diff are
+// refetched, so the page doesn't flicker. Give up after five minutes rather
+// than polling a dead session forever — the job's failed() hook will have
+// marked it failed by then, and a reload shows that.
+const POLL_MS = 4000;
+const POLL_LIMIT = (5 * 60 * 1000) / POLL_MS;
+
+let timer: ReturnType<typeof setInterval> | null = null;
+let ticks = 0;
+
+function stopPolling() {
+    if (timer !== null) {
+        clearInterval(timer);
+        timer = null;
+    }
+}
+
+onMounted(() => {
+    if (!inFlight.value) return;
+
+    timer = setInterval(() => {
+        if (++ticks > POLL_LIMIT) {
+            stopPolling();
+            return;
+        }
+        router.reload({ only: ['scan', 'diff'] });
+    }, POLL_MS);
+});
+
+// The reload swaps the props in place, so stop as soon as it's no longer parsing.
+watch(inFlight, (still) => {
+    if (!still) stopPolling();
+});
+
+onUnmounted(stopPolling);
 
 function discard() {
     if (props.scan && confirm('Discard this scan and its images?')) {
@@ -174,7 +219,16 @@ function discard() {
                         </span>
                     </div>
 
-                    <div class="mt-5 flex flex-wrap items-center gap-3">
+                    <!-- Queued: a worker has it. Safe to leave. -->
+                    <div v-if="inFlight" class="mt-5 flex items-center gap-3">
+                        <Loader2 class="size-4 shrink-0 animate-spin text-lime-500" />
+                        <p class="text-sm text-fg-muted">
+                            Reading the card. This usually takes a minute or two — you can leave this page and come
+                            back, or queue another card while you wait.
+                        </p>
+                    </div>
+
+                    <div v-else class="mt-5 flex flex-wrap items-center gap-3">
                         <Button v-if="canParse" type="button" :disabled="parsing" @click="parse">
                             <Loader2 v-if="parsing" class="size-4 animate-spin" />
                             <Sparkles v-else class="size-4" />
@@ -187,7 +241,11 @@ function discard() {
                             }}
                         </Button>
                         <p v-if="parsing" class="text-sm text-fg-subtle">
-                            This takes up to a minute or so. Keep this tab open.
+                            {{
+                                queuedParsing
+                                    ? 'Queueing…'
+                                    : 'This takes up to a minute or so. Keep this tab open.'
+                            }}
                         </p>
                         <p v-else-if="canParse" class="text-sm text-fg-subtle">
                             Nothing is written to a course — you'll review the changes first.

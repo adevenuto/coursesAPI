@@ -4,6 +4,7 @@ namespace Tests\Feature\Scorecard;
 
 use Anthropic\Client as AnthropicClient;
 use Anthropic\RequestOptions;
+use App\Jobs\ParseScorecardScan;
 use App\Models\ScorecardScan;
 use App\Models\User;
 use App\Support\Scorecard\ScorecardParser;
@@ -240,9 +241,10 @@ class ScorecardParseTest extends TestCase
     {
         // phpunit.xml forces QUEUE_CONNECTION=sync, which hides the case that
         // actually ships: every real .env uses `database`, and nothing drains
-        // that queue. A plain dispatch() would file the job and leave the scan
-        // stuck on "parsing" forever, so pin the inline behaviour explicitly.
-        config(['queue.default' => 'database']);
+        // that queue unless a cron worker exists. In inline mode a plain
+        // dispatch() would file the job and leave the scan stuck on "parsing"
+        // forever, so pin the inline behaviour explicitly.
+        config(['queue.default' => 'database', 'services.anthropic.inline_parse' => true]);
 
         $this->transport->pushParse($this->fixture());
 
@@ -253,6 +255,57 @@ class ScorecardParseTest extends TestCase
         $this->assertSame(ScorecardScan::STATUS_PARSED, $scan->refresh()->status);
         $this->assertSame(1, $this->transport->callCount());
         $this->assertSame(0, DB::table('jobs')->count(), 'the parse must not be left sitting in the queue');
+    }
+
+    public function test_queued_mode_hands_the_page_back_and_leaves_the_work_for_a_worker(): void
+    {
+        config(['queue.default' => 'database', 'services.anthropic.inline_parse' => false]);
+
+        $editor = $this->editor();
+        $scan = $this->uploadAs($editor);
+
+        $this->actingAs($editor)
+            ->post("/scorecard-scans/{$scan->id}/parse")
+            ->assertRedirect(route('scorecard-scans.show', $scan));
+
+        // The request returns without calling the API — that's the whole point:
+        // the editor can queue the next card instead of blocking on this one.
+        $this->assertSame(0, $this->transport->callCount());
+        $this->assertSame(1, DB::table('jobs')->count());
+        // Marked up front so the page shows "reading" rather than looking idle.
+        $this->assertSame(ScorecardScan::STATUS_PARSING, $scan->refresh()->status);
+    }
+
+    public function test_the_page_tells_the_client_which_mode_is_active(): void
+    {
+        $editor = $this->editor();
+        $scan = $this->uploadAs($editor);
+
+        // The page reads a `parsing` status differently in each mode — work in
+        // flight, or a request that died — so it has to be told which.
+        config(['services.anthropic.inline_parse' => true]);
+        $this->actingAs($editor)->get("/scorecard-scans/{$scan->id}")
+            ->assertInertia(fn ($page) => $page->where('queuedParsing', false));
+
+        config(['services.anthropic.inline_parse' => false]);
+        $this->actingAs($editor)->get("/scorecard-scans/{$scan->id}")
+            ->assertInertia(fn ($page) => $page->where('queuedParsing', true));
+    }
+
+    public function test_a_worker_killing_the_job_marks_the_scan_failed(): void
+    {
+        $editor = $this->editor();
+        $scan = $this->uploadAs($editor);
+        $scan->update(['status' => ScorecardScan::STATUS_PARSING]);
+
+        // What a queue:work timeout looks like: handle() never returns, so the
+        // only hook left is failed(). Without it the scan sits on "parsing".
+        (new ParseScorecardScan($scan->id))->failed(new \RuntimeException('job timed out'));
+
+        $scan->refresh();
+
+        $this->assertSame(ScorecardScan::STATUS_FAILED, $scan->status);
+        $this->assertStringContainsString('interrupted', (string) $scan->error);
     }
 
     public function test_only_the_owner_or_an_admin_can_trigger_a_parse(): void

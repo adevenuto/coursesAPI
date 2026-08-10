@@ -86,6 +86,22 @@ class ParseScorecardScan implements ShouldQueue
     }
 
     /**
+     * handle() catches everything it can, so reaching here means the worker
+     * itself killed the job — a timeout, or the process dying mid-run. Without
+     * this the scan would sit on "parsing" with no explanation.
+     */
+    public function failed(?Throwable $e): void
+    {
+        ScorecardScan::where('id', $this->scanId)
+            ->where('status', ScorecardScan::STATUS_PARSING)
+            ->update([
+                'status' => ScorecardScan::STATUS_FAILED,
+                'error' => 'The parse was interrupted before it finished'
+                    .($e !== null ? ': '.$e->getMessage() : '.'),
+            ]);
+    }
+
+    /**
      * An earlier successful parse of byte-identical images, if there is one.
      */
     private function reusableParse(ScorecardScan $scan): ?ScorecardScan
