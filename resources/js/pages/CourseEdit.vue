@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref } from 'vue';
-import { ArrowLeft, ExternalLink, Flag, History, Save, ScanLine, Trash2 } from '@lucide/vue';
+import { ArrowLeft, ExternalLink, Flag, History, MapPinOff, Save, ScanLine, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -58,12 +58,22 @@ interface Revision {
     changes: Array<{ label: string; detail: string }>;
     at: string | null;
 }
-interface SiblingCourse {
+interface NearbyCourse {
     id: number;
     course_name: string | null;
+    club_name: string | null;
     hole_count: number | null;
     green_centers_available: boolean;
+    distance_mi: number;
+    same_club: boolean;
     edit_url: string;
+}
+interface Nearby {
+    radius_mi: number;
+    // Set when this course sits on a shared geocoding placeholder, in which case
+    // there is no meaningful neighbour list to show.
+    placeholder: { courses: number; clubs: number } | null;
+    courses: NearbyCourse[];
 }
 
 const props = defineProps<{
@@ -71,7 +81,7 @@ const props = defineProps<{
     course: EditorCourse | null;
     mapsKey: string | null;
     history?: Revision[];
-    siblings?: SiblingCourse[];
+    nearby?: Nearby;
 }>();
 
 const c = props.course;
@@ -349,17 +359,35 @@ function onPlaceCleared() {
                     </div>
                 </section>
 
-                <!-- Other courses on this property (siblings sharing club + coordinates) -->
-                <section v-if="siblings && siblings.length" class="ds-card p-6">
-                    <h2 class="font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase">
-                        Other courses on this property
-                    </h2>
+                <!-- Nearby courses. Same-club rows come first from the server and are
+                 badged, so the other routings of a multi-course facility stay
+                 recognisable within one distance-ordered list. -->
+            <section v-if="nearby && (nearby.placeholder || nearby.courses.length)" class="ds-card p-6">
+                <h2 class="font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase">Nearby courses</h2>
+
+                <!-- A coordinate shared by many different clubs is a geocoding
+                     placeholder, so listing "neighbours" would be noise. Say so
+                     instead — it's a prompt to fix the location. -->
+                <div
+                    v-if="nearby.placeholder"
+                    class="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-fg"
+                >
+                    <MapPinOff class="mt-0.5 size-4 shrink-0 text-amber-400" />
+                    <span>
+                        These coordinates are shared with {{ nearby.placeholder.courses }} other course{{ nearby.placeholder.courses === 1 ? '' : 's' }}
+                        across {{ nearby.placeholder.clubs }} different clubs, so they're almost certainly a placeholder
+                        rather than this course's real location. Fix the position below to see genuine neighbours.
+                    </span>
+                </div>
+
+                <template v-else>
                     <p class="mt-1 text-xs text-fg-subtle">
-                        {{ siblings.length }} other course{{ siblings.length === 1 ? '' : 's' }} share this club and location.
+                        {{ nearby.courses.length }} course{{ nearby.courses.length === 1 ? '' : 's' }} within
+                        {{ nearby.radius_mi }} miles, closest first.
                     </p>
                     <div class="mt-4 space-y-2">
                         <Link
-                            v-for="s in siblings"
+                            v-for="s in nearby.courses"
                             :key="s.id"
                             :href="s.edit_url"
                             class="ds-card ds-card--hover flex items-center gap-3 p-4"
@@ -377,12 +405,22 @@ function onPlaceCleared() {
                                         class="size-1.5 shrink-0 rounded-full bg-lime-400"
                                         title="Green centers mapped"
                                     />
+                                    <span v-if="s.same_club" class="ds-badge ds-badge--lime shrink-0 text-[10px]">
+                                        same property
+                                    </span>
                                 </span>
-                                <span v-if="s.hole_count" class="text-xs text-fg-subtle">{{ s.hole_count }} holes</span>
+                                <span class="flex flex-wrap items-center gap-x-2 text-xs text-fg-subtle">
+                                    <span v-if="s.hole_count">{{ s.hole_count }} holes</span>
+                                    <span v-if="!s.same_club && s.club_name" class="min-w-0 truncate">{{ s.club_name }}</span>
+                                </span>
+                            </span>
+                            <span class="shrink-0 font-mono text-[11px] text-fg-subtle">
+                                {{ s.distance_mi === 0 ? 'same spot' : `${s.distance_mi} mi` }}
                             </span>
                         </Link>
                     </div>
-                </section>
+                </template>
+            </section>
             </div>
         </div>
     </MarketingLayout>
