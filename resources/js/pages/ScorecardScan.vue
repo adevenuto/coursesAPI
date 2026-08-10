@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { AlertTriangle, ArrowLeft, Loader2, ScanLine, Sparkles, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
@@ -112,9 +112,10 @@ function stopPolling() {
     }
 }
 
-onMounted(() => {
-    if (!inFlight.value) return;
+function startPolling() {
+    if (timer !== null) return;
 
+    ticks = 0;
     timer = setInterval(() => {
         if (++ticks > POLL_LIMIT) {
             stopPolling();
@@ -122,12 +123,13 @@ onMounted(() => {
         }
         router.reload({ only: ['scan', 'diff'] });
     }, POLL_MS);
-});
+}
 
-// The reload swaps the props in place, so stop as soon as it's no longer parsing.
-watch(inFlight, (still) => {
-    if (!still) stopPolling();
-});
+// Driven by the watcher rather than onMounted, and immediate so it covers both
+// entry points. Submitting the parse redirects to this same URL, so Inertia
+// patches props on the existing component instead of remounting it — onMounted
+// alone would never fire for the case that matters most.
+watch(inFlight, (still) => (still ? startPolling() : stopPolling()), { immediate: true });
 
 onUnmounted(stopPolling);
 
