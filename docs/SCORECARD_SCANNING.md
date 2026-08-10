@@ -171,6 +171,23 @@ inline call.
 
 ---
 
+## Verifying an environment
+
+```bash
+php artisan scorecard:doctor
+```
+
+Checks `gd`, `exif`, the API key, `max_execution_time`, storage writability and
+the table — over SSH, before the first upload. Each prerequisite fails
+differently in the browser, and a request cut off mid-parse costs money with
+nothing to show for it.
+
+**The timeout check matters most on shared hosting.** The parse runs inline and
+takes 30–90s; `artisan serve` has no ceiling locally, so a limit only bites in
+production. A cut-off request leaves the scan in `parsing` — the page detects
+this on reload and offers a retry, since nothing drains the queue and no work
+can be in flight.
+
 ## Working on it
 
 ```bash

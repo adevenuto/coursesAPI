@@ -64,9 +64,16 @@ const backHref = computed(() => (props.course ? `/courses/${props.course.id}/edi
 
 const parsing = ref(false);
 
+// `parsing` counts as retryable. Nothing runs the queue, so the parse only ever
+// happens inline in the request that started it — a scan still sitting in
+// `parsing` on a fresh page load means that request died (a server timeout on a
+// slow card, most likely), not that work is happening somewhere.
 const canParse = computed(
-    () => props.scan?.status === 'pending' || props.scan?.status === 'failed',
+    () => props.scan?.status === 'pending'
+        || props.scan?.status === 'failed'
+        || props.scan?.status === 'parsing',
 );
+const wasInterrupted = computed(() => props.scan?.status === 'parsing');
 const hasParsed = computed(() => props.scan?.status === 'parsed');
 
 function parse() {
@@ -155,11 +162,29 @@ function discard() {
                         <span>{{ scan.error }}</span>
                     </div>
 
+                    <div
+                        v-if="wasInterrupted && !parsing"
+                        class="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-fg"
+                    >
+                        <AlertTriangle class="mt-0.5 size-4 shrink-0 text-amber-400" />
+                        <span>
+                            The last attempt didn't finish — most likely the server cut the request off before the card
+                            was read. Try again; if it keeps happening, split the card across two images so each one
+                            takes less time.
+                        </span>
+                    </div>
+
                     <div class="mt-5 flex flex-wrap items-center gap-3">
                         <Button v-if="canParse" type="button" :disabled="parsing" @click="parse">
                             <Loader2 v-if="parsing" class="size-4 animate-spin" />
                             <Sparkles v-else class="size-4" />
-                            {{ parsing ? 'Reading the card…' : scan.status === 'failed' ? 'Try again' : 'Read this scorecard' }}
+                            {{
+                                parsing
+                                    ? 'Reading the card…'
+                                    : scan.status === 'pending'
+                                      ? 'Read this scorecard'
+                                      : 'Try again'
+                            }}
                         </Button>
                         <p v-if="parsing" class="text-sm text-fg-subtle">
                             This takes up to a minute or so. Keep this tab open.
