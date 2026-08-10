@@ -36,7 +36,15 @@ return [
     ],
 
     'google' => [
+        // Browser key — sent to the client for the Maps JS API, so it must stay
+        // HTTP-referer restricted. Google refuses referer-restricted keys on the
+        // server-side web-service APIs, which is why geocoding needs its own.
         'places_key' => env('GOOGLE_MAPS_API_KEY'),
+
+        // Server key — no referer restriction (IP-restrict it to the app host),
+        // with the Geocoding API enabled. Falls back to the browser key only so
+        // local experiments don't hard-fail on a missing env var.
+        'geocoding_key' => env('GOOGLE_GEOCODING_API_KEY', env('GOOGLE_MAPS_API_KEY')),
     ],
 
     // Algolia public credentials for the browser (explorer autocomplete).
