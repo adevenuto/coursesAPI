@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
-import { ArrowLeft, ScanLine, Trash2 } from '@lucide/vue';
+import { AlertTriangle, ArrowLeft, Loader2, ScanLine, Sparkles, Trash2 } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import MarketingNav from '@/components/marketing/MarketingNav.vue';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,23 @@ const subtitle = computed(() => {
 });
 
 const backHref = computed(() => (props.course ? `/courses/${props.course.id}/edit` : '/explorer'));
+
+const parsing = ref(false);
+
+const canParse = computed(
+    () => props.scan?.status === 'pending' || props.scan?.status === 'failed',
+);
+const hasParsed = computed(() => props.scan?.status === 'parsed');
+
+function parse() {
+    if (!props.scan) return;
+    parsing.value = true;
+    router.post(
+        `/scorecard-scans/${props.scan.id}/parse`,
+        {},
+        { onFinish: () => (parsing.value = false) },
+    );
+}
 
 function discard() {
     if (props.scan && confirm('Discard this scan and its images?')) {
@@ -121,13 +138,35 @@ function discard() {
                         </figure>
                     </div>
 
-                    <p v-if="scan.error" class="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-fg">
-                        {{ scan.error }}
-                    </p>
+                    <div
+                        v-if="scan.error"
+                        class="mt-4 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-fg"
+                    >
+                        <AlertTriangle class="mt-0.5 size-4 shrink-0 text-destructive" />
+                        <span>{{ scan.error }}</span>
+                    </div>
 
-                    <p class="mt-5 text-sm text-fg-subtle">
-                        Parsing is added in the next step — these images are staged and nothing has been written to a
-                        course.
+                    <div class="mt-5 flex flex-wrap items-center gap-3">
+                        <Button v-if="canParse" type="button" :disabled="parsing" @click="parse">
+                            <Loader2 v-if="parsing" class="size-4 animate-spin" />
+                            <Sparkles v-else class="size-4" />
+                            {{ parsing ? 'Reading the card…' : scan.status === 'failed' ? 'Try again' : 'Read this scorecard' }}
+                        </Button>
+                        <p v-if="parsing" class="text-sm text-fg-subtle">
+                            This takes up to a minute or so. Keep this tab open.
+                        </p>
+                        <p v-else-if="canParse" class="text-sm text-fg-subtle">
+                            Nothing is written to a course — you'll review the changes first.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Parsed, awaiting the diff preview -->
+                <section v-if="hasParsed" class="ds-card p-6">
+                    <h2 class="font-mono text-[11px] tracking-[0.18em] text-fg-subtle uppercase">Parsed</h2>
+                    <p class="mt-3 text-sm text-fg-muted">
+                        The card was read successfully. The change preview is added in the next step — nothing has been
+                        written to a course.
                     </p>
                 </section>
             </div>

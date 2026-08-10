@@ -58,6 +58,7 @@ Route::withHead(robots: 'noindex, nofollow')->middleware(['auth', 'verified', En
         ->withHead(title: 'Scan a scorecard');
     Route::post('scorecard-scans', [ScorecardScanController::class, 'store'])->name('scorecard-scans.store');
     Route::get('scorecard-scans/{scan}', [ScorecardScanController::class, 'show'])->name('scorecard-scans.show');
+    Route::post('scorecard-scans/{scan}/parse', [ScorecardScanController::class, 'parse'])->name('scorecard-scans.parse');
     // Images live on the private disk, so they're streamed rather than served.
     Route::get('scorecard-scans/{scan}/images/{index}', [ScorecardScanController::class, 'image'])
         ->whereNumber('index')

@@ -55,4 +55,12 @@ return [
         'search_key' => env('ALGOLIA_SEARCH_KEY'),
     ],
 
+    // Scorecard parsing (editor-only). Server-side key — never sent to the
+    // browser. Without it the scan feature reports a configuration error
+    // rather than failing silently on every upload.
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-opus-5'),
+    ],
+
 ];

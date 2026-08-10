@@ -200,7 +200,7 @@ class ScorecardUploadTest extends TestCase
             'images' => [UploadedFile::fake()->image('card.jpg', 900, 600)],
         ]);
 
-        return ScorecardScan::latest('id')->sole();
+        return ScorecardScan::query()->latest('id')->firstOrFail();
     }
 
     private function makeCourse(): Course

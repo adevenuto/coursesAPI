@@ -1,0 +1,704 @@
+{
+    "name": "Bolingbrook Golf Club",
+    "cardId": null,
+    "printDate": "07/2012",
+    "address": "2001 Rodeo Dr., Bolingbrook, IL 60490",
+    "phone": "(630) 771-9400",
+    "website": "www.bolingbrookgolfclub.com",
+    "units": "yards",
+    "par": {
+        "out": {
+            "men": 36,
+            "women": 38
+        },
+        "in": {
+            "men": 36,
+            "women": 38
+        },
+        "total": {
+            "men": 72,
+            "women": 76
+        }
+    },
+    "paceOfPlay": {
+        "out": "1:57",
+        "in": "2:00",
+        "total": "3:57"
+    },
+    "tees": [
+        {
+            "id": 1,
+            "slug": "black",
+            "name": "Black",
+            "hex": "#2C2C2A",
+            "rating": {
+                "men": 73.4,
+                "women": null
+            },
+            "slope": {
+                "men": 136,
+                "women": null
+            },
+            "yardage": {
+                "out": 3311,
+                "in": 3356,
+                "total": 6667
+            }
+        },
+        {
+            "id": 2,
+            "slug": "blue",
+            "name": "Blue",
+            "hex": "#1D4ED8",
+            "rating": {
+                "men": 71.2,
+                "women": null
+            },
+            "slope": {
+                "men": 131,
+                "women": null
+            },
+            "yardage": {
+                "out": 3116,
+                "in": 3160,
+                "total": 6276
+            }
+        },
+        {
+            "id": 3,
+            "slug": "white",
+            "name": "White",
+            "hex": "#E5E7EB",
+            "rating": {
+                "men": 68.9,
+                "women": 74.1
+            },
+            "slope": {
+                "men": 125,
+                "women": 132
+            },
+            "yardage": {
+                "out": 2884,
+                "in": 2924,
+                "total": 5808
+            }
+        },
+        {
+            "id": 4,
+            "slug": "red",
+            "name": "Red",
+            "hex": "#B91C1C",
+            "rating": {
+                "men": null,
+                "women": 70.3
+            },
+            "slope": {
+                "men": null,
+                "women": 122
+            },
+            "yardage": {
+                "out": 2521,
+                "in": 2556,
+                "total": 5077
+            }
+        }
+    ],
+    "combinationTees": null,
+    "holes": [
+        {
+            "number": 1,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 5
+            },
+            "handicap": {
+                "men": 7,
+                "women": 5
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 367
+                },
+                {
+                    "teeId": 2,
+                    "yards": 345
+                },
+                {
+                    "teeId": 3,
+                    "yards": 319
+                },
+                {
+                    "teeId": 4,
+                    "yards": 279
+                }
+            ]
+        },
+        {
+            "number": 2,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 4
+            },
+            "handicap": {
+                "men": 3,
+                "women": 9
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 401
+                },
+                {
+                    "teeId": 2,
+                    "yards": 380
+                },
+                {
+                    "teeId": 3,
+                    "yards": 352
+                },
+                {
+                    "teeId": 4,
+                    "yards": 308
+                }
+            ]
+        },
+        {
+            "number": 3,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 3,
+                "women": 3
+            },
+            "handicap": {
+                "men": 17,
+                "women": 17
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 178
+                },
+                {
+                    "teeId": 2,
+                    "yards": 165
+                },
+                {
+                    "teeId": 3,
+                    "yards": 153
+                },
+                {
+                    "teeId": 4,
+                    "yards": 133
+                }
+            ]
+        },
+        {
+            "number": 4,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 5,
+                "women": 5
+            },
+            "handicap": {
+                "men": 1,
+                "women": 1
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 527
+                },
+                {
+                    "teeId": 2,
+                    "yards": 499
+                },
+                {
+                    "teeId": 3,
+                    "yards": 462
+                },
+                {
+                    "teeId": 4,
+                    "yards": 405
+                }
+            ]
+        },
+        {
+            "number": 5,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 4
+            },
+            "handicap": {
+                "men": 11,
+                "women": 11
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 412
+                },
+                {
+                    "teeId": 2,
+                    "yards": 388
+                },
+                {
+                    "teeId": 3,
+                    "yards": 359
+                },
+                {
+                    "teeId": 4,
+                    "yards": 314
+                }
+            ]
+        },
+        {
+            "number": 6,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 4
+            },
+            "handicap": {
+                "men": 5,
+                "women": 7
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 389
+                },
+                {
+                    "teeId": 2,
+                    "yards": 363
+                },
+                {
+                    "teeId": 3,
+                    "yards": 335
+                },
+                {
+                    "teeId": 4,
+                    "yards": 293
+                }
+            ]
+        },
+        {
+            "number": 7,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 5
+            },
+            "handicap": {
+                "men": 13,
+                "women": 13
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 355
+                },
+                {
+                    "teeId": 2,
+                    "yards": 336
+                },
+                {
+                    "teeId": 3,
+                    "yards": 311
+                },
+                {
+                    "teeId": 4,
+                    "yards": 272
+                }
+            ]
+        },
+        {
+            "number": 8,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 3,
+                "women": 3
+            },
+            "handicap": {
+                "men": 15,
+                "women": 15
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 165
+                },
+                {
+                    "teeId": 2,
+                    "yards": 155
+                },
+                {
+                    "teeId": 3,
+                    "yards": 144
+                },
+                {
+                    "teeId": 4,
+                    "yards": 125
+                }
+            ]
+        },
+        {
+            "number": 9,
+            "name": null,
+            "nine": "out",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 5,
+                "women": 5
+            },
+            "handicap": {
+                "men": 9,
+                "women": 3
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 517
+                },
+                {
+                    "teeId": 2,
+                    "yards": 485
+                },
+                {
+                    "teeId": 3,
+                    "yards": 449
+                },
+                {
+                    "teeId": 4,
+                    "yards": 392
+                }
+            ]
+        },
+        {
+            "number": 10,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 5
+            },
+            "handicap": {
+                "men": 8,
+                "women": 8
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 384
+                },
+                {
+                    "teeId": 2,
+                    "yards": 364
+                },
+                {
+                    "teeId": 3,
+                    "yards": 337
+                },
+                {
+                    "teeId": 4,
+                    "yards": 295
+                }
+            ]
+        },
+        {
+            "number": 11,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 3,
+                "women": 3
+            },
+            "handicap": {
+                "men": 18,
+                "women": 18
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 171
+                },
+                {
+                    "teeId": 2,
+                    "yards": 159
+                },
+                {
+                    "teeId": 3,
+                    "yards": 147
+                },
+                {
+                    "teeId": 4,
+                    "yards": 128
+                }
+            ]
+        },
+        {
+            "number": 12,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 5,
+                "women": 5
+            },
+            "handicap": {
+                "men": 2,
+                "women": 2
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 542
+                },
+                {
+                    "teeId": 2,
+                    "yards": 510
+                },
+                {
+                    "teeId": 3,
+                    "yards": 473
+                },
+                {
+                    "teeId": 4,
+                    "yards": 413
+                }
+            ]
+        },
+        {
+            "number": 13,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 4
+            },
+            "handicap": {
+                "men": 10,
+                "women": 12
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 398
+                },
+                {
+                    "teeId": 2,
+                    "yards": 374
+                },
+                {
+                    "teeId": 3,
+                    "yards": 346
+                },
+                {
+                    "teeId": 4,
+                    "yards": 302
+                }
+            ]
+        },
+        {
+            "number": 14,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 4
+            },
+            "handicap": {
+                "men": 6,
+                "women": 6
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 421
+                },
+                {
+                    "teeId": 2,
+                    "yards": 400
+                },
+                {
+                    "teeId": 3,
+                    "yards": 370
+                },
+                {
+                    "teeId": 4,
+                    "yards": 324
+                }
+            ]
+        },
+        {
+            "number": 15,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 3,
+                "women": 4
+            },
+            "handicap": {
+                "men": 16,
+                "women": 16
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 192
+                },
+                {
+                    "teeId": 2,
+                    "yards": 179
+                },
+                {
+                    "teeId": 3,
+                    "yards": 166
+                },
+                {
+                    "teeId": 4,
+                    "yards": 145
+                }
+            ]
+        },
+        {
+            "number": 16,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 4
+            },
+            "handicap": {
+                "men": 14,
+                "women": 10
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 368
+                },
+                {
+                    "teeId": 2,
+                    "yards": 348
+                },
+                {
+                    "teeId": 3,
+                    "yards": 322
+                },
+                {
+                    "teeId": 4,
+                    "yards": 282
+                }
+            ]
+        },
+        {
+            "number": 17,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 5,
+                "women": 5
+            },
+            "handicap": {
+                "men": 4,
+                "women": 4
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 505
+                },
+                {
+                    "teeId": 2,
+                    "yards": 472
+                },
+                {
+                    "teeId": 3,
+                    "yards": 436
+                },
+                {
+                    "teeId": 4,
+                    "yards": 381
+                }
+            ]
+        },
+        {
+            "number": 18,
+            "name": null,
+            "nine": "in",
+            "maxTime": null,
+            "cartPathOnly": null,
+            "par": {
+                "men": 4,
+                "women": 4
+            },
+            "handicap": {
+                "men": 12,
+                "women": 14
+            },
+            "yardages": [
+                {
+                    "teeId": 1,
+                    "yards": 375
+                },
+                {
+                    "teeId": 2,
+                    "yards": 354
+                },
+                {
+                    "teeId": 3,
+                    "yards": 327
+                },
+                {
+                    "teeId": 4,
+                    "yards": 286
+                }
+            ]
+        }
+    ],
+    "parseNotes": null
+}

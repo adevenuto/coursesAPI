@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreScorecardScanRequest;
+use App\Jobs\ParseScorecardScan;
 use App\Models\Course;
 use App\Models\ScorecardScan;
 use App\Support\Scorecard\ScorecardImage;
@@ -101,6 +102,28 @@ class ScorecardScanController extends Controller
             'maxImages' => 4,
             'maxImageMb' => 12,
         ]);
+    }
+
+    /**
+     * Kick off the parse.
+     *
+     * Under QUEUE_CONNECTION=sync this runs inline, so the request is held for
+     * the length of the vision call. set_time_limit covers the PHP-side ceiling;
+     * the page shows a spinner and re-renders on the redirect.
+     */
+    public function parse(Request $request, ScorecardScan $scan): RedirectResponse
+    {
+        $this->authorizeScan($request, $scan);
+
+        abort_if($scan->status === ScorecardScan::STATUS_APPLIED, 409);
+
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(300);
+        }
+
+        ParseScorecardScan::dispatch($scan->id);
+
+        return to_route('scorecard-scans.show', $scan);
     }
 
     /**
