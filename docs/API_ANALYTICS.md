@@ -41,6 +41,12 @@ a paying caller.
 structural — the throttler physically sits between the two middleware — rather
 than a condition someone can get wrong later.
 
+**`GET /api/user` now shares the stack.** It was the one authenticated endpoint
+with neither throttling nor tracking. Closing that hole is a real behaviour
+change for callers: the endpoint consumes quota and can return 429 where it
+never used to, which on the 30-a-day free plan is not nothing. Documented under
+"Rate limits & plans" in `Docs.vue`.
+
 ## Reading
 
 `App\Support\ApiAnalytics`. Every range is half-open (`>= from`, `< to`), and

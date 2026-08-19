@@ -228,6 +228,12 @@ const resCities = `{
                             Limits are enforced <strong class="text-fg">per account</strong> (all your keys draw from one pool),
                             with a daily quota and a per-minute burst cap. Green-center endpoints require a paid plan.
                         </p>
+                        <p class="mt-3 max-w-2xl text-fg-muted">
+                            Every authenticated request counts toward the quota, including
+                            <code class="rounded bg-ink-800 px-1.5 py-0.5 font-mono text-fg">GET /api/user</code>.
+                            If you call it to check your plan, call it once and cache the answer rather than
+                            before each request.
+                        </p>
                         <div class="mt-5 overflow-x-auto rounded-xl border border-line">
                             <table class="w-full text-left text-sm">
                                 <thead class="border-b border-line text-fg-subtle">
