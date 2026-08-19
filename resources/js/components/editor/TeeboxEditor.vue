@@ -85,10 +85,13 @@ function applyPreset(tee: Teebox, p: { name: string; color: string }) {
     if (!tee.name) tee.name = p.name;
 }
 
-// Fill the swatch from the name as it's typed — "Burgundy" and "Blue/White"
-// resolve just as they would on a scan. Deliberately not immediate: opening an
-// existing course must not silently rewrite its colours, only typing does.
-// A colour already set is never overwritten; that was a deliberate choice.
+// The name drives the colour, live, for as long as you're editing it —
+// renaming a tee from Blue to Black moves the swatch with it. Nothing is
+// persisted until the form is saved.
+//
+// Deliberately not immediate: opening a course must not rewrite its colours on
+// load, only typing does. And a name that resolves to nothing ("Championship")
+// leaves the existing colour alone rather than clearing it.
 watch(
     () => teeboxes.value.map((tee) => tee.name),
     (names, before) => {
@@ -96,16 +99,34 @@ watch(
             if (before && name === before[i]) return;
 
             const tee = teeboxes.value[i];
-            if (!tee || tee.color) return;
+            if (!tee) return;
 
             const { color, secondaryColor } = resolveTeeColor(name, props.teeColors);
             if (!color) return;
 
             tee.color = color;
-            if (secondaryColor && !tee.secondaryColor) tee.secondaryColor = secondaryColor;
+
+            if (secondaryColor) {
+                tee.secondaryColor = secondaryColor;
+            } else {
+                // "Blue/White" → "Blue" drops the white half, but only when the
+                // white came from the old name. A second colour picked by hand
+                // in Combine survives a rename.
+                const previous = resolveTeeColor(before?.[i], props.teeColors).secondaryColor;
+                if (previous && tee.secondaryColor === previous) tee.secondaryColor = null;
+            }
         });
     },
 );
+
+// A resolved colour that has no preset button — burgundy, tan, lime. Without
+// this the only feedback is a 20px swatch on a near-black card, which reads as
+// nothing having happened.
+function customColor(tee: Teebox): string | null {
+    if (!tee.color) return null;
+
+    return presets.value.some((p) => p.color === tee.color) ? null : tee.color;
+}
 
 // Total yards is derived from the hole yards. It's recomputed only when the user
 // edits one of this teebox's yards (never on load) so a stored total isn't
@@ -207,7 +228,10 @@ function copyFromPrevious(index: number) {
             <!-- teebox header -->
             <div class="flex flex-wrap items-center gap-3">
                 <span class="inline-flex size-5 shrink-0 overflow-hidden rounded-full border border-line">
-                    <span class="h-full flex-1" :style="{ background: tee.color || 'transparent' }" />
+                    <span
+                        class="h-full flex-1 ring-1 ring-line ring-inset"
+                        :style="{ background: tee.color || 'transparent' }"
+                    />
                     <span v-if="tee.secondaryColor" class="h-full flex-1" :style="{ background: tee.secondaryColor }" />
                 </span>
                 <Input v-model="tee.name" placeholder="Tee name (e.g. Blue)" class="w-40" maxlength="60" />
@@ -257,6 +281,18 @@ function copyFromPrevious(index: number) {
                 >
                     <span class="size-2.5 rounded-full" :style="{ background: p.color }" /> {{ p.name }}
                 </button>
+
+                <span
+                    v-if="customColor(tee)"
+                    class="flex items-center gap-1.5 rounded-full border border-line-lime bg-ink-800 px-2 py-1 font-mono text-xs text-fg"
+                    :title="`Resolved from the tee name — ${tee.name}`"
+                >
+                    <span
+                        class="size-2.5 rounded-full border border-line"
+                        :style="{ background: customColor(tee) as string }"
+                    />
+                    {{ customColor(tee) }}
+                </span>
             </div>
 
             <!-- meta (rating + slope carry men's / women's values; total is shared) -->
