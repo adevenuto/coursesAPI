@@ -205,7 +205,7 @@ class ApiAnalyticsSeeder extends Seeder
             $status = 200;
         }
 
-        $agent = array_rand(self::AGENTS);
+        $agent = $this->weightedAgent();
         $isSearch = $endpoint === 'api/v1/courses' && random_int(1, 100) <= 45;
         $ok = $status === 200;
 
@@ -261,6 +261,24 @@ class ApiAnalyticsSeeder extends Seeder
         ];
 
         return (int) $this->weighted($weights);
+    }
+
+    /**
+     * Real API traffic skews hard toward a couple of clients; an even split
+     * across six would make the donut meaningless.
+     */
+    private function weightedAgent(): string
+    {
+        $weights = [
+            'curl/8.4.0' => 34,
+            'python-requests/2.31.0' => 28,
+            'node-fetch/3.3.2' => 14,
+            'GuzzleHttp/7.8' => 10,
+            'PostmanRuntime/7.36.0' => 9,
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36' => 5,
+        ];
+
+        return (string) $this->weighted($weights);
     }
 
     private function jitter(): float
