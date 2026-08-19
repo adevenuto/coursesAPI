@@ -5,6 +5,7 @@ namespace App\Support\Scorecard;
 use App\Models\Course;
 use App\Models\ScorecardScan;
 use App\Models\User;
+use App\Support\CourseRating;
 use App\Support\CourseWriter;
 use RuntimeException;
 
@@ -154,8 +155,12 @@ class ScorecardApplier
      */
     private function storable(array $tee): array
     {
-        $tee['courseRating'] = self::within($tee['courseRating'], 55, 80);
-        $tee['courseRatingWomen'] = self::within($tee['courseRatingWomen'], 55, 80);
+        // Bounded against this tee's own hole count: a nine's ratings sit far
+        // below an eighteen's, and nulling them would drop correct figures.
+        $minRating = CourseRating::min(CourseRating::playedHoles($tee['holes']));
+
+        $tee['courseRating'] = self::within($tee['courseRating'], $minRating, CourseRating::MAX);
+        $tee['courseRatingWomen'] = self::within($tee['courseRatingWomen'], $minRating, CourseRating::MAX);
         $tee['slope'] = self::within($tee['slope'], 55, 155);
         $tee['slopeWomen'] = self::within($tee['slopeWomen'], 55, 155);
 

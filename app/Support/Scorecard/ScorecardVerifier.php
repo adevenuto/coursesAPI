@@ -2,6 +2,8 @@
 
 namespace App\Support\Scorecard;
 
+use App\Support\CourseRating;
+
 /**
  * Re-checks a parsed scorecard's arithmetic in PHP.
  *
@@ -331,15 +333,20 @@ class ScorecardVerifier
             ));
         }
 
+        // A nine rates about half of an eighteen, so the bound has to know how
+        // long the card is or every correctly read nine-hole rating is an error.
+        $minRating = CourseRating::min(count($holes));
+
         foreach ($tees as $tee) {
             $id = (int) ($tee['id'] ?? 0);
             $name = (string) ($tee['name'] ?? "tee {$id}");
 
             foreach (['men', 'women'] as $gender) {
                 $rating = $tee['rating'][$gender] ?? null;
-                if ($rating !== null && ($rating < 55 || $rating > 80)) {
+                if ($rating !== null && ($rating < $minRating || $rating > CourseRating::MAX)) {
                     $issues[] = self::error("tee:{$id}", sprintf(
-                        '%s: a course rating of %s is outside the storable range (55–80).', $name, $rating
+                        '%s: a course rating of %s is outside the storable range (%s–%s).',
+                        $name, $rating, $minRating, CourseRating::MAX
                     ));
                 }
 

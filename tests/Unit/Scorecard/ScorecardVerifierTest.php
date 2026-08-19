@@ -4,6 +4,7 @@ namespace Tests\Unit\Scorecard;
 
 use App\Support\Scorecard\ScorecardVerifier;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\ScorecardFixture;
 
 class ScorecardVerifierTest extends TestCase
 {
@@ -21,10 +22,7 @@ class ScorecardVerifierTest extends TestCase
      */
     private function card(): array
     {
-        return json_decode(
-            (string) file_get_contents(__DIR__.'/../../Fixtures/scorecards/bolingbrook.json'),
-            true,
-        );
+        return ScorecardFixture::eighteen();
     }
 
     /**
@@ -199,6 +197,41 @@ class ScorecardVerifierTest extends TestCase
 
         $this->assertFalse($result['passed']);
         $this->assertCount(2, $this->messages($result, 'error'));
+    }
+
+    public function test_a_nine_hole_cards_ratings_are_not_flagged_as_unstorable(): void
+    {
+        // The reported case: Willow Hill prints 33.6 from the Blues, which a
+        // flat 55-80 bound calls an error four times over.
+        $result = $this->verifier->verify(ScorecardFixture::nine());
+
+        $this->assertTrue($result['passed']);
+        $this->assertSame([], $this->messages($result, 'error'));
+    }
+
+    public function test_the_same_ratings_on_an_eighteen_are_still_errors(): void
+    {
+        $card = $this->card();
+        $card['tees'][0]['rating']['men'] = 33.6;
+
+        $result = $this->verifier->verify($card);
+
+        $this->assertFalse($result['passed']);
+        $this->assertStringContainsString(
+            'course rating of 33.6 is outside the storable range (55–80)',
+            $this->messages($result, 'error')[0],
+        );
+    }
+
+    public function test_a_nine_hole_card_still_rejects_a_misread_rating(): void
+    {
+        $card = ScorecardFixture::nine();
+        $card['tees'][0]['rating']['men'] = 336; // the decimal point dropped
+
+        $result = $this->verifier->verify($card);
+
+        $this->assertFalse($result['passed']);
+        $this->assertStringContainsString('course rating of 336', $this->messages($result, 'error')[0]);
     }
 
     public function test_duplicate_hole_numbers_are_caught(): void

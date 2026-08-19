@@ -8,6 +8,7 @@ use App\Models\ScorecardScan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ScorecardFixture;
 use Tests\TestCase;
 
 class ScorecardApplyTest extends TestCase
@@ -26,10 +27,7 @@ class ScorecardApplyTest extends TestCase
      */
     private function card(): array
     {
-        return json_decode(
-            (string) file_get_contents(base_path('tests/Fixtures/scorecards/bolingbrook.json')),
-            true,
-        );
+        return ScorecardFixture::eighteen();
     }
 
     private function editor(): User
@@ -284,6 +282,40 @@ class ScorecardApplyTest extends TestCase
         $this->assertArrayNotHasKey('slope', array_filter($teebox, fn ($v) => $v !== null));
         $this->assertArrayNotHasKey('par', $holes['hole-1']);
         $this->assertSame('367', $holes['hole-1']['length']);
+    }
+
+    public function test_a_nine_hole_cards_ratings_survive_the_apply(): void
+    {
+        $course = $this->course(['layout_data' => ['hole_count' => 9, 'teeboxes' => []]]);
+        $editor = $this->editor();
+        $scan = $this->scanFor($course, $editor, ScorecardFixture::nine());
+
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/apply", ['sections' => ['tee:0']]);
+
+        $teebox = $course->refresh()->layout_data['teeboxes'][0];
+
+        // The bug this guards: a flat 55 floor nulled every correct nine-hole
+        // rating on the way in, silently.
+        // Stored in the gendered [men, women] shape.
+        $this->assertSame([33.6, 34.6], $teebox['courseRating']);
+    }
+
+    public function test_a_misread_rating_on_a_nine_is_still_dropped(): void
+    {
+        $card = ScorecardFixture::nine();
+        $card['tees'][0]['rating']['women'] = 346; // the decimal point dropped
+
+        $course = $this->course(['layout_data' => ['hole_count' => 9, 'teeboxes' => []]]);
+        $editor = $this->editor();
+        $scan = $this->scanFor($course, $editor, $card);
+
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/apply", ['sections' => ['tee:0']]);
+
+        $teebox = $course->refresh()->layout_data['teeboxes'][0];
+
+        // The bound still bites on a nine; the good men's figure is untouched
+        // and collapses to a scalar because there's no women's value beside it.
+        $this->assertSame(33.6, $teebox['courseRating']);
     }
 
     public function test_applying_nothing_is_a_no_op(): void
