@@ -13,6 +13,7 @@ import {
     Zap,
 } from '@lucide/vue';
 import UsageChart from '@/components/dashboard/UsageChart.vue';
+import BreakdownList from '@/components/dashboard/BreakdownList.vue';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 import { nf } from '@/lib/format';
@@ -21,6 +22,12 @@ const props = defineProps<{
     baseUrl: string;
     plan: { key: string; label: string; per_day: number; per_minute: number; premium: boolean };
     usage: { today: number; limit: number; series: { date: string; requests: number }[] };
+    breakdown: {
+        days: number;
+        keys: { token_id: number | null; name: string; requests: number; revoked: boolean }[];
+        endpoints: { endpoint: string; requests: number }[];
+        totals: { requests: number; errors: number; throttled: number };
+    };
     keys: { count: number; recent: { name: string; last_used_at: string | null } | null };
 }>();
 
@@ -36,6 +43,14 @@ const userName = computed(() => page.props.auth.user?.name?.split(' ')[0] ?? 'th
 const usedPct = computed(() =>
     props.usage.limit > 0 ? Math.min(100, Math.round((props.usage.today / props.usage.limit) * 100)) : 0,
 );
+
+const keyRows = computed(() =>
+    props.breakdown.keys.map((k) => ({ label: k.name, value: k.requests, muted: k.revoked })),
+);
+const endpointRows = computed(() =>
+    props.breakdown.endpoints.map((e) => ({ label: e.endpoint, value: e.requests, mono: true })),
+);
+const breakdownNote = computed(() => `last ${props.breakdown.days} days`);
 
 const snippet = `curl "${props.baseUrl}/api/v1/courses?q=pebble" \\
   -H "Authorization: Bearer YOUR_API_KEY"`;
@@ -87,6 +102,24 @@ const { copy, copied } = useClipboard({ source: () => snippet });
                 <span class="text-xs text-muted-foreground">{{ plan.label }} plan</span>
             </div>
             <UsageChart :series="usage.series" :height="240" />
+        </div>
+
+        <!-- Where the requests actually went. Counts here include throttled
+             calls and cover a rolling window, so they deliberately will not
+             match the billing figure above — hence the distinct labels. -->
+        <div class="grid gap-4 lg:grid-cols-2">
+            <BreakdownList
+                title="Requests by key"
+                :rows="keyRows"
+                :note="breakdownNote"
+                empty="No requests recorded against a key yet."
+            />
+            <BreakdownList
+                title="Top endpoints"
+                :rows="endpointRows"
+                :note="breakdownNote"
+                empty="No endpoint activity yet."
+            />
         </div>
 
         <!-- quick start + CTAs -->

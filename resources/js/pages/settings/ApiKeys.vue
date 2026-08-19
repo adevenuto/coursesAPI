@@ -15,6 +15,7 @@ interface TokenRow {
     name: string;
     created_at: string | null;
     last_used_at: string | null;
+    requests_30d: number;
 }
 
 const props = defineProps<{
@@ -22,6 +23,7 @@ const props = defineProps<{
     tokens: TokenRow[];
     newToken: string | null;
     maxKeys: number;
+    usageWindowDays: number;
 }>();
 
 defineOptions({
@@ -116,6 +118,10 @@ const errors = computed(() => ({ ...form.errors, ...(page.props.errors as Record
                         <div class="truncate text-sm font-medium">{{ t.name }}</div>
                         <div class="text-xs text-muted-foreground">
                             Created {{ t.created_at }} · Last used {{ t.last_used_at ?? 'never' }}
+                            <!-- last_used_at is Sanctum's own column and stays authoritative
+                                 for keys used before request tracking existed. -->
+                            · {{ nf(t.requests_30d) }}
+                            {{ t.requests_30d === 1 ? 'request' : 'requests' }} ({{ usageWindowDays }}d)
                         </div>
                     </div>
                     <Button type="button" variant="ghost" size="sm" class="text-destructive" @click="revoke(t.id)">
