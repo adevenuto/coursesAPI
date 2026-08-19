@@ -41,6 +41,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'can_edit' => (bool) $request->user()?->canEditCourses(),
+                // Derived booleans rather than the role string, so the frontend
+                // never has to know how a capability is decided.
+                'is_admin' => (bool) $request->user()?->isAdmin(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

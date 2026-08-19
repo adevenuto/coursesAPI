@@ -18,6 +18,7 @@ const cols = [
             { label: 'Documentation', href: '/docs' },
             { label: 'Status', href: '#' },
             { label: 'Changelog', href: '#' },
+            { label: 'Privacy', href: '/privacy' },
         ],
     },
 ];

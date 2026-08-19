@@ -15,11 +15,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Realistic API traffic so the dashboards have something to render.
+        // Local/dev only — it creates users and ~17k request rows, and the
+        // seeder refuses to run in production regardless.
+        if (! app()->isProduction()) {
+            $this->call(ApiAnalyticsSeeder::class);
+        }
     }
 }

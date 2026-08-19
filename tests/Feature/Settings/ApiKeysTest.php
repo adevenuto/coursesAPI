@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Settings;
 
+use App\Models\ApiRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -79,5 +80,31 @@ class ApiKeysTest extends TestCase
             ->assertSessionHasErrors('name');
 
         $this->assertSame(10, $user->fresh()->tokens()->count());
+    }
+
+    public function test_each_key_shows_how_many_requests_it_has_served()
+    {
+        $user = User::factory()->create(['plan' => 'pro']);
+        $busy = $user->createToken('Production')->accessToken;
+        $idle = $user->createToken('Staging')->accessToken;
+
+        ApiRequest::factory()->count(3)->create([
+            'user_id' => $user->id,
+            'token_id' => $busy->id,
+        ]);
+        // Traffic with no token must not be attributed to a key.
+        ApiRequest::factory()->create(['user_id' => $user->id, 'token_id' => null]);
+
+        $this->actingAs($user)
+            ->get('/settings/api-keys')
+            ->assertOk()
+            ->assertInertia(function (Assert $page) use ($busy, $idle) {
+                $tokens = collect($page->toArray()['props']['tokens'])->keyBy('id');
+
+                $this->assertSame(3, $tokens[$busy->id]['requests_30d']);
+                $this->assertSame(0, $tokens[$idle->id]['requests_30d']);
+
+                $page->where('usageWindowDays', 30);
+            });
     }
 }
