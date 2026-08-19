@@ -191,11 +191,11 @@ function copyFromPrevious(index: number) {
 
 <template>
     <div>
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div v-if="canSetHoleCount" class="flex flex-wrap items-center justify-between gap-3">
             <!-- Only offered while creating: changing the count on an existing
                  course reconciles every teebox to 1..n, which silently discards
                  the holes beyond it. -->
-            <label v-if="canSetHoleCount" class="flex items-center gap-2 text-sm text-fg-muted">
+            <label class="flex items-center gap-2 text-sm text-fg-muted">
                 Holes
                 <select
                     v-model.number="holeCount"
@@ -205,19 +205,6 @@ function copyFromPrevious(index: number) {
                     <option :value="18">18</option>
                 </select>
             </label>
-            <div class="ml-auto flex items-center gap-2">
-                <span v-if="hasUnnamedTeebox" class="text-xs text-fg-subtle"> Name every teebox first </span>
-                <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    :disabled="hasUnnamedTeebox"
-                    :title="hasUnnamedTeebox ? 'Give every teebox a name before adding another' : undefined"
-                    @click="addTeebox"
-                >
-                    <Plus class="size-4" /> Add teebox
-                </Button>
-            </div>
         </div>
 
         <p v-if="!teeboxes.length" class="mt-4 rounded-lg border border-dashed border-line p-6 text-center text-sm text-fg-subtle">
@@ -343,6 +330,22 @@ function copyFromPrevious(index: number) {
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- Under the last teebox rather than in the header: a full card runs
+             several screens, and the tee you just finished is where you are. -->
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+            <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                :disabled="hasUnnamedTeebox"
+                :title="hasUnnamedTeebox ? 'Give every teebox a name before adding another' : undefined"
+                @click="addTeebox"
+            >
+                <Plus class="size-4" /> Add teebox
+            </Button>
+            <span v-if="hasUnnamedTeebox" class="text-xs text-fg-subtle">Name every teebox first</span>
         </div>
     </div>
 </template>
