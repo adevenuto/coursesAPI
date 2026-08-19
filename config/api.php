@@ -64,6 +64,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Usage analytics
+    |--------------------------------------------------------------------------
+    | `api_requests` is a rolling detail log — one row per API call, including
+    | throttled ones. `api_usage` remains the forever, allowed-calls-only daily
+    | rollup that billing reads, so the two will legitimately disagree.
+    |
+    | `ip_mode` decides how a client IP is stored. An IP is personal data under
+    | GDPR whether or not we can identify the person, so the default anonymises:
+    | IPv4 to /24, IPv6 to /48. That keeps distinct-network and rough-geography
+    | signal while dropping the ability to single out a host. `full` is a
+    | conscious opt-in; `hashed` looks stronger than it is (only ~4bn IPv4
+    | inputs exist, so a hash is brute-forceable).
+    */
+    'analytics' => [
+        'retention_days' => (int) env('API_ANALYTICS_RETENTION_DAYS', 90),
+        'ip_mode' => env('API_ANALYTICS_IP_MODE', 'anonymized'), // anonymized|full|hashed
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Nearby courses (editor)
     |--------------------------------------------------------------------------
     | The "Nearby courses" panel on the course editor. The cap matters more than
