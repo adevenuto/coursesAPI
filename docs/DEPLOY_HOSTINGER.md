@@ -16,6 +16,9 @@ builds the app, and rsyncs it to the server. Nothing is built on the host.
   the Stripe webhook, handled synchronously. Scorecard parsing is written as a queued job but runs
   inline under `QUEUE_CONNECTION=sync`; see `docs/SCORECARD_SCANNING.md` for what enabling a
   cron-driven worker would take.
+- **One cron entry would earn its keep**, though nothing breaks without it. A single
+  `schedule:run` line activates API analytics retention (`docs/API_ANALYTICS.md`) and unlocks a
+  queue worker for scorecard parsing. Until then the analytics page prunes opportunistically.
 - Shared hosting has **no Node**, so Vite assets are built off-server (in Actions, or locally via
   `bin/build-artifact.sh`) and shipped compiled.
 
@@ -172,6 +175,7 @@ Finally set the real `APP_URL` and `php artisan config:cache`.
 | **Stripe** (billing) | live keys, `php artisan stripe:sync-products --write-env`, webhook at `https://<domain>/stripe/webhook` + `STRIPE_WEBHOOK_SECRET` — see `docs/STRIPE_SETUP.md` |
 | **Google Maps** | `GOOGLE_MAPS_API_KEY` for the explorer/editor maps |
 | **Anthropic** (scorecard scanning) | `ANTHROPIC_API_KEY` + the `gd` extension — see `docs/SCORECARD_SCANNING.md` |
+| **API analytics** | Nothing required. Optionally `API_ANALYTICS_RETENTION_DAYS` / `API_ANALYTICS_IP_MODE` — see `docs/API_ANALYTICS.md` |
 
 ---
 

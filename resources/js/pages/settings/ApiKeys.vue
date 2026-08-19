@@ -8,12 +8,14 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { nf } from '@/lib/format';
 
 interface TokenRow {
     id: number;
     name: string;
     created_at: string | null;
     last_used_at: string | null;
+    requests_30d: number;
 }
 
 const props = defineProps<{
@@ -21,6 +23,7 @@ const props = defineProps<{
     tokens: TokenRow[];
     newToken: string | null;
     maxKeys: number;
+    usageWindowDays: number;
 }>();
 
 defineOptions({
@@ -46,7 +49,6 @@ const revoke = (id: number) => {
 
 const { copy, copied } = useClipboard({ source: () => props.newToken ?? '' });
 
-const nf = (n: number) => n.toLocaleString('en-US');
 const errors = computed(() => ({ ...form.errors, ...(page.props.errors as Record<string, string>) }));
 </script>
 
@@ -116,6 +118,10 @@ const errors = computed(() => ({ ...form.errors, ...(page.props.errors as Record
                         <div class="truncate text-sm font-medium">{{ t.name }}</div>
                         <div class="text-xs text-muted-foreground">
                             Created {{ t.created_at }} · Last used {{ t.last_used_at ?? 'never' }}
+                            <!-- last_used_at is Sanctum's own column and stays authoritative
+                                 for keys used before request tracking existed. -->
+                            · {{ nf(t.requests_30d) }}
+                            {{ t.requests_30d === 1 ? 'request' : 'requests' }} ({{ usageWindowDays }}d)
                         </div>
                     </div>
                     <Button type="button" variant="ghost" size="sm" class="text-destructive" @click="revoke(t.id)">

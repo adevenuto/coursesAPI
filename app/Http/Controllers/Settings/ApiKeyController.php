@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Support\ApiAnalytics;
 use App\Support\ApiUsage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,15 +14,23 @@ class ApiKeyController extends Controller
 {
     private const MAX_KEYS = 10;
 
-    public function index(Request $request, ApiUsage $usage): Response
+    /** Matches the dashboard's breakdown window so the two agree. */
+    private const USAGE_WINDOW_DAYS = 30;
+
+    public function index(Request $request, ApiUsage $usage, ApiAnalytics $analytics): Response
     {
         $user = $request->user();
+
+        // Keys are named "Production"/"Staging" and until now showed no numbers,
+        // so there was no way to tell which one was doing the work.
+        $counts = $analytics->requestsByToken($user->id, self::USAGE_WINDOW_DAYS);
 
         $tokens = $user->tokens()->latest()->get()->map(fn ($t) => [
             'id' => $t->id,
             'name' => $t->name,
             'created_at' => $t->created_at?->toDayDateTimeString(),
             'last_used_at' => $t->last_used_at?->diffForHumans(),
+            'requests_30d' => $counts[$t->id] ?? 0,
         ]);
 
         return Inertia::render('settings/ApiKeys', [
@@ -32,6 +41,7 @@ class ApiKeyController extends Controller
             'tokens' => $tokens,
             'newToken' => $request->session()->get('created_token'),
             'maxKeys' => self::MAX_KEYS,
+            'usageWindowDays' => self::USAGE_WINDOW_DAYS,
         ]);
     }
 

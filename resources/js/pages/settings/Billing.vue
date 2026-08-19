@@ -12,6 +12,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { nf } from '@/lib/format';
 
 interface PlanCard {
     key: string;
@@ -53,7 +54,6 @@ defineOptions({
     },
 });
 
-const nf = (n: number) => n.toLocaleString('en-US');
 const money = (n: number) =>
     n === 0 ? 'Free' : `$${n.toFixed(2)}`;
 
