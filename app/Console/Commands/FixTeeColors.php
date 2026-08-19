@@ -19,6 +19,11 @@ use Illuminate\Support\Facades\DB;
  * and so records no CourseRevision. That is deliberate: a mechanical pass over
  * 22,000 courses would otherwise bury the hand edits that make the audit log
  * worth reading.
+ *
+ * Run it with --no-index. Course::toSearchableArray() carries no teebox data,
+ * so every save here would push Algolia a payload identical to the one it
+ * already holds — and with SCOUT_QUEUE=false each is a blocking round-trip.
+ * For the same reason there is nothing to reindex afterwards.
  */
 class FixTeeColors extends Command
 {
@@ -30,7 +35,7 @@ class FixTeeColors extends Command
         {--overwrite : Also replace colours that are already set}
         {--limit=0 : Stop after this many courses (0 = no limit)}
         {--chunk=500 : Courses per batch}
-        {--no-index : Skip Scout syncing during the run (reindex separately afterwards)}
+        {--no-index : Skip Scout syncing during the run (nothing indexed changes; this is purely speed)}
         {--csv= : Write every proposed change to this path}';
 
     /**

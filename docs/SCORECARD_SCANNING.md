@@ -129,6 +129,18 @@ The same resolver backs the editor (typing a name fills the swatch) and
 `courses:fix-tee-colors`, which backfills the ~90,000 teeboxes that never had a
 colour. About 89% of tee names resolve; the rest are genuinely colourless.
 
+The backfill is a dry run until `--apply`, and wants `--no-index`:
+
+```bash
+php artisan courses:fix-tee-colors --csv=/tmp/tee-colors.csv   # read this first
+php artisan courses:fix-tee-colors --apply --no-index
+```
+
+**No reindex afterwards.** `Course::toSearchableArray()` carries no teebox data,
+so nothing searchable changes. `--no-index` only avoids ~20,000 blocking Algolia
+round-trips (`SCOUT_QUEUE=false`) that would each write a payload identical to
+the one already stored.
+
 The write goes through `App\Support\CourseWriter`, shared with the manual editor,
 so a scan-applied change is indistinguishable from a hand edit in the audit log.
 Vendor keys (`golftraxx`) and green centers survive untouched.
