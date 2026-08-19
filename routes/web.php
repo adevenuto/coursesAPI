@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\CourseEditorController;
 use App\Http\Controllers\CourseShowController;
 use App\Http\Controllers\DashboardController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\ScorecardScanController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WebManifestController;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureCourseEditor;
 use Illuminate\Support\Facades\Route;
 
@@ -94,5 +96,17 @@ Route::prefix('explore')->middleware('throttle:explore')->group(function () {
 Route::withHead(robots: 'noindex, nofollow')->middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard')->withHead(title: 'Dashboard');
 });
+
+// Admin-only operational views. Top-level rather than under settings/, whose
+// layout caps content at md:max-w-2xl — far too narrow for a charts page — and
+// so /admin/* is available for whatever comes next.
+Route::withHead(robots: 'noindex, nofollow')
+    ->middleware(['auth', 'verified', EnsureAdmin::class])
+    ->prefix('admin')
+    ->group(function () {
+        Route::get('analytics', AnalyticsController::class)
+            ->name('admin.analytics')
+            ->withHead(title: 'API analytics');
+    });
 
 require __DIR__.'/settings.php';
