@@ -107,6 +107,15 @@ the card didn't print doesn't blank an existing value.
 Out-of-range values are dropped rather than written: a misread digit leaves a
 gap instead of producing `layout_data` the editor's own save path would refuse.
 
+The bounds live in `App\Support\CourseRating` because the course-rating one is
+not a constant: a rating is a scratch player's expected score, so a nine rates
+about half an eighteen. The floor is **20 for a nine or shorter, 55 above that**,
+against a ceiling of 80. A flat 55 — what the editor enforced before — rejected
+every correctly read nine-hole card, and would have nulled all four of Willow
+Hill's ratings (33.6/32.3 men, 34.6/32.1 women) on the way in. Hole count is
+counted from holes that carry a par or a yardage, so the nine-hole courses stored
+as eighteen slots with a blank back nine are bounded as the nines they are.
+
 The write goes through `App\Support\CourseWriter`, shared with the manual editor,
 so a scan-applied change is indistinguishable from a hand edit in the audit log.
 Vendor keys (`golftraxx`) and green centers survive untouched.

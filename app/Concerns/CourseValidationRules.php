@@ -2,6 +2,10 @@
 
 namespace App\Concerns;
 
+use App\Support\CourseRating;
+use Closure;
+use Illuminate\Support\Str;
+
 trait CourseValidationRules
 {
     /**
@@ -42,8 +46,8 @@ trait CourseValidationRules
             'teeboxes.*.secondaryColor' => ['nullable', $hex],
             'teeboxes.*.slope' => ['nullable', 'integer', 'between:55,155'],
             'teeboxes.*.slopeWomen' => ['nullable', 'integer', 'between:55,155'],
-            'teeboxes.*.courseRating' => ['nullable', 'numeric', 'between:55,80'],
-            'teeboxes.*.courseRatingWomen' => ['nullable', 'numeric', 'between:55,80'],
+            'teeboxes.*.courseRating' => ['nullable', 'numeric', $this->ratingRule()],
+            'teeboxes.*.courseRatingWomen' => ['nullable', 'numeric', $this->ratingRule()],
             // Derived from the per-hole yards (up to 36 holes × 900), so the cap
             // is generous enough that a valid computed sum is never rejected.
             'teeboxes.*.totalYardage' => ['nullable', 'integer', 'between:0,40000'],
@@ -59,5 +63,24 @@ trait CourseValidationRules
             'green_centers.*.lat' => ['required', 'numeric', 'between:-90,90'],
             'green_centers.*.lng' => ['required', 'numeric', 'between:-180,180'],
         ];
+    }
+
+    /**
+     * Bound a course rating against the tee it belongs to rather than a flat
+     * 55–80, which silently assumes eighteen holes and rejects every correctly
+     * read nine-hole card. See App\Support\CourseRating.
+     */
+    protected function ratingRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            $tee = data_get($this->all(), Str::beforeLast($attribute, '.'));
+            $holes = is_array($tee) && is_array($tee['holes'] ?? null) ? $tee['holes'] : [];
+
+            $min = CourseRating::min(CourseRating::playedHoles($holes));
+
+            if ((float) $value < $min || (float) $value > CourseRating::MAX) {
+                $fail(sprintf('The :attribute field must be between %s and %s.', $min, CourseRating::MAX));
+            }
+        };
     }
 }

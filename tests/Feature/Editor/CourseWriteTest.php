@@ -374,6 +374,58 @@ class CourseWriteTest extends TestCase
             ->assertSessionHasErrors('green_centers.0.hole');
     }
 
+    public function test_a_nine_hole_rating_is_accepted(): void
+    {
+        $this->seedGeoNear();
+
+        $holes = [];
+        for ($i = 1; $i <= 9; $i++) {
+            $holes[] = ['hole' => $i, 'par' => 4, 'length' => 380, 'handicap' => $i];
+        }
+
+        $payload = $this->payload(['hole_count' => 9]);
+        $payload['teeboxes'][0]['holes'] = $holes;
+        $payload['teeboxes'][0]['courseRating'] = 33.6;
+        $payload['teeboxes'][0]['courseRatingWomen'] = 34.6;
+
+        $this->actingAs($this->editor())->post('/courses', $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $tee = Course::where('course_name', 'Test Links')->firstOrFail()->layout_data['teeboxes'][0];
+        $this->assertSame([33.6, 34.6], $tee['courseRating']);
+    }
+
+    public function test_a_nine_hole_rating_on_a_full_eighteen_is_still_rejected(): void
+    {
+        $holes = [];
+        for ($i = 1; $i <= 18; $i++) {
+            $holes[] = ['hole' => $i, 'par' => 4, 'length' => 380, 'handicap' => $i];
+        }
+
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['holes'] = $holes;
+        $payload['teeboxes'][0]['courseRating'] = 33.6;
+
+        $this->actingAs($this->editor())->post('/courses', $payload)
+            ->assertSessionHasErrors('teeboxes.0.courseRating');
+    }
+
+    public function test_a_misread_rating_is_rejected_on_a_nine_too(): void
+    {
+        $holes = [];
+        for ($i = 1; $i <= 9; $i++) {
+            $holes[] = ['hole' => $i, 'par' => 4, 'length' => 380, 'handicap' => $i];
+        }
+
+        $payload = $this->payload(['hole_count' => 9]);
+        $payload['teeboxes'][0]['holes'] = $holes;
+        $payload['teeboxes'][0]['courseRating'] = 336;
+
+        $this->actingAs($this->editor())->post('/courses', $payload)
+            ->assertSessionHasErrors('teeboxes.0.courseRating');
+    }
+
     public function test_non_editor_cannot_store(): void
     {
         $user = User::factory()->create(['plan' => 'pro', 'role' => 'user']);
