@@ -116,6 +116,19 @@ Hill's ratings (33.6/32.3 men, 34.6/32.1 women) on the way in. Hole count is
 counted from holes that carry a par or a yardage, so the nine-hole courses stored
 as eighteen slots with a blank back nine are bounded as the nines they are.
 
+Tee colours come from the tee's **name**, not from the model. The schema asks
+for `tees[].hex` and the model always answers, but with a fresh shade each time —
+Blue came back as `#1F4FA8`, `#1F5FBF` and `#2A6EBB` across three real cards,
+none of them the palette blue — so every scan needed the colour re-picked by
+hand. `App\Support\TeeColor` resolves it from the name against the vocabulary in
+`config/tee_colors.php`, which also splits a two-tone name ("Blue/White") across
+`color` and `secondaryColor`. The model's hex survives only where the name
+carries no colour at all ("Championship", "Forward").
+
+The same resolver backs the editor (typing a name fills the swatch) and
+`courses:fix-tee-colors`, which backfills the ~90,000 teeboxes that never had a
+colour. About 89% of tee names resolve; the rest are genuinely colourless.
+
 The write goes through `App\Support\CourseWriter`, shared with the manual editor,
 so a scan-applied change is indistinguishable from a hand edit in the audit log.
 Vendor keys (`golftraxx`) and green centers survive untouched.
