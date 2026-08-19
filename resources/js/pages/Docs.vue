@@ -8,6 +8,7 @@ import MarketingFooter from '@/components/marketing/MarketingFooter.vue';
 import DocsSidebar from '@/components/marketing/docs/DocsSidebar.vue';
 import CodeBlock from '@/components/marketing/CodeBlock.vue';
 import GlowBadge from '@/components/marketing/GlowBadge.vue';
+import { nf } from '@/lib/format';
 
 interface PlanConfig {
     label: string;
@@ -24,7 +25,6 @@ const props = defineProps<{
 }>();
 
 const api = computed(() => `${props.baseUrl}/api/v1`);
-const nf = (n: number) => n.toLocaleString('en-US');
 const planRows = computed(() =>
     (['free', 'pro', 'max'] as const).map((k) => props.plans[k]),
 );

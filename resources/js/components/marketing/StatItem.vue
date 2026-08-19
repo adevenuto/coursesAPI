@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useInView } from '@/composables/useInView';
+import { nf as formatted } from '@/lib/format';
 
 const props = withDefaults(
     defineProps<{ value: number; label: string; suffix?: string }>(),
@@ -26,7 +27,6 @@ watch(inView, (v) => {
     requestAnimationFrame(tick);
 });
 
-const formatted = (n: number) => n.toLocaleString('en-US');
 </script>
 
 <template>

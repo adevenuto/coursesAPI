@@ -15,6 +15,7 @@ import {
 import UsageChart from '@/components/dashboard/UsageChart.vue';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
+import { nf } from '@/lib/format';
 
 const props = defineProps<{
     baseUrl: string;
@@ -32,7 +33,6 @@ defineOptions({
 const page = usePage();
 const userName = computed(() => page.props.auth.user?.name?.split(' ')[0] ?? 'there');
 
-const nf = (n: number) => n.toLocaleString('en-US');
 const usedPct = computed(() =>
     props.usage.limit > 0 ? Math.min(100, Math.round((props.usage.today / props.usage.limit) * 100)) : 0,
 );

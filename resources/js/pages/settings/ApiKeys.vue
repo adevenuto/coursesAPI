@@ -8,6 +8,7 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { nf } from '@/lib/format';
 
 interface TokenRow {
     id: number;
@@ -46,7 +47,6 @@ const revoke = (id: number) => {
 
 const { copy, copied } = useClipboard({ source: () => props.newToken ?? '' });
 
-const nf = (n: number) => n.toLocaleString('en-US');
 const errors = computed(() => ({ ...form.errors, ...(page.props.errors as Record<string, string>) }));
 </script>
 

@@ -64,7 +64,15 @@ const prefersDark = (): boolean => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
 };
 
+// Reactive mirror of the OS preference. resolvedAppearance used to call
+// prefersDark() directly inside a computed, which Vue cannot track — so on
+// 'system' the resolved value never updated when the OS theme changed. Anything
+// deriving colours from it (the charts) stayed on the old palette until remount.
+const systemPrefersDark = ref(prefersDark());
+
 const handleSystemThemeChange = () => {
+    systemPrefersDark.value = prefersDark();
+
     const currentAppearance = getStoredAppearance();
 
     updateTheme(currentAppearance || 'system');
@@ -98,7 +106,7 @@ export function useAppearance(): UseAppearanceReturn {
 
     const resolvedAppearance = computed<ResolvedAppearance>(() => {
         if (appearance.value === 'system') {
-            return prefersDark() ? 'dark' : 'light';
+            return systemPrefersDark.value ? 'dark' : 'light';
         }
 
         return appearance.value;

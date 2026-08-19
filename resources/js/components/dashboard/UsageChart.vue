@@ -1,6 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, shallowRef } from 'vue';
+import { computed } from 'vue';
+import { useChartTheme } from '@/components/charts/useChartTheme';
+import { shortDate } from '@/lib/format';
 
+/**
+ * Daily request volume for the signed-in user.
+ *
+ * Props are unchanged — this component is on the page users see most, so its
+ * shape stays put. Only the internals moved onto useChartTheme, which fixes a
+ * real bug: the previous isDark() read document.documentElement.classList inside
+ * a computed, which Vue can't track, so switching theme left the chart on the
+ * old palette until it happened to remount.
+ */
 const props = withDefaults(
     defineProps<{
         series: { date: string; requests: number }[];
@@ -9,51 +20,26 @@ const props = withDefaults(
     { height: 220 },
 );
 
-// Client-only import keeps ApexCharts out of SSR (it touches window).
-const chart = shallowRef<unknown>(null);
-onMounted(async () => {
-    chart.value = (await import('vue3-apexcharts')).default;
-});
-
-const isDark = () =>
-    typeof document !== 'undefined' &&
-    document.documentElement.classList.contains('dark');
+const { chart, baseOptions, palette } = useChartTheme();
 
 const chartSeries = computed(() => [
     { name: 'Requests', data: props.series.map((d) => d.requests) },
 ]);
 
 const chartOptions = computed(() => ({
-    chart: {
-        type: 'area',
-        toolbar: { show: false },
-        background: 'transparent',
-        fontFamily: 'inherit',
-        sparkline: { enabled: false },
-    },
-    theme: { mode: isDark() ? 'dark' : 'light' },
-    colors: ['#22c55e'],
-    dataLabels: { enabled: false },
+    ...baseOptions.value,
+    chart: { ...baseOptions.value.chart, type: 'area' },
+    colors: [palette.ok],
     stroke: { curve: 'smooth', width: 2 },
     fill: {
         type: 'gradient',
         gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 90] },
     },
-    grid: { borderColor: isDark() ? '#262626' : '#e5e7eb', strokeDashArray: 4 },
     xaxis: {
-        categories: props.series.map((d) =>
-            new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', {
-                month: 'numeric',
-                day: 'numeric',
-            }),
-        ),
-        labels: { rotate: 0, style: { colors: '#9ca3af' } },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
-        tooltip: { enabled: false },
+        ...baseOptions.value.xaxis,
+        categories: props.series.map((d) => shortDate(d.date)),
     },
-    yaxis: { labels: { style: { colors: '#9ca3af' } }, min: 0, forceNiceScale: true },
-    tooltip: { theme: isDark() ? 'dark' : 'light' },
+    legend: { show: false },
 }));
 </script>
 
