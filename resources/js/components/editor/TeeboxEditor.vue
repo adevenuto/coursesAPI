@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, watch } from 'vue';
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from '@lucide/vue';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { resolveTeeColor, type TeeColorConfig } from '@/lib/teeColor';
 
 interface Hole {
     hole: number;
@@ -23,30 +24,20 @@ interface Teebox {
     holes: Hole[];
 }
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
+        /** Palette + vocabulary, from App\Support\TeeColor via the controller. */
+        teeColors: TeeColorConfig;
         /** Hole count is only selectable while creating a course. */
         canSetHoleCount?: boolean;
     }>(),
     { canSetHoleCount: false },
 );
 
+const presets = computed(() => props.teeColors.palette);
+
 const teeboxes = defineModel<Teebox[]>({ required: true });
 const holeCount = defineModel<number>('holeCount', { required: true });
-
-// Common tee names → representative colors.
-const PRESETS = [
-    { name: 'Black', color: '#111827' },
-    { name: 'Blue', color: '#1D4ED8' },
-    { name: 'White', color: '#E5E7EB' },
-    { name: 'Gold', color: '#CA8A04' },
-    { name: 'Green', color: '#15803D' },
-    { name: 'Red', color: '#B91C1C' },
-    { name: 'Silver', color: '#9CA3AF' },
-    { name: 'Purple', color: '#7E22CE' },
-    { name: 'Orange', color: '#EA580C' },
-    { name: 'Yellow', color: '#EAB308' },
-];
 
 // Ensure each teebox has exactly holes 1..holeCount (preserving existing values).
 function reconcile(n: number) {
@@ -93,6 +84,28 @@ function applyPreset(tee: Teebox, p: { name: string; color: string }) {
     tee.color = p.color;
     if (!tee.name) tee.name = p.name;
 }
+
+// Fill the swatch from the name as it's typed — "Burgundy" and "Blue/White"
+// resolve just as they would on a scan. Deliberately not immediate: opening an
+// existing course must not silently rewrite its colours, only typing does.
+// A colour already set is never overwritten; that was a deliberate choice.
+watch(
+    () => teeboxes.value.map((tee) => tee.name),
+    (names, before) => {
+        names.forEach((name, i) => {
+            if (before && name === before[i]) return;
+
+            const tee = teeboxes.value[i];
+            if (!tee || tee.color) return;
+
+            const { color, secondaryColor } = resolveTeeColor(name, props.teeColors);
+            if (!color) return;
+
+            tee.color = color;
+            if (secondaryColor && !tee.secondaryColor) tee.secondaryColor = secondaryColor;
+        });
+    },
+);
 
 // Total yards is derived from the hole yards. It's recomputed only when the user
 // edits one of this teebox's yards (never on load) so a stored total isn't
@@ -206,7 +219,7 @@ function copyFromPrevious(index: number) {
                         @change="tee.secondaryColor = ($event.target as HTMLSelectElement).value || null"
                     >
                         <option value="">None</option>
-                        <option v-for="p in PRESETS" :key="p.name" :value="p.color">{{ p.name }}</option>
+                        <option v-for="p in presets" :key="p.name" :value="p.color">{{ p.name }}</option>
                     </select>
                 </label>
                 <div class="ml-auto flex items-center gap-1">
@@ -230,10 +243,16 @@ function copyFromPrevious(index: number) {
             <!-- presets -->
             <div class="mt-3 flex flex-wrap gap-1.5">
                 <button
-                    v-for="p in PRESETS"
+                    v-for="p in presets"
                     :key="p.name"
                     type="button"
-                    class="flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-2 py-1 text-xs text-fg-muted transition hover:border-line-lime hover:text-fg"
+                    class="flex cursor-pointer items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition hover:border-line-lime hover:text-fg"
+                    :class="
+                        p.color === tee.color
+                            ? 'border-line-lime bg-ink-800 text-fg'
+                            : 'border-line text-fg-muted'
+                    "
+                    :aria-pressed="p.color === tee.color"
                     @click="applyPreset(tee, p)"
                 >
                     <span class="size-2.5 rounded-full" :style="{ background: p.color }" /> {{ p.name }}
