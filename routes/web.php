@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\ExplorerController;
+use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\ScorecardScanController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WebManifestController;
@@ -72,6 +73,13 @@ Route::withHead(robots: 'noindex, nofollow')->middleware(['auth', 'verified', En
 Route::get('courses/{course}/{slug?}', CourseShowController::class)
     ->whereNumber('course')
     ->name('courses.show');
+
+Route::get('privacy', PrivacyController::class)
+    ->name('privacy')
+    ->withHead(
+        title: 'Privacy Policy',
+        description: 'What the Golf Courses API collects, why, and how long it is kept.',
+    );
 
 // Crawler-facing endpoints (plain text / XML, not Inertia pages). robots.txt is
 // a route so its Sitemap line tracks APP_URL; there is no public/robots.txt.

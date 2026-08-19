@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Support\ApiAnalytics;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,6 +34,8 @@ class AnalyticsController extends Controller
     {
         [$key, $from, $to] = $this->range($request);
 
+        $this->pruneOpportunistically();
+
         return Inertia::render('admin/Analytics', [
             'range' => $key,
             'ranges' => array_keys(self::RANGES),
@@ -47,6 +51,31 @@ class AnalyticsController extends Controller
             'quota' => $analytics->quotaPressure(10),
             'retentionDays' => (int) config('api.analytics.retention_days', 90),
         ]);
+    }
+
+    /**
+     * Trim one batch of expired detail rows, at most once a day.
+     *
+     * A stopgap until a cron runs `schedule:run` — the host has none today, and
+     * retention is the privacy control for a table holding IPs and search terms,
+     * so it can't simply wait. Deliberately bounded and deliberately here rather
+     * than in the capture middleware: this fires on an admin page load, never on
+     * an API request, so the caller-facing path stays clean.
+     */
+    private function pruneOpportunistically(): void
+    {
+        // add() is atomic, so two concurrent loads can't both run it.
+        if (! Cache::add('analytics:pruned:'.now()->toDateString(), true, now()->addDay())) {
+            return;
+        }
+
+        try {
+            $cutoff = now()->subDays((int) config('api.analytics.retention_days', 90))->startOfDay();
+
+            DB::table('api_requests')->where('created_at', '<', $cutoff)->limit(5000)->delete();
+        } catch (\Throwable) {
+            // Housekeeping must never take the page down.
+        }
     }
 
     /**
