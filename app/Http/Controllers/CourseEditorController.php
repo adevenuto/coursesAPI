@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateCourseRequest;
 use App\Models\Course;
 use App\Models\CourseRevision;
 use App\Support\CourseWriter;
+use App\Support\TeeColor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -29,6 +30,7 @@ class CourseEditorController extends Controller
             'mode' => 'create',
             'course' => null,
             'mapsKey' => config('services.google.places_key'),
+            'teeColors' => self::teeColors(),
             'history' => [],
             'nearby' => (new Course)->nearbyCourses(),
         ]);
@@ -44,9 +46,25 @@ class CourseEditorController extends Controller
             'mode' => 'edit',
             'course' => $course->forEditor(),
             'mapsKey' => config('services.google.places_key'),
+            'teeColors' => self::teeColors(),
             'history' => $this->history($course),
             'nearby' => $course->nearbyCourses(),
         ]);
+    }
+
+    /**
+     * The tee-colour palette and vocabulary, so the editor resolves a typed
+     * name exactly the way a scan does rather than keeping its own copy.
+     *
+     * @return array<string, mixed>
+     */
+    private static function teeColors(): array
+    {
+        return [
+            'palette' => TeeColor::palette(),
+            'vocabulary' => TeeColor::vocabulary(),
+            'ignore' => TeeColor::ignored(),
+        ];
     }
 
     public function store(StoreCourseRequest $request, CourseWriter $writer): RedirectResponse

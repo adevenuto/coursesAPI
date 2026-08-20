@@ -4,8 +4,11 @@ namespace Tests\Unit\Scorecard;
 
 use App\Support\CourseLayoutWriter;
 use App\Support\Scorecard\ScorecardMapper;
-use PHPUnit\Framework\TestCase;
+use Tests\Support\ScorecardFixture;
+use Tests\TestCase;
 
+// Boots the app: the mapper resolves tee colours through App\Support\TeeColor,
+// whose vocabulary lives in config.
 class ScorecardMapperTest extends TestCase
 {
     private ScorecardMapper $mapper;
@@ -22,10 +25,7 @@ class ScorecardMapperTest extends TestCase
      */
     private function card(): array
     {
-        return json_decode(
-            (string) file_get_contents(__DIR__.'/../../Fixtures/scorecards/bolingbrook.json'),
-            true,
-        );
+        return ScorecardFixture::eighteen();
     }
 
     /**
@@ -56,7 +56,8 @@ class ScorecardMapperTest extends TestCase
 
         $black = $mapped['teeboxes'][0];
         $this->assertSame('Black', $black['name']);
-        $this->assertSame('#2C2C2A', $black['color']);
+        // The palette black, not the #2C2C2A the model read off the card.
+        $this->assertSame('#111827', $black['color']);
         $this->assertSame(73.4, $black['courseRating']);
         $this->assertSame(136, $black['slope']);
         $this->assertCount(18, $black['holes']);
@@ -168,9 +169,51 @@ class ScorecardMapperTest extends TestCase
         $this->assertSame(['Printed totals'], $labels);
     }
 
+    public function test_a_tee_takes_its_colour_from_its_name_not_the_models_hex(): void
+    {
+        $card = $this->card();
+        // A shade the model might plausibly return for each of these, and that
+        // it did return, differently, on every real scan.
+        $card['tees'][1]['hex'] = '#2A6EBB'; // Blue
+        $card['tees'][3]['hex'] = '#E01B22'; // Red
+
+        $teeboxes = $this->mapper->map($card)['teeboxes'];
+
+        $this->assertSame('#1D4ED8', $teeboxes[1]['color']);
+        $this->assertSame('#B91C1C', $teeboxes[3]['color']);
+    }
+
+    public function test_a_two_tone_tee_name_fills_the_second_colour(): void
+    {
+        $card = $this->card();
+        $card['tees'][1]['name'] = 'Blue/White';
+
+        $teebox = $this->mapper->map($card)['teeboxes'][1];
+
+        $this->assertSame('#1D4ED8', $teebox['color']);
+        $this->assertSame('#E5E7EB', $teebox['secondaryColor']);
+    }
+
+    public function test_a_tee_whose_name_has_no_colour_keeps_the_models_hex(): void
+    {
+        $card = $this->card();
+        $card['tees'][0]['name'] = 'Championship';
+        $card['tees'][0]['hex'] = '#2C2C2A';
+
+        $teebox = $this->mapper->map($card)['teeboxes'][0];
+
+        $this->assertSame('#2C2C2A', $teebox['color']);
+        $this->assertNull($teebox['secondaryColor']);
+    }
+
     public function test_malformed_tee_colours_are_normalised_or_dropped(): void
     {
         $card = $this->card();
+        // Colourless names, so the model's hex is what gets used and the
+        // normalising still has something to do.
+        foreach (['Championship', 'Tournament', 'Members', 'Forward'] as $i => $name) {
+            $card['tees'][$i]['name'] = $name;
+        }
         $card['tees'][0]['hex'] = '2c2c2a';   // missing #
         $card['tees'][1]['hex'] = '#ABC';     // shorthand
         $card['tees'][2]['hex'] = 'black';    // not a colour at all

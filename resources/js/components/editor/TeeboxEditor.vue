@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, watch } from 'vue';
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from '@lucide/vue';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { resolveTeeColor, type TeeColorConfig } from '@/lib/teeColor';
 
 interface Hole {
     hole: number;
@@ -23,30 +24,20 @@ interface Teebox {
     holes: Hole[];
 }
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
+        /** Palette + vocabulary, from App\Support\TeeColor via the controller. */
+        teeColors: TeeColorConfig;
         /** Hole count is only selectable while creating a course. */
         canSetHoleCount?: boolean;
     }>(),
     { canSetHoleCount: false },
 );
 
+const presets = computed(() => props.teeColors.palette);
+
 const teeboxes = defineModel<Teebox[]>({ required: true });
 const holeCount = defineModel<number>('holeCount', { required: true });
-
-// Common tee names → representative colors.
-const PRESETS = [
-    { name: 'Black', color: '#111827' },
-    { name: 'Blue', color: '#1D4ED8' },
-    { name: 'White', color: '#E5E7EB' },
-    { name: 'Gold', color: '#CA8A04' },
-    { name: 'Green', color: '#15803D' },
-    { name: 'Red', color: '#B91C1C' },
-    { name: 'Silver', color: '#9CA3AF' },
-    { name: 'Purple', color: '#7E22CE' },
-    { name: 'Orange', color: '#EA580C' },
-    { name: 'Yellow', color: '#EAB308' },
-];
 
 // Ensure each teebox has exactly holes 1..holeCount (preserving existing values).
 function reconcile(n: number) {
@@ -92,6 +83,49 @@ function move(i: number, dir: -1 | 1) {
 function applyPreset(tee: Teebox, p: { name: string; color: string }) {
     tee.color = p.color;
     if (!tee.name) tee.name = p.name;
+}
+
+// The name drives the colour, live, for as long as you're editing it —
+// renaming a tee from Blue to Black moves the swatch with it. Nothing is
+// persisted until the form is saved.
+//
+// Deliberately not immediate: opening a course must not rewrite its colours on
+// load, only typing does. And a name that resolves to nothing ("Championship")
+// leaves the existing colour alone rather than clearing it.
+watch(
+    () => teeboxes.value.map((tee) => tee.name),
+    (names, before) => {
+        names.forEach((name, i) => {
+            if (before && name === before[i]) return;
+
+            const tee = teeboxes.value[i];
+            if (!tee) return;
+
+            const { color, secondaryColor } = resolveTeeColor(name, props.teeColors);
+            if (!color) return;
+
+            tee.color = color;
+
+            if (secondaryColor) {
+                tee.secondaryColor = secondaryColor;
+            } else {
+                // "Blue/White" → "Blue" drops the white half, but only when the
+                // white came from the old name. A second colour picked by hand
+                // in Combine survives a rename.
+                const previous = resolveTeeColor(before?.[i], props.teeColors).secondaryColor;
+                if (previous && tee.secondaryColor === previous) tee.secondaryColor = null;
+            }
+        });
+    },
+);
+
+// A resolved colour that has no preset button — burgundy, tan, lime. Without
+// this the only feedback is a 20px swatch on a near-black card, which reads as
+// nothing having happened.
+function customColor(tee: Teebox): string | null {
+    if (!tee.color) return null;
+
+    return presets.value.some((p) => p.color === tee.color) ? null : tee.color;
 }
 
 // Total yards is derived from the hole yards. It's recomputed only when the user
@@ -157,11 +191,11 @@ function copyFromPrevious(index: number) {
 
 <template>
     <div>
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div v-if="canSetHoleCount" class="flex flex-wrap items-center justify-between gap-3">
             <!-- Only offered while creating: changing the count on an existing
                  course reconciles every teebox to 1..n, which silently discards
                  the holes beyond it. -->
-            <label v-if="canSetHoleCount" class="flex items-center gap-2 text-sm text-fg-muted">
+            <label class="flex items-center gap-2 text-sm text-fg-muted">
                 Holes
                 <select
                     v-model.number="holeCount"
@@ -171,19 +205,6 @@ function copyFromPrevious(index: number) {
                     <option :value="18">18</option>
                 </select>
             </label>
-            <div class="ml-auto flex items-center gap-2">
-                <span v-if="hasUnnamedTeebox" class="text-xs text-fg-subtle"> Name every teebox first </span>
-                <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    :disabled="hasUnnamedTeebox"
-                    :title="hasUnnamedTeebox ? 'Give every teebox a name before adding another' : undefined"
-                    @click="addTeebox"
-                >
-                    <Plus class="size-4" /> Add teebox
-                </Button>
-            </div>
         </div>
 
         <p v-if="!teeboxes.length" class="mt-4 rounded-lg border border-dashed border-line p-6 text-center text-sm text-fg-subtle">
@@ -194,7 +215,10 @@ function copyFromPrevious(index: number) {
             <!-- teebox header -->
             <div class="flex flex-wrap items-center gap-3">
                 <span class="inline-flex size-5 shrink-0 overflow-hidden rounded-full border border-line">
-                    <span class="h-full flex-1" :style="{ background: tee.color || 'transparent' }" />
+                    <span
+                        class="h-full flex-1 ring-1 ring-line ring-inset"
+                        :style="{ background: tee.color || 'transparent' }"
+                    />
                     <span v-if="tee.secondaryColor" class="h-full flex-1" :style="{ background: tee.secondaryColor }" />
                 </span>
                 <Input v-model="tee.name" placeholder="Tee name (e.g. Blue)" class="w-40" maxlength="60" />
@@ -206,7 +230,7 @@ function copyFromPrevious(index: number) {
                         @change="tee.secondaryColor = ($event.target as HTMLSelectElement).value || null"
                     >
                         <option value="">None</option>
-                        <option v-for="p in PRESETS" :key="p.name" :value="p.color">{{ p.name }}</option>
+                        <option v-for="p in presets" :key="p.name" :value="p.color">{{ p.name }}</option>
                     </select>
                 </label>
                 <div class="ml-auto flex items-center gap-1">
@@ -230,14 +254,32 @@ function copyFromPrevious(index: number) {
             <!-- presets -->
             <div class="mt-3 flex flex-wrap gap-1.5">
                 <button
-                    v-for="p in PRESETS"
+                    v-for="p in presets"
                     :key="p.name"
                     type="button"
-                    class="flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-2 py-1 text-xs text-fg-muted transition hover:border-line-lime hover:text-fg"
+                    class="flex cursor-pointer items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition hover:border-line-lime hover:text-fg"
+                    :class="
+                        p.color === tee.color
+                            ? 'border-line-lime bg-ink-800 text-fg'
+                            : 'border-line text-fg-muted'
+                    "
+                    :aria-pressed="p.color === tee.color"
                     @click="applyPreset(tee, p)"
                 >
                     <span class="size-2.5 rounded-full" :style="{ background: p.color }" /> {{ p.name }}
                 </button>
+
+                <span
+                    v-if="customColor(tee)"
+                    class="flex items-center gap-1.5 rounded-full border border-line-lime bg-ink-800 px-2 py-1 font-mono text-xs text-fg"
+                    :title="`Resolved from the tee name — ${tee.name}`"
+                >
+                    <span
+                        class="size-2.5 rounded-full border border-line"
+                        :style="{ background: customColor(tee) as string }"
+                    />
+                    {{ customColor(tee) }}
+                </span>
             </div>
 
             <!-- meta (rating + slope carry men's / women's values; total is shared) -->
@@ -288,6 +330,22 @@ function copyFromPrevious(index: number) {
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- Under the last teebox rather than in the header: a full card runs
+             several screens, and the tee you just finished is where you are. -->
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+            <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                :disabled="hasUnnamedTeebox"
+                :title="hasUnnamedTeebox ? 'Give every teebox a name before adding another' : undefined"
+                @click="addTeebox"
+            >
+                <Plus class="size-4" /> Add teebox
+            </Button>
+            <span v-if="hasUnnamedTeebox" class="text-xs text-fg-subtle">Name every teebox first</span>
         </div>
     </div>
 </template>

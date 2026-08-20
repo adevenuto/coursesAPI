@@ -136,6 +136,7 @@ class ScorecardDiff
     {
         $fields = [
             $this->field('Colour', $existing['color'] ?? null, $tee['color']),
+            $this->field('Second colour', $existing['secondaryColor'] ?? null, $tee['secondaryColor'] ?? null),
             $this->field('Rating (men)', $existing['courseRating'] ?? null, $tee['courseRating']),
             $this->field('Rating (women)', $existing['courseRatingWomen'] ?? null, $tee['courseRatingWomen']),
             $this->field('Slope (men)', $existing['slope'] ?? null, $tee['slope']),

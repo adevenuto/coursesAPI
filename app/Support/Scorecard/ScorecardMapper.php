@@ -2,6 +2,8 @@
 
 namespace App\Support\Scorecard;
 
+use App\Support\TeeColor;
+
 /**
  * Translates a parsed scorecard into the shape App\Support\CourseLayoutWriter
  * accepts, and reports everything the card carried that `layout_data` has no
@@ -78,10 +80,17 @@ class ScorecardMapper
                 $teeHoles[] = $entry;
             }
 
+            // The tee's name, not the model's hex, decides the colour. The
+            // model invents a fresh shade every scan and never lands on the
+            // palette, so a card read twice used to produce two different
+            // blues. Its hex survives only where the name carries no colour
+            // at all ("Championship", "Forward").
+            $resolved = TeeColor::resolve($tee['name'] ?? null);
+
             $teeboxes[] = [
                 'name' => (string) ($tee['name'] ?? ''),
-                'color' => self::hex($tee['hex'] ?? null),
-                'secondaryColor' => null,
+                'color' => $resolved['color'] ?? self::hex($tee['hex'] ?? null),
+                'secondaryColor' => $resolved['secondaryColor'],
                 'courseRating' => self::float($tee['rating']['men'] ?? null),
                 'courseRatingWomen' => self::differing(
                     $tee['rating']['men'] ?? null,
