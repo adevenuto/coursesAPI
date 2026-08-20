@@ -141,6 +141,13 @@ so nothing searchable changes. `--no-index` only avoids ~20,000 blocking Algolia
 round-trips (`SCOUT_QUEUE=false`) that would each write a payload identical to
 the one already stored.
 
+A tee rated for one gender only is stored as `[null, women]` rather than
+dropped. Cards routinely rate the back tees for men and the forward tee for
+women — a red tee printed "56.1/86" under the Ladies' Handicap row — and index 0
+of a gendered field *means* men's, so the value cannot collapse to a scalar
+without relabelling a women's rating as the men's one. The API reports `rating:
+null` with `rating_women: 56.1`; it never invents a men's rating of zero.
+
 The write goes through `App\Support\CourseWriter`, shared with the manual editor,
 so a scan-applied change is indistinguishable from a hand edit in the audit log.
 Vendor keys (`golftraxx`) and green centers survive untouched.
