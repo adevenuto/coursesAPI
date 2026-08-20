@@ -318,6 +318,30 @@ class ScorecardApplyTest extends TestCase
         $this->assertSame(33.6, $teebox['courseRating']);
     }
 
+    public function test_resolved_tee_colours_survive_the_apply(): void
+    {
+        $card = $this->card();
+        $card['tees'][0]['hex'] = '#2C2C2A';  // whatever the model happened to read
+        $card['tees'][1]['name'] = 'Blue/White';
+
+        $course = $this->course();
+        $editor = $this->editor();
+        $scan = $this->scanFor($course, $editor, $card);
+
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/apply", [
+            'sections' => ['tee:0', 'tee:1'],
+        ]);
+
+        $teeboxes = $course->refresh()->layout_data['teeboxes'];
+
+        // Black snapped to the palette rather than keeping the model's shade.
+        $this->assertSame('#111827', $teeboxes[0]['color']);
+        $this->assertArrayNotHasKey('secondaryColor', $teeboxes[0]);
+
+        $this->assertSame('#1D4ED8', $teeboxes[1]['color']);
+        $this->assertSame('#E5E7EB', $teeboxes[1]['secondaryColor']);
+    }
+
     public function test_applying_nothing_is_a_no_op(): void
     {
         $course = $this->course();

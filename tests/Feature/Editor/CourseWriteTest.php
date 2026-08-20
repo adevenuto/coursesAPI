@@ -469,4 +469,24 @@ class CourseWriteTest extends TestCase
                 ->where('course.green_centers.0.hole', 1),
             );
     }
+
+    /**
+     * The editor resolves a typed tee name the same way a scan does, which only
+     * works if the server actually ships it the vocabulary.
+     */
+    public function test_the_editor_receives_the_tee_colour_vocabulary(): void
+    {
+        $this->actingAs($this->editor())
+            ->get('/courses/create')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('CourseEdit')
+                ->where('teeColors.palette.0.name', 'Black')
+                ->where('teeColors.palette.0.color', '#111827')
+                ->where('teeColors.vocabulary.blue', '#1D4ED8')
+                ->where('teeColors.vocabulary.burgundy', '#800020')
+                ->where('teeColors.vocabulary.azul', '#1D4ED8')
+                ->has('teeColors.ignore'),
+            );
+    }
 }

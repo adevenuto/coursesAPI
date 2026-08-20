@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import InputError from '@/components/InputError.vue';
 import TeeboxEditor from '@/components/editor/TeeboxEditor.vue';
+import type { TeeColorConfig } from '@/lib/teeColor';
 import GreenCenterEditor from '@/components/editor/GreenCenterEditor.vue';
 import LocatorMap from '@/components/editor/LocatorMap.vue';
 
@@ -80,6 +81,7 @@ const props = defineProps<{
     mode: 'create' | 'edit';
     course: EditorCourse | null;
     mapsKey: string | null;
+    teeColors: TeeColorConfig;
     history?: Revision[];
     nearby?: Nearby;
 }>();
@@ -339,6 +341,7 @@ function onPlaceCleared() {
                             v-model="form.teeboxes"
                             v-model:hole-count="form.hole_count"
                             :can-set-hole-count="!isEdit"
+                            :tee-colors="teeColors"
                         />
                     </div>
                 </section>
