@@ -135,6 +135,59 @@ class CourseWriteTest extends TestCase
         $this->assertSame(11, $tee['holes']['hole-2']['handicap']);
     }
 
+    /**
+     * Plenty of cards rate the back tees for men and the forward tee for women
+     * only — a red tee printed "56.1/86" under the Ladies' Handicap row. The
+     * writer used to discard both the moment the men's value was missing.
+     */
+    public function test_a_women_only_rating_survives_the_save(): void
+    {
+        $this->seedGeoNear();
+
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['name'] = 'Red';
+        $payload['teeboxes'][0]['courseRating'] = null;
+        $payload['teeboxes'][0]['courseRatingWomen'] = 56.1;
+        $payload['teeboxes'][0]['slope'] = null;
+        $payload['teeboxes'][0]['slopeWomen'] = 86;
+        $payload['teeboxes'][0]['holes'][0]['handicap'] = null;
+        $payload['teeboxes'][0]['holes'][0]['handicapWomen'] = 5;
+
+        $this->actingAs($this->editor())
+            ->post('/courses', $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $tee = Course::where('course_name', 'Test Links')->firstOrFail()->layout_data['teeboxes'][0];
+
+        // Index 0 always means men's, so this cannot collapse to a scalar —
+        // a bare 56.1 would relabel a women's rating as the men's one.
+        $this->assertSame([null, 56.1], $tee['courseRating']);
+        $this->assertSame([null, 86], $tee['slope']);
+        $this->assertSame([null, 5], $tee['holes']['hole-1']['handicap']);
+    }
+
+    public function test_a_women_only_rating_round_trips_through_the_editor(): void
+    {
+        $this->seedGeoNear();
+
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['courseRating'] = null;
+        $payload['teeboxes'][0]['courseRatingWomen'] = 56.1;
+        $payload['teeboxes'][0]['slope'] = null;
+        $payload['teeboxes'][0]['slopeWomen'] = 86;
+
+        $this->actingAs($this->editor())->post('/courses', $payload);
+
+        $tee = Course::where('course_name', 'Test Links')->firstOrFail()->forEditor()['teeboxes'][0];
+
+        // Null, not 0.0 — the editor must not invent a men's rating of zero.
+        $this->assertNull($tee['courseRating']);
+        $this->assertNull($tee['slope']);
+        $this->assertSame(56.1, $tee['courseRatingWomen']);
+        $this->assertSame(86, $tee['slopeWomen']);
+    }
+
     public function test_save_resyncs_total_yardage_from_hole_yards(): void
     {
         $this->seedGeoNear();

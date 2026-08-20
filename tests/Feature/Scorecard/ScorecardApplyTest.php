@@ -342,6 +342,31 @@ class ScorecardApplyTest extends TestCase
         $this->assertSame('#E5E7EB', $teeboxes[1]['secondaryColor']);
     }
 
+    /**
+     * The reported case: a card rating Blue and White for men under "Men's
+     * Handicap" and Red for women only under "Ladies' Handicap". The parse read
+     * 56.1/86 correctly and the preview showed it; the writer then dropped it.
+     */
+    public function test_a_tee_rated_for_women_only_is_not_dropped_on_apply(): void
+    {
+        $card = $this->card();
+        $card['tees'][3]['name'] = 'Red';
+        $card['tees'][3]['rating'] = ['men' => null, 'women' => 56.1];
+        $card['tees'][3]['slope'] = ['men' => null, 'women' => 86];
+
+        $course = $this->course();
+        $editor = $this->editor();
+        $scan = $this->scanFor($course, $editor, $card);
+
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/apply", ['sections' => ['tee:3']]);
+
+        $tee = $course->refresh()->layout_data['teeboxes'][0];
+
+        $this->assertSame('Red', $tee['name']);
+        $this->assertSame([null, 56.1], $tee['courseRating']);
+        $this->assertSame([null, 86], $tee['slope']);
+    }
+
     public function test_applying_nothing_is_a_no_op(): void
     {
         $course = $this->course();
