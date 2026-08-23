@@ -133,19 +133,24 @@ function onInput() {
  * child mounts before its parent — the restored query isn't in place yet when
  * this component mounts.
  *
+ * Takes the text as an argument rather than reading `query`: that's a
+ * defineModel, so its getter reads props.modelValue, and props don't update
+ * until the parent re-renders. Reading it here saw the *old* value and the
+ * length check silently swallowed the whole search.
+ *
  * `open` is the parent's call: with an area restored the map and results are
  * already on screen and a dropdown would cover them, so it stays closed and
  * one focus away.
  */
-async function runStoredQuery({ open: openNow = false }: { open?: boolean } = {}) {
-    if (query.value.trim().length < 2) return;
+async function runStoredQuery(q: string, { open: openNow = false }: { open?: boolean } = {}) {
+    if (q.trim().length < 2) return;
 
     active.value = -1;
     loading.value = true;
     open.value = openNow;
 
     await clientReady;
-    await runSearch(query.value);
+    await runSearch(q);
 }
 
 defineExpose({ runStoredQuery });
@@ -164,7 +169,11 @@ function clear() {
 }
 
 function choose(hit: Hit) {
-    query.value = hit.type === 'course' ? (hit.name ?? '') : (hit.label ?? '');
+    // A course navigates away immediately, so what's in the box is never seen —
+    // but it is what gets remembered. Keep the term that produced these results
+    // so coming back re-runs "Cog Hill", not "Cog Hill Golf & CC No. 2".
+    if (hit.type !== 'course') query.value = hit.label ?? '';
+
     open.value = false;
     emit('select', hit);
 }

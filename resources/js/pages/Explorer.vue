@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 import { MapPinned, Plus, ScanLine } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
@@ -198,7 +198,7 @@ watch([query, selected, radiusOn, radiusMiles], persist);
 // sessionStorage doesn't exist during the server render, so this waits for the
 // client. A stored area is re-fetched rather than serialised — loadArea()
 // already owns the skeleton, request-ordering and failure handling.
-onMounted(() => {
+onMounted(async () => {
     const saved = readExplorerSearch();
     if (!saved) return;
 
@@ -206,10 +206,15 @@ onMounted(() => {
     radiusOn.value = saved.radiusOn;
     radiusMiles.value = saved.radiusMiles;
 
+    // Let that reach the input before searching. runSearch() drops a response
+    // whose query no longer matches what the box holds, and the box reads its
+    // value from a prop that hasn't propagated yet.
+    await nextTick();
+
     // Re-run the query itself, so the box comes back live rather than holding
     // text that does nothing. The dropdown only opens when there's no area to
     // restore — otherwise it would cover the map and results it sits above.
-    search.value?.runStoredQuery({ open: !saved.hit });
+    search.value?.runStoredQuery(saved.q, { open: !saved.hit });
 
     if (saved.hit) {
         selected.value = saved.hit;
