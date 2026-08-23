@@ -15,6 +15,7 @@ import {
     clearExplorerSearch,
     readExplorerSearch,
     writeExplorerSearch,
+    type StoredView,
 } from '@/composables/useExplorerSearch';
 
 interface Hit {
@@ -57,6 +58,12 @@ const capped = ref(false);
 const loading = ref(false); // initial skeleton
 const refreshing = ref(false); // in-place refresh (radius toggle/slider)
 const bounds = ref<{ min_lat: number; max_lat: number; min_lng: number; max_lng: number } | null>(null);
+
+// Where the map is now, and where it was last visit. Kept apart on purpose:
+// `restoreView` is a one-shot handed to the map, and letting the map's own
+// idle events write back into it would re-arm the restore on every pan.
+const view = ref<StoredView | null>(null);
+const restoreView = ref<StoredView | null>(null);
 
 // Map ↔ list sync: current map viewport (for filtering) + hovered course.
 const viewport = ref<{ min_lat: number; max_lat: number; min_lng: number; max_lng: number } | null>(null);
@@ -151,6 +158,7 @@ function persist() {
         hit: selected.value,
         radiusOn: radiusOn.value,
         radiusMiles: radiusMiles.value,
+        view: view.value,
     });
 }
 
@@ -173,6 +181,7 @@ function onSelect(hit: Hit) {
         return;
     }
     selected.value = hit;
+    restoreView.value = null; // a freshly picked area frames itself
     loadArea(false);
 }
 
@@ -189,11 +198,13 @@ function clearAll() {
     viewport.value = null;
     hoveredId.value = null;
     radiusOn.value = false;
+    view.value = null;
+    restoreView.value = null;
     clearExplorerSearch();
 }
 
 // Typing and radius changes; the course-select path writes synchronously above.
-watch([query, selected, radiusOn, radiusMiles], persist);
+watch([query, selected, radiusOn, radiusMiles, view], persist);
 
 // sessionStorage doesn't exist during the server render, so this waits for the
 // client. A stored area is re-fetched rather than serialised — loadArea()
@@ -205,6 +216,8 @@ onMounted(async () => {
     query.value = saved.q;
     radiusOn.value = saved.radiusOn;
     radiusMiles.value = saved.radiusMiles;
+    view.value = saved.view;
+    restoreView.value = saved.view;
 
     // Let that reach the input before searching. runSearch() drops a response
     // whose query no longer matches what the box holds, and the box reads its
@@ -312,7 +325,9 @@ watch(radiusMiles, refetchForRadius);
                         :bounds="bounds"
                         :circle="mapCircle"
                         :hovered-id="hoveredId"
+                        :restore-view="restoreView"
                         @viewport="viewport = $event"
+                        @view="view = $event"
                         @marker-hover="hoveredId = $event"
                     />
                     <template v-else>

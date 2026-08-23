@@ -25,11 +25,19 @@ export interface StoredHit {
     url: string;
 }
 
+/** Where the map was left: clicking a cluster zooms and pans, so both matter. */
+export interface StoredView {
+    lat: number;
+    lng: number;
+    zoom: number;
+}
+
 export interface StoredSearch {
     q: string;
     hit: StoredHit | null;
     radiusOn: boolean;
     radiusMiles: number;
+    view: StoredView | null;
 }
 
 const KEY = 'gca.explorer.search';
@@ -57,11 +65,18 @@ export function readExplorerSearch(): StoredSearch | null {
         // rather than a broken page.
         if (typeof parsed?.q !== 'string') return null;
 
+        // `view` is absent from records written before it existed, so it
+        // defaults rather than invalidating them.
+        const view = parsed.view;
+        const hasView =
+            !!view && [view.lat, view.lng, view.zoom].every((n) => typeof n === 'number' && isFinite(n));
+
         return {
             q: parsed.q,
             hit: parsed.hit ?? null,
             radiusOn: !!parsed.radiusOn,
             radiusMiles: Number(parsed.radiusMiles) || 25,
+            view: hasView ? { lat: view.lat, lng: view.lng, zoom: view.zoom } : null,
         };
     } catch {
         return null;
