@@ -19,11 +19,14 @@ const props = defineProps<{
     bounds: { min_lat: number; max_lat: number; min_lng: number; max_lng: number } | null;
     circle?: { lat: number; lng: number; radiusMeters: number } | null;
     hoveredId?: number | null;
+    /** Where the map was left last visit; applied once, then normal framing resumes. */
+    restoreView?: { lat: number; lng: number; zoom: number } | null;
 }>();
 
 const emit = defineEmits<{
     (e: 'viewport', bounds: { min_lat: number; max_lat: number; min_lng: number; max_lng: number }): void;
     (e: 'marker-hover', id: number | null): void;
+    (e: 'view', view: { lat: number; lng: number; zoom: number }): void;
 }>();
 
 const el = ref<HTMLElement | null>(null);
@@ -41,6 +44,10 @@ let markers: any[] = [];
 let markerById = new Map<number, any>();
 let lastHovered: number | null = null;
 let MarkerClusterer: any = null;
+
+// A restored view is applied once and then forgotten, so picking a new city
+// still frames that city rather than being pinned to the old zoom.
+let viewRestored = false;
 
 const baseIcon = () => ({
     path: g.maps.SymbolPath.CIRCLE,
@@ -117,7 +124,7 @@ onMounted(async () => {
         });
         info = new g.maps.InfoWindow();
         // Report the viewport whenever a pan/zoom settles (incl. fitBounds).
-        map.addListener('idle', emitViewport);
+        map.addListener('idle', onIdle);
         loading.value = false;
         render();
     } catch (e) {
@@ -135,13 +142,23 @@ function clearMarkers() {
     lastHovered = null;
 }
 
-function emitViewport() {
+function onIdle() {
     if (!map) return;
+
     const b = map.getBounds();
-    if (!b) return;
-    const sw = b.getSouthWest();
-    const ne = b.getNorthEast();
-    emit('viewport', { min_lat: sw.lat(), max_lat: ne.lat(), min_lng: sw.lng(), max_lng: ne.lng() });
+    if (b) {
+        const sw = b.getSouthWest();
+        const ne = b.getNorthEast();
+        emit('viewport', { min_lat: sw.lat(), max_lat: ne.lat(), min_lng: sw.lng(), max_lng: ne.lng() });
+    }
+
+    // Report where the map came to rest — including after a cluster click,
+    // which zooms and pans without any other signal that the view moved.
+    const c = map.getCenter();
+    const z = map.getZoom();
+    if (c && typeof z === 'number') {
+        emit('view', { lat: c.lat(), lng: c.lng(), zoom: z });
+    }
 }
 
 function drawCircle() {
@@ -189,6 +206,21 @@ function render() {
         lastHovered = props.hoveredId ?? null;
     }
 
+    // A view carried over from the last visit wins over the automatic framing,
+    // otherwise fitBounds would immediately undo the zoom being restored.
+    //
+    // Read from the prop here rather than captured at mount: this component
+    // mounts before its parent, so the parent hasn't read sessionStorage yet.
+    // It's held until the courses land so the restored area doesn't re-frame
+    // on arrival, and cleared once they have.
+    if (!viewRestored && props.restoreView) {
+        map.setCenter({ lat: props.restoreView.lat, lng: props.restoreView.lng });
+        map.setZoom(props.restoreView.zoom);
+        if (props.courses.length) viewRestored = true;
+
+        return;
+    }
+
     // Zoom: a circle (radius search) frames the whole radius; otherwise fit the
     // course set; otherwise a single point / the default world view.
     if (circleObj) {
@@ -211,6 +243,23 @@ function render() {
 }
 
 watch([() => props.courses, () => props.circle], () => render());
+
+// The parent reads sessionStorage in its own onMounted, which runs after this
+// component's, so the restored view arrives as a prop change rather than being
+// there at mount. Apply it on arrival: with no area selected nothing else
+// re-renders the map, and with one this avoids a flash of the world view.
+watch(() => props.restoreView, (v) => {
+    if (!v) {
+        viewRestored = false; // cleared, or a fresh pick — stop holding it open
+        return;
+    }
+
+    if (viewRestored || !map) return;
+
+    map.setCenter({ lat: v.lat, lng: v.lng });
+    map.setZoom(v.zoom);
+    if (props.courses.length) viewRestored = true;
+});
 
 // Highlight the hovered course's marker (from the results list or the map).
 watch(() => props.hoveredId, (id) => {

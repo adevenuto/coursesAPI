@@ -85,18 +85,18 @@ class Course extends Model
                     'hole' => (int) preg_replace('/\D/', '', (string) $key),
                     'par' => isset($h['par']) ? (int) $h['par'] : null,
                     'yards' => isset($h['length']) ? (int) $h['length'] : null,
-                    'handicap' => isset($h['handicap']) ? (int) self::pickGender($h['handicap'], 'men') : null,
-                    'handicap_women' => isset($h['handicap']) ? (int) self::pickGender($h['handicap'], 'women') : null,
+                    'handicap' => self::intOrNull(self::pickGender($h['handicap'] ?? null, 'men')),
+                    'handicap_women' => self::intOrNull(self::pickGender($h['handicap'] ?? null, 'women')),
                 ];
             }
             usort($holes, fn ($a, $b) => $a['hole'] <=> $b['hole']);
 
             $teeboxes[] = [
                 'name' => $tb['name'] ?? null,
-                'rating' => isset($tb['courseRating']) ? (float) self::pickGender($tb['courseRating'], 'men') : null,
-                'rating_women' => isset($tb['courseRating']) ? (float) self::pickGender($tb['courseRating'], 'women') : null,
-                'slope' => isset($tb['slope']) ? (int) self::pickGender($tb['slope'], 'men') : null,
-                'slope_women' => isset($tb['slope']) ? (int) self::pickGender($tb['slope'], 'women') : null,
+                'rating' => self::floatOrNull(self::pickGender($tb['courseRating'] ?? null, 'men')),
+                'rating_women' => self::floatOrNull(self::pickGender($tb['courseRating'] ?? null, 'women')),
+                'slope' => self::intOrNull(self::pickGender($tb['slope'] ?? null, 'men')),
+                'slope_women' => self::intOrNull(self::pickGender($tb['slope'] ?? null, 'women')),
                 'total_yards' => isset($tb['totalYardage']) ? (int) $tb['totalYardage'] : null,
                 'holes' => $holes,
             ];
@@ -106,6 +106,23 @@ class Course extends Model
             'hole_count' => isset($data['hole_count']) ? (int) $data['hole_count'] : null,
             'teeboxes' => $teeboxes,
         ];
+    }
+
+    /**
+     * Cast a gendered value, keeping a missing one missing.
+     *
+     * A plain (float)/(int) cast turns null into 0.0/0, which since
+     * CourseLayoutWriter learned to store [null, women] would report a
+     * women-only tee as having a men's rating of zero.
+     */
+    private static function floatOrNull(mixed $v): ?float
+    {
+        return $v === null ? null : (float) $v;
+    }
+
+    private static function intOrNull(mixed $v): ?int
+    {
+        return $v === null ? null : (int) $v;
     }
 
     /**
@@ -286,10 +303,10 @@ class Course extends Model
                 'name' => $tb['name'] ?? '',
                 'color' => $tb['color'] ?? null,
                 'secondaryColor' => $tb['secondaryColor'] ?? null,
-                'courseRating' => isset($tb['courseRating']) ? (float) self::pickGender($tb['courseRating'], 'men') : null,
-                'courseRatingWomen' => $ratingWomen !== null ? (float) $ratingWomen : null,
-                'slope' => isset($tb['slope']) ? (int) self::pickGender($tb['slope'], 'men') : null,
-                'slopeWomen' => $slopeWomen !== null ? (int) $slopeWomen : null,
+                'courseRating' => self::floatOrNull(self::pickGender($tb['courseRating'] ?? null, 'men')),
+                'courseRatingWomen' => self::floatOrNull($ratingWomen),
+                'slope' => self::intOrNull(self::pickGender($tb['slope'] ?? null, 'men')),
+                'slopeWomen' => self::intOrNull($slopeWomen),
                 'totalYardage' => isset($tb['totalYardage']) ? (int) $tb['totalYardage'] : null,
                 'holes' => $holes,
             ];

@@ -111,18 +111,33 @@ class CourseLayoutWriter
     }
 
     /**
-     * Build a gendered field: null when there is no men's value; the cast scalar
-     * men's value when women's is empty; a [men, women] array when both are set.
-     * Index 0 is always the men's/primary value.
+     * Build a gendered field. Index 0 is always the men's/primary value:
+     *
+     *   neither set   → null
+     *   men only      → the cast scalar
+     *   both set      → [men, women]
+     *   women only    → [null, women]
+     *
+     * That last case is the one worth spelling out. Plenty of cards rate the
+     * back tees for men and the forward tee for women only — a red tee printed
+     * "56.1/86" under the Ladies' Handicap row. This used to return null the
+     * moment the men's value was missing, so a correctly read women's rating
+     * was discarded on the way to storage, on scans and hand edits alike.
+     *
+     * It cannot collapse to a scalar: index 0 *means* men's, so a bare 56.1
+     * would relabel a women's rating as the men's one.
      */
     private static function gendered(mixed $men, mixed $women, callable $cast): mixed
     {
-        if (! self::filled($men)) {
-            return null;
+        $hasMen = self::filled($men);
+        $hasWomen = self::filled($women);
+
+        if (! $hasMen) {
+            return $hasWomen ? [null, $cast($women)] : null;
         }
 
         $m = $cast($men);
 
-        return self::filled($women) ? [$m, $cast($women)] : $m;
+        return $hasWomen ? [$m, $cast($women)] : $m;
     }
 }

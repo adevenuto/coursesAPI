@@ -140,6 +140,40 @@ class CourseApiTest extends ApiTestCase
             ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.handicap_women', 9);
     }
 
+    /**
+     * The forward tee on a card that rates the back tees for men only. The
+     * stored shape is [null, women]; a bare (float) cast would report the
+     * men's rating as 0.0 rather than absent.
+     */
+    public function test_a_women_only_tee_reports_null_men_not_zero(): void
+    {
+        Sanctum::actingAs($this->freeUser);
+
+        $course = Course::create([
+            'course_name' => 'Ladies Tee GC',
+            'city_id' => 100, 'state_prov_id' => 10, 'country_id' => 1,
+            'lat' => 37.02, 'lng' => -86.45,
+            'layout_data' => [
+                'hole_count' => 18,
+                'teeboxes' => [[
+                    'name' => 'Red',
+                    'courseRating' => [null, 56.1],
+                    'slope' => [null, 86],
+                    'holes' => ['hole-1' => ['par' => '4', 'length' => '278', 'handicap' => [null, 5]]],
+                ]],
+            ],
+        ]);
+
+        $this->getJson("/api/v1/courses/{$course->id}")
+            ->assertOk()
+            ->assertJsonPath('data.scorecard.teeboxes.0.rating', null)
+            ->assertJsonPath('data.scorecard.teeboxes.0.slope', null)
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.handicap', null)
+            ->assertJsonPath('data.scorecard.teeboxes.0.rating_women', 56.1)
+            ->assertJsonPath('data.scorecard.teeboxes.0.slope_women', 86)
+            ->assertJsonPath('data.scorecard.teeboxes.0.holes.0.handicap_women', 5);
+    }
+
     public function test_show_404_for_missing_course(): void
     {
         Sanctum::actingAs($this->freeUser);
