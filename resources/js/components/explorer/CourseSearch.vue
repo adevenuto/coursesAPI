@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef } from 'vue';
 import { useDebounceFn, onClickOutside } from '@vueuse/core';
-import { Building2, Flag, Globe, Loader2, Map, Search } from '@lucide/vue';
+import { Building2, Flag, Globe, Loader2, Map, Search, X } from '@lucide/vue';
 
 interface Hit {
     objectID: string;
@@ -35,7 +35,7 @@ const props = defineProps<{
     };
 }>();
 
-const emit = defineEmits<{ (e: 'select', hit: Hit): void }>();
+const emit = defineEmits<{ (e: 'select', hit: Hit): void; (e: 'clear'): void }>();
 
 // Fixed display order + labels/icons, matching the reference layout.
 const ORDER = [
@@ -45,7 +45,10 @@ const ORDER = [
     { key: 'countries', label: 'Countries', icon: Globe },
 ] as const;
 
-const query = ref('');
+// Owned by the page so it can be persisted across visits and cleared from the
+// ×. Setting it from outside deliberately does NOT search — see onInput below.
+const query = defineModel<string>({ default: '' });
+
 const groups = ref<Group[]>([]);
 const loading = ref(false);
 const open = ref(false);
@@ -55,10 +58,17 @@ const root = ref<HTMLElement | null>(null);
 // Algolia lite client loaded client-only (browser-only bundle).
 const client = shallowRef<{ search: (args: unknown) => Promise<{ results: Array<{ hits: Hit[] }> }> } | null>(null);
 
-onMounted(async () => {
+// Held onto so a restored query can wait for it: the client is imported lazily,
+// and a restore firing first would find `client` still null and silently give
+// up, looking exactly like a search that returned nothing.
+let clientReady: Promise<unknown> | null = null;
+
+onMounted(() => {
     if (typeof window === 'undefined' || !props.algolia.configured) return;
-    const { liteClient } = await import('algoliasearch/lite');
-    client.value = liteClient(props.algolia.app_id, props.algolia.search_key);
+
+    clientReady = import('algoliasearch/lite').then(({ liteClient }) => {
+        client.value = liteClient(props.algolia.app_id, props.algolia.search_key);
+    });
 });
 
 // Flattened hit list for keyboard navigation.
@@ -96,8 +106,9 @@ const runSearch = useDebounceFn(async (q: string) => {
     }
 }, 180);
 
-// Search only on real typing — setting `query` on select must NOT reopen the
-// dropdown or re-search the label.
+// Search only on real typing — setting `query` on select, or restoring it from
+// a previous visit, must NOT reopen the dropdown or re-search the label. This
+// hangs off the DOM @input event precisely so a programmatic write stays quiet.
 function onInput() {
     active.value = -1;
 
@@ -114,10 +125,55 @@ function onInput() {
     runSearch(query.value);
 }
 
+/**
+ * Re-run a query the page restored from a previous visit, so coming back gives
+ * you live results rather than just the old text sitting in the box.
+ *
+ * Called by the parent instead of this component's own onMounted, because a
+ * child mounts before its parent — the restored query isn't in place yet when
+ * this component mounts.
+ *
+ * Takes the text as an argument rather than reading `query`: that's a
+ * defineModel, so its getter reads props.modelValue, and props don't update
+ * until the parent re-renders. Reading it here saw the *old* value and the
+ * length check silently swallowed the whole search.
+ *
+ * `open` is the parent's call: with an area restored the map and results are
+ * already on screen and a dropdown would cover them, so it stays closed and
+ * one focus away.
+ */
+async function runStoredQuery(q: string, { open: openNow = false }: { open?: boolean } = {}) {
+    if (q.trim().length < 2) return;
+
+    active.value = -1;
+    loading.value = true;
+    open.value = openNow;
+
+    await clientReady;
+    await runSearch(q);
+}
+
+defineExpose({ runStoredQuery });
+
 onClickOutside(root, () => (open.value = false));
 
+// Reset the box and hand the page a chance to clear the map and results with
+// it — an empty search sitting above a full map of Chicago reads as a bug.
+function clear() {
+    query.value = '';
+    groups.value = [];
+    loading.value = false;
+    open.value = false;
+    active.value = -1;
+    emit('clear');
+}
+
 function choose(hit: Hit) {
-    query.value = hit.type === 'course' ? (hit.name ?? '') : (hit.label ?? '');
+    // A course navigates away immediately, so what's in the box is never seen —
+    // but it is what gets remembered. Keep the term that produced these results
+    // so coming back re-runs "Cog Hill", not "Cog Hill Golf & CC No. 2".
+    if (hit.type !== 'course') query.value = hit.label ?? '';
+
     open.value = false;
     emit('select', hit);
 }
@@ -179,7 +235,20 @@ const flatIndex = (g: number, h: number) =>
                 @input="onInput"
                 @keydown="onKeydown"
             />
+            <!-- One slot, two states: the spinner wins while a search is in
+                 flight, otherwise the × appears as soon as there's anything to
+                 clear. They must never render together — they share this spot. -->
             <Loader2 v-if="loading" class="absolute top-1/2 right-4 size-4 -translate-y-1/2 animate-spin text-fg-subtle" />
+            <button
+                v-else-if="query.length > 0"
+                type="button"
+                aria-label="Clear search"
+                title="Clear search"
+                class="absolute top-1/2 right-3 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-fg-subtle transition hover:bg-ink-700 hover:text-fg focus:outline-none focus-visible:ring-1 focus-visible:ring-line-lime"
+                @click="clear"
+            >
+                <X class="size-4" />
+            </button>
         </div>
 
         <!-- dropdown -->
