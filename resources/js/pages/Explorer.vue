@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 import { MapPinned, Plus, ScanLine } from '@lucide/vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
@@ -11,6 +11,11 @@ import CourseSearch from '@/components/explorer/CourseSearch.vue';
 import ResultsList from '@/components/explorer/ResultsList.vue';
 import CoursesMap from '@/components/explorer/CoursesMap.vue';
 import RadiusControl from '@/components/explorer/RadiusControl.vue';
+import {
+    clearExplorerSearch,
+    readExplorerSearch,
+    writeExplorerSearch,
+} from '@/composables/useExplorerSearch';
 
 interface Hit {
     id: number;
@@ -39,6 +44,10 @@ const props = defineProps<{
     canEdit: boolean;
     baseUrl: string;
 }>();
+
+// Owned here rather than inside CourseSearch so it survives a page transition
+// and the × can reset the whole page with it.
+const query = ref('');
 
 const area = ref<Area | null>(null);
 const courses = ref<Array<{ id: number; name: string; club: string | null; city: string | null; state: string | null; lat: number; lng: number; distance_mi?: number; url: string; green_centers_available?: boolean }>>([]);
@@ -74,9 +83,10 @@ const mapCircle = computed(() =>
         : null,
 );
 
-async function loadArea(refresh: boolean) {
+/** Resolves false only when the area genuinely failed to load. */
+async function loadArea(refresh: boolean): Promise<boolean> {
     const hit = selected.value;
-    if (!hit) return;
+    if (!hit) return false;
 
     // Show all until the map re-fits and reports its new viewport.
     viewport.value = null;
@@ -94,21 +104,29 @@ async function loadArea(refresh: boolean) {
 
     try {
         const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        // fetch only rejects on a network error, so a 404 — a city that no
+        // longer exists — otherwise sails through as a JSON error body and
+        // renders as a present-but-empty area.
+        if (!res.ok) throw new Error(String(res.status));
         const data = await res.json();
-        if (token !== reqToken) return; // a newer request won
+        if (token !== reqToken) return true; // a newer request won; not a failure
         area.value = data.area;
         courses.value = data.courses ?? [];
         count.value = data.count ?? 0;
         capped.value = !!data.capped;
         bounds.value = data.bounds ?? null;
         center.value = data.area?.center ?? null;
+
+        return true;
     } catch {
-        if (token !== reqToken) return;
+        if (token !== reqToken) return true;
         if (!refresh) {
             area.value = { type: hit.type, name: hit.name ?? '', label: hit.label ?? '' };
             courses.value = [];
             count.value = 0;
         }
+
+        return false;
     } finally {
         if (token === reqToken) {
             loading.value = false;
@@ -117,15 +135,78 @@ async function loadArea(refresh: boolean) {
     }
 }
 
+function persist() {
+    // Nothing worth restoring — drop the record instead of storing an empty
+    // one. This also cleans up after clearAll(): watchers flush asynchronously,
+    // so its own writes would otherwise land *after* it cleared the key.
+    if (!query.value && !selected.value) {
+        clearExplorerSearch();
+
+        return;
+    }
+
+    writeExplorerSearch({
+        q: query.value,
+        hit: selected.value,
+        radiusOn: radiusOn.value,
+        radiusMiles: radiusMiles.value,
+    });
+}
+
 function onSelect(hit: Hit) {
     // A course goes to its detail page — or straight to the editor for editors.
     if (hit.type === 'course') {
+        // Save before navigating, not via the watcher below: this leaves the
+        // page immediately, and a watcher isn't guaranteed to flush first. This
+        // is the exact trip an editor makes over and over, so losing it here
+        // would defeat the whole feature.
+        persist();
         router.visit(props.canEdit ? `/courses/${hit.id}/edit` : hit.url);
         return;
     }
     selected.value = hit;
     loadArea(false);
 }
+
+/** The × — back to a blank explorer, with nothing left to restore. */
+function clearAll() {
+    query.value = '';
+    selected.value = null;
+    area.value = null;
+    courses.value = [];
+    count.value = 0;
+    capped.value = false;
+    bounds.value = null;
+    center.value = null;
+    viewport.value = null;
+    hoveredId.value = null;
+    radiusOn.value = false;
+    clearExplorerSearch();
+}
+
+// Typing and radius changes; the course-select path writes synchronously above.
+watch([query, selected, radiusOn, radiusMiles], persist);
+
+// sessionStorage doesn't exist during the server render, so this waits for the
+// client. A stored area is re-fetched rather than serialised — loadArea()
+// already owns the skeleton, request-ordering and failure handling.
+onMounted(() => {
+    const saved = readExplorerSearch();
+    if (!saved) return;
+
+    query.value = saved.q;
+    radiusOn.value = saved.radiusOn;
+    radiusMiles.value = saved.radiusMiles;
+
+    if (saved.hit) {
+        selected.value = saved.hit;
+        loadArea(false).then((ok) => {
+            // The stored area could have been deleted since we saw it last.
+            // Don't leave a stub on screen — drop it and start clean.
+            if (!ok) clearAll();
+        });
+    }
+});
 
 // Toggling nearby refetches immediately; the slider is debounced so dragging
 // doesn't spam the endpoint.
@@ -185,7 +266,7 @@ watch(radiusMiles, refetchForRadius);
             <div class="grid gap-6 lg:grid-cols-[minmax(0,440px)_1fr] lg:grid-rows-[auto_1fr]">
                 <!-- search + radius -->
                 <div class="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
-                    <CourseSearch :algolia="algolia" @select="onSelect" />
+                    <CourseSearch v-model="query" :algolia="algolia" @select="onSelect" @clear="clearAll" />
                     <RadiusControl
                         v-if="area?.type === 'city'"
                         v-model:enabled="radiusOn"
