@@ -58,10 +58,17 @@ const root = ref<HTMLElement | null>(null);
 // Algolia lite client loaded client-only (browser-only bundle).
 const client = shallowRef<{ search: (args: unknown) => Promise<{ results: Array<{ hits: Hit[] }> }> } | null>(null);
 
-onMounted(async () => {
+// Held onto so a restored query can wait for it: the client is imported lazily,
+// and a restore firing first would find `client` still null and silently give
+// up, looking exactly like a search that returned nothing.
+let clientReady: Promise<unknown> | null = null;
+
+onMounted(() => {
     if (typeof window === 'undefined' || !props.algolia.configured) return;
-    const { liteClient } = await import('algoliasearch/lite');
-    client.value = liteClient(props.algolia.app_id, props.algolia.search_key);
+
+    clientReady = import('algoliasearch/lite').then(({ liteClient }) => {
+        client.value = liteClient(props.algolia.app_id, props.algolia.search_key);
+    });
 });
 
 // Flattened hit list for keyboard navigation.
@@ -117,6 +124,31 @@ function onInput() {
     loading.value = true;
     runSearch(query.value);
 }
+
+/**
+ * Re-run a query the page restored from a previous visit, so coming back gives
+ * you live results rather than just the old text sitting in the box.
+ *
+ * Called by the parent instead of this component's own onMounted, because a
+ * child mounts before its parent — the restored query isn't in place yet when
+ * this component mounts.
+ *
+ * `open` is the parent's call: with an area restored the map and results are
+ * already on screen and a dropdown would cover them, so it stays closed and
+ * one focus away.
+ */
+async function runStoredQuery({ open: openNow = false }: { open?: boolean } = {}) {
+    if (query.value.trim().length < 2) return;
+
+    active.value = -1;
+    loading.value = true;
+    open.value = openNow;
+
+    await clientReady;
+    await runSearch(query.value);
+}
+
+defineExpose({ runStoredQuery });
 
 onClickOutside(root, () => (open.value = false));
 

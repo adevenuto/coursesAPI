@@ -48,6 +48,7 @@ const props = defineProps<{
 // Owned here rather than inside CourseSearch so it survives a page transition
 // and the × can reset the whole page with it.
 const query = ref('');
+const search = ref<InstanceType<typeof CourseSearch> | null>(null);
 
 const area = ref<Area | null>(null);
 const courses = ref<Array<{ id: number; name: string; club: string | null; city: string | null; state: string | null; lat: number; lng: number; distance_mi?: number; url: string; green_centers_available?: boolean }>>([]);
@@ -156,6 +157,13 @@ function persist() {
 function onSelect(hit: Hit) {
     // A course goes to its detail page — or straight to the editor for editors.
     if (hit.type === 'course') {
+        // Snap the box back to the area being browsed. Choosing a course sets
+        // the box to its name, and coming back to "Cog Hill · 2" above a map of
+        // Chicago reads as a stale search; the area is what you're working
+        // through, so that's what resumes.
+        const area = selected.value;
+        if (area) query.value = area.label ?? area.name ?? '';
+
         // Save before navigating, not via the watcher below: this leaves the
         // page immediately, and a watcher isn't guaranteed to flush first. This
         // is the exact trip an editor makes over and over, so losing it here
@@ -197,6 +205,11 @@ onMounted(() => {
     query.value = saved.q;
     radiusOn.value = saved.radiusOn;
     radiusMiles.value = saved.radiusMiles;
+
+    // Re-run the query itself, so the box comes back live rather than holding
+    // text that does nothing. The dropdown only opens when there's no area to
+    // restore — otherwise it would cover the map and results it sits above.
+    search.value?.runStoredQuery({ open: !saved.hit });
 
     if (saved.hit) {
         selected.value = saved.hit;
@@ -266,7 +279,13 @@ watch(radiusMiles, refetchForRadius);
             <div class="grid gap-6 lg:grid-cols-[minmax(0,440px)_1fr] lg:grid-rows-[auto_1fr]">
                 <!-- search + radius -->
                 <div class="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
-                    <CourseSearch v-model="query" :algolia="algolia" @select="onSelect" @clear="clearAll" />
+                    <CourseSearch
+                        ref="search"
+                        v-model="query"
+                        :algolia="algolia"
+                        @select="onSelect"
+                        @clear="clearAll"
+                    />
                     <RadiusControl
                         v-if="area?.type === 'city'"
                         v-model:enabled="radiusOn"
