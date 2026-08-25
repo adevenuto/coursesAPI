@@ -35,7 +35,7 @@ const props = defineProps<{
     };
 }>();
 
-const emit = defineEmits<{ (e: 'select', hit: Hit): void; (e: 'clear'): void }>();
+const emit = defineEmits<{ (e: 'select', hit: Hit): void; (e: 'clear'): void; (e: 'revert'): void }>();
 
 // Fixed display order + labels/icons, matching the reference layout.
 const ORDER = [
@@ -157,6 +157,14 @@ defineExpose({ runStoredQuery });
 
 onClickOutside(root, () => (open.value = false));
 
+// Emptying the box by hand is not the same as clearing the search: only the ×
+// takes the map and results down with it. So on the way out, tell the page the
+// box is empty and let it decide — with an area still on screen there's a term
+// that belongs here, and leaving the field blank above it reads as a bug.
+function onBlur() {
+    if (query.value.trim().length === 0) emit('revert');
+}
+
 // Reset the box and hand the page a chance to clear the map and results with
 // it — an empty search sitting above a full map of Chicago reads as a bug.
 function clear() {
@@ -232,6 +240,7 @@ const flatIndex = (g: number, h: number) =>
                 autocomplete="off"
                 spellcheck="false"
                 @focus="open = groups.length > 0"
+                @blur="onBlur"
                 @input="onInput"
                 @keydown="onKeydown"
             />

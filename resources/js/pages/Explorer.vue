@@ -185,6 +185,25 @@ function onSelect(hit: Hit) {
     loadArea(false);
 }
 
+/**
+ * The box went empty by hand, not via the ×, and focus left. The map, results
+ * and radius are all still on the area — the box is the only thing that went
+ * blank, and a blank search field above a full map of Chicago is exactly the
+ * state the × exists to produce properly. Snap it back to the area on screen.
+ *
+ * Also repairs what got persisted: `query` is stored, so the empty box was
+ * already written to sessionStorage, and without this the next visit restores
+ * the area with no term above it. Assigning here re-runs persist() with the
+ * label, and doing it programmatically leaves the search itself untouched —
+ * only @input searches.
+ */
+function revertQuery() {
+    const hit = selected.value;
+    if (!hit) return;
+
+    query.value = hit.label ?? hit.name ?? '';
+}
+
 /** The × — back to a blank explorer, with nothing left to restore. */
 function clearAll() {
     query.value = '';
@@ -303,6 +322,7 @@ watch(radiusMiles, refetchForRadius);
                         :algolia="algolia"
                         @select="onSelect"
                         @clear="clearAll"
+                        @revert="revertQuery"
                     />
                     <RadiusControl
                         v-if="area?.type === 'city'"
