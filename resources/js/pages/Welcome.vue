@@ -48,7 +48,7 @@ withDefaults(
     <MarketingLayout>
         <MarketingNav />
         <main>
-            <HeroSection :free-per-day="plans.free.per_day" />
+            <HeroSection :free-per-day="plans.free.per_day" :courses="stats.courses" />
             <StatBand :stats="stats" />
             <FeatureGrid />
             <EndpointExplorer />

@@ -1,11 +1,20 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { ArrowRight, CircleCheck } from '@lucide/vue';
 import { register } from '@/routes';
 import GlowBadge from './GlowBadge.vue';
 import ContourGreen from './ContourGreen.vue';
 
-withDefaults(defineProps<{ freePerDay?: number }>(), { freePerDay: 30 });
+const props = withDefaults(defineProps<{ freePerDay?: number; courses?: number }>(), {
+    freePerDay: 30,
+    courses: 0,
+});
+
+// The badge and the stat band directly below it quote the same number, so it has
+// to come from the same live count — a frozen literal here drifts the moment a
+// course is added and the two disagree in one screenful.
+const courseCount = computed(() => props.courses.toLocaleString('en-US'));
 </script>
 
 <template>
@@ -16,7 +25,7 @@ withDefaults(defineProps<{ freePerDay?: number }>(), { freePerDay: 30 });
             <!-- copy -->
             <div>
                 <div class="mk-reveal" style="animation-delay: 0.05s">
-                    <GlowBadge>Live · 22,066 courses</GlowBadge>
+                    <GlowBadge>Live · {{ courseCount }} courses</GlowBadge>
                 </div>
                 <h1
                     class="mk-reveal mt-6 font-display font-bold text-balance text-fg"

@@ -66,24 +66,6 @@ const cy = 208;
                 <line :x1="cx" :y1="cy + 14" :x2="cx" :y2="cy + 46" />
             </g>
 
-            <!-- annotation flags to a couple of ring points -->
-            <g
-                stroke="var(--mk-border)"
-                stroke-width="1"
-                font-family="var(--font-mono)"
-            >
-                <line :x1="cx + 110" :y1="cy - 96" x2="404" y2="86" />
-                <circle :cx="cx + 110" :cy="cy - 96" r="2.5" fill="var(--mk-accent)" stroke="none" />
-                <text x="408" y="82" fill="var(--mk-muted)" font-size="11">
-                    slope 2.4%
-                </text>
-                <line :x1="cx - 120" :y1="cy + 88" x2="30" y2="360" />
-                <circle :cx="cx - 120" :cy="cy + 88" r="2.5" fill="var(--mk-accent)" stroke="none" />
-                <text x="30" y="378" fill="var(--mk-muted)" font-size="11">
-                    front edge
-                </text>
-            </g>
-
             <!-- GPS center pin -->
             <g>
                 <circle
