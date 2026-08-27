@@ -83,7 +83,17 @@ class ScorecardScanController extends Controller
             'images' => $images,
             // Hash the normalised bytes, not the upload: two shots of the same
             // card that resize identically should reuse one parse.
-            'content_hash' => hash('sha256', implode('|', array_column($images, 'sha256'))),
+            //
+            // Keyed by course as well, because the parse is no longer a pure
+            // function of the images: the prompt now names the course being read
+            // so the model can pick the right section out of a ratings block
+            // covering several pairings. One facility's nine card legitimately
+            // belongs to two courses, and reusing across them would hand the
+            // second course the first one's ratings.
+            'content_hash' => hash('sha256', implode('|', [
+                ...array_column($images, 'sha256'),
+                'course:'.($scan->course_id ?? 'new'),
+            ])),
         ]);
 
         return to_route('scorecard-scans.show', $scan);
@@ -270,11 +280,20 @@ class ScorecardScanController extends Controller
      */
     private function present(ScorecardScan $scan): array
     {
+        // What the model chose to say about its own read. It routinely explains
+        // a blank the editor would otherwise have to take on faith — a rating
+        // left null because the card rates pairings this course isn't one of,
+        // a sum that didn't reconcile, an illegible cell. Stored since the
+        // feature shipped and never rendered, which made every deliberate
+        // refusal arrive as an unexplained gap.
+        $notes = trim((string) ($scan->parsed()['parseNotes'] ?? ''));
+
         return [
             'id' => $scan->id,
             'status' => $scan->status,
             'course_id' => $scan->course_id,
             'error' => $scan->error,
+            'notes' => $notes === '' ? null : $notes,
             'verification' => $scan->verification,
             'applied_at' => $scan->applied_at?->toIso8601String(),
             'images' => array_map(fn (array $image, int $i) => [

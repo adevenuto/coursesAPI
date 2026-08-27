@@ -27,6 +27,7 @@ interface Scan {
     status: 'pending' | 'parsing' | 'parsed' | 'failed' | 'applied' | 'discarded';
     course_id: number | null;
     error: string | null;
+    notes: string | null;
     verification: { passed: boolean; issues: VerificationIssue[] } | null;
     applied_at: string | null;
     images: ScanImage[];
@@ -260,6 +261,7 @@ function discard() {
                     v-if="hasParsed && diff"
                     :verification="scan?.verification ?? null"
                     :unmapped="diff.unmapped"
+                    :notes="scan?.notes ?? null"
                 />
 
                 <!-- The diff the editor confirms against -->

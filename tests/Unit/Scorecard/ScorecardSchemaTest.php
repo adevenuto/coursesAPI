@@ -127,4 +127,49 @@ class ScorecardSchemaTest extends TestCase
 
         return $issues;
     }
+
+    /**
+     * The context exists to settle which of a facility's courses a card is being
+     * read for. A blank name carries no such answer, so it must produce no block
+     * at all rather than an empty heading the model would try to honour.
+     */
+    public function test_course_context_is_empty_without_a_name(): void
+    {
+        $this->assertSame('', ScorecardSchema::courseContext(null, 'Monterey Country Club', 18));
+        $this->assertSame('', ScorecardSchema::courseContext('   ', 'Monterey Country Club', 18));
+    }
+
+    public function test_course_context_names_the_course_it_is_read_for(): void
+    {
+        $context = ScorecardSchema::courseContext('East/South', 'Monterey Country Club', 18);
+
+        $this->assertStringContainsString('Course name: East/South', $context);
+        $this->assertStringContainsString('Club: Monterey Country Club', $context);
+        $this->assertStringContainsString('Holes on record: 18', $context);
+    }
+
+    /**
+     * A club line identical to the course name is noise, and an unknown hole
+     * count must not be asserted as zero holes.
+     */
+    public function test_course_context_omits_what_it_does_not_know(): void
+    {
+        $context = ScorecardSchema::courseContext('Willow Hill', 'Willow Hill', null);
+
+        $this->assertStringContainsString('Course name: Willow Hill', $context);
+        $this->assertStringNotContainsString('Club:', $context);
+        $this->assertStringNotContainsString('Holes on record:', $context);
+    }
+
+    /**
+     * The rule this whole mechanism exists to enforce: a ratings block covering
+     * several eighteen-hole pairings must be resolved by context, never guessed.
+     */
+    public function test_instructions_forbid_guessing_between_ratings_sections(): void
+    {
+        $instructions = ScorecardSchema::instructions();
+
+        $this->assertStringContainsString('Ratings printed for more than one course', $instructions);
+        $this->assertStringContainsString('never take the first one because', $instructions);
+    }
 }

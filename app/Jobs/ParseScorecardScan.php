@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\ScorecardScan;
 use App\Support\Scorecard\ScorecardParser;
+use App\Support\Scorecard\ScorecardSchema;
 use App\Support\Scorecard\ScorecardVerifier;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -66,7 +67,7 @@ class ParseScorecardScan implements ShouldQueue
                 return;
             }
 
-            $result = $parser->parse($scan->imagePaths());
+            $result = $parser->parse($scan->imagePaths(), $this->context($scan));
 
             $scan->update([
                 'status' => ScorecardScan::STATUS_PARSED,
@@ -99,6 +100,29 @@ class ParseScorecardScan implements ShouldQueue
                 'error' => 'The parse was interrupted before it finished'
                     .($e !== null ? ': '.$e->getMessage() : '.'),
             ]);
+    }
+
+    /**
+     * Which course this scan is for, when it has one.
+     *
+     * A scan staged against an existing course knows something the images do
+     * not: which of a facility's courses is being read. That is what lets the
+     * model pick the right section out of a ratings block covering several
+     * eighteen-hole pairings, instead of guessing differently each run.
+     */
+    private function context(ScorecardScan $scan): string
+    {
+        $course = $scan->course;
+
+        if ($course === null) {
+            return '';
+        }
+
+        return ScorecardSchema::courseContext(
+            $course->course_name,
+            $course->club_name,
+            $course->scorecard['hole_count'] ?? null,
+        );
     }
 
     /**

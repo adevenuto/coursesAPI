@@ -108,6 +108,53 @@ class ScorecardSchema
     }
 
     /**
+     * What the card alone cannot say: which course this scan is being read for.
+     *
+     * One set of images can legitimately serve several courses — a 27-hole
+     * facility prints a single ratings block covering every eighteen-hole
+     * pairing of its nines, and the same nine's yardage card is part of two of
+     * them. Without knowing the target, the model has to guess which rating
+     * column applies, and it guesses differently from one run to the next:
+     * the same two images returned full ratings and null stroke indexes on one
+     * call, and the reverse on another.
+     *
+     * Scoped deliberately to identity, not content. Feeding the stored layout
+     * back in would invite the model to agree with what is already there, and
+     * the point of a scan is to read the card.
+     */
+    public static function courseContext(?string $name, ?string $club, ?int $holes): string
+    {
+        if ($name === null || trim($name) === '') {
+            return '';
+        }
+
+        $lines = ['Course name: '.trim($name)];
+
+        if ($club !== null && trim($club) !== '' && trim($club) !== trim($name)) {
+            $lines[] = 'Club: '.trim($club);
+        }
+
+        if ($holes !== null && $holes > 0) {
+            $lines[] = 'Holes on record: '.$holes;
+        }
+
+        $detail = implode("\n          ", $lines);
+
+        return <<<TXT
+
+        This scan is being read for a course that already exists:
+
+          {$detail}
+
+        Use this ONLY to resolve ambiguity the card itself leaves open — which ratings
+        section applies, which nine of a pairing this is. It never overrides what is
+        printed, never fills a blank the card leaves blank, and a mismatch between this
+        name and the card is worth reporting in parseNotes rather than silently
+        reconciling.
+        TXT;
+    }
+
+    /**
      * How to read the card. Shape is already guaranteed by the schema, so this
      * is entirely about semantics and reading order.
      */
@@ -150,6 +197,11 @@ class ScorecardSchema
         - `handicap` is the stroke index (labelled "Course HCP", "Handicap", "Index" or
           "SI"). Valid values are 1-18 for an eighteen-hole card. Null it when the card
           prints no stroke index — many don't.
+        - A nine belonging to a multi-nine facility often prints its indexes in PAIRS
+          (9/10, 3/4): the first applies when this nine is played as the front of the
+          round, the second when it is the back. Take the first unless the course
+          context says this nine plays as the back, and note the notation in parseNotes.
+          Read both genders' rows this way — they pair independently.
         - `par` is 3-6 and is always required. Every scorecard prints a par for every
           hole; read it rather than leaving it out.
         - `holes[].name` is the printed hole name where the card gives one, else "".
@@ -163,6 +215,23 @@ class ScorecardSchema
           Tees carry only their printed Out/In/Total.
         - `units` is "yards" unless the card is in metres. Do NOT convert; report the
           printed numbers and set units to "metres".
+
+        Ratings printed for more than one course
+
+        A multi-nine facility prints ONE ratings block covering several eighteen-hole
+        pairings of its nines — EAST/SOUTH, SOUTH/WEST, WEST/EAST — while the yardage
+        card in front of you is a single nine. The tee names repeat in every section, so
+        the same tee carries a different rating and slope in each one, and no section
+        describes the nine on its own.
+
+        - When the course context names the pairing being read, use that section and
+          only that section.
+        - When there is no context, or no section matches it, leave `rating` and `slope`
+          null and reproduce every section verbatim in parseNotes.
+
+        Never merge sections, never average them, and never take the first one because
+        it is printed first. A rating attached to the wrong pairing is indistinguishable
+        from a correct one once stored, which makes guessing here worse than a blank.
 
         Combination tees
 

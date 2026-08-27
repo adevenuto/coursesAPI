@@ -44,11 +44,14 @@ class ScorecardParser
      * Parse one card from one or more images.
      *
      * @param  array<int, string>  $imagePaths  absolute paths to JPEG images
+     * @param  string  $context  who this card is being read for, from
+     *                           ScorecardSchema::courseContext(); "" when the
+     *                           scan has no course yet.
      * @return array{parse: array<string,mixed>, usage: array<string,mixed>}
      *
      * @throws RuntimeException on a truncated, refused or unusable response
      */
-    public function parse(array $imagePaths): array
+    public function parse(array $imagePaths, string $context = ''): array
     {
         if ($imagePaths === []) {
             throw new RuntimeException('A scorecard scan needs at least one image.');
@@ -64,7 +67,13 @@ class ScorecardParser
             );
         }
         // Instructions after the images: the model reads the card, then the rules.
+        // Context last of all: it only qualifies rules already stated, and a card
+        // that contradicts it should be reported rather than bent to fit.
         $content[] = TextBlockParam::with(text: ScorecardSchema::instructions());
+
+        if (trim($context) !== '') {
+            $content[] = TextBlockParam::with(text: $context);
+        }
 
         try {
             $message = $this->client->messages->create(

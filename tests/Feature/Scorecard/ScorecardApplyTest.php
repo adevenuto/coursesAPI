@@ -64,6 +64,40 @@ class ScorecardApplyTest extends TestCase
         ], $attributes));
     }
 
+    /**
+     * The model's notes were stored from the day the feature shipped and shown
+     * nowhere, so a rating left null on purpose — a card that rates eighteen-hole
+     * pairings this course isn't one of — reached the editor as an unexplained
+     * blank, indistinguishable from a misread.
+     */
+    public function test_the_review_page_shows_the_readers_notes(): void
+    {
+        $course = $this->course();
+        $editor = $this->editor();
+        $card = $this->card();
+        $card['parseNotes'] = 'RATINGS LEFT NULL: the block rates EAST/SOUTH, SOUTH/WEST and WEST/EAST only.';
+
+        $scan = $this->scanFor($course, $editor, $card);
+
+        $this->actingAs($editor)
+            ->get(route('scorecard-scans.show', $scan))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('scan.notes', $card['parseNotes']));
+    }
+
+    public function test_a_card_without_notes_reports_none(): void
+    {
+        $editor = $this->editor();
+        $card = $this->card();
+        $card['parseNotes'] = '   ';
+
+        $scan = $this->scanFor($this->course(), $editor, $card);
+
+        $this->actingAs($editor)
+            ->get(route('scorecard-scans.show', $scan))
+            ->assertInertia(fn ($page) => $page->where('scan.notes', null));
+    }
+
     public function test_the_preview_lists_sections_without_touching_the_course(): void
     {
         $course = $this->course();

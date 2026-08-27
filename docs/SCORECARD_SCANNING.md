@@ -83,7 +83,34 @@ ceiling is invisible locally (the SDK serializes an over-budget schema happily;
 only the API objects), so keep headroom when adding fields.
 
 `parseNotes` is the model's channel for anything the schema can't express — a
-sum that didn't reconcile, an illegible cell, a combination tee.
+sum that didn't reconcile, an illegible cell, a combination tee, a rating left
+null because the card rates pairings this course isn't one of. It surfaces on the
+review page as **Reader's notes**, beside the checks. It was stored and rendered
+nowhere until 2026-08-27, which meant a deliberate refusal to guess arrived at
+the editor as an unexplained blank — indistinguishable from a misread, and the
+reason a diagnosis that the notes stated outright took a full session to reach.
+
+**The prompt names the course being scanned.** One set of images can legitimately
+serve several courses: a multi-nine facility prints a single ratings block
+covering every eighteen-hole pairing of its nines (`EAST/SOUTH`, `SOUTH/WEST`,
+`WEST/EAST`), and any one nine's yardage card belongs to two of those pairings.
+The tee names repeat in every section with different numbers, so without knowing
+the target course the model has to guess which section applies — and it guesses
+differently from one run to the next. The same two images of Monterey Country
+Club returned full ratings with null stroke indexes on one call, and null
+ratings with stroke indexes on another.
+
+`ScorecardSchema::courseContext()` builds that block from the scan's course
+(name, club, hole count) and `ParseScorecardScan` passes it to the parser. It is
+scoped to identity, not content: feeding the stored layout back in would invite
+the model to agree with what's already there, and the point of a scan is to read
+the card. A scan with no course yet sends no block, and the instructions then
+require ratings to be left null and every section reproduced in `parseNotes`
+rather than one being picked.
+
+Consequently **`content_hash` is keyed by course as well as image bytes.** The
+parse is no longer a pure function of the images, and the reuse path would
+otherwise hand the second course the first one's ratings.
 
 ### Verify
 

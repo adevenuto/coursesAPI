@@ -118,6 +118,32 @@ class ScorecardUploadTest extends TestCase
         $this->assertCount(1, $hashes);
     }
 
+    /**
+     * The parse is no longer a pure function of the images: the prompt names the
+     * course being read so the model can pick the right section out of a ratings
+     * block covering several pairings. A 27-hole facility's nine card belongs to
+     * two courses legitimately, so a hash keyed on bytes alone would hand the
+     * second course the first one's ratings via the reuse path.
+     */
+    public function test_the_same_card_hashes_differently_per_course(): void
+    {
+        $editor = $this->editor();
+        $courses = collect(['East/South', 'South/West'])->map(fn (string $name) => Course::create([
+            'course_name' => $name,
+            'club_name' => 'Monterey Country Club',
+            'layout_data' => ['hole_count' => 18, 'teeboxes' => []],
+        ]));
+
+        foreach ($courses as $course) {
+            $this->actingAs($editor)->post('/scorecard-scans', [
+                'images' => [UploadedFile::fake()->image('card.jpg', 900, 600)],
+                'course_id' => $course->id,
+            ]);
+        }
+
+        $this->assertCount(2, ScorecardScan::pluck('content_hash')->unique());
+    }
+
     public function test_upload_validation_rejects_bad_input(): void
     {
         $editor = $this->editor();
