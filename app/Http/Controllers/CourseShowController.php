@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Support\TeeColor;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,6 +28,8 @@ class CourseShowController extends Controller
 
         $this->head($course);
 
+        $mapsKey = (string) config('services.google.places_key');
+
         return Inertia::render('CourseShow', [
             'canEdit' => (bool) request()->user()?->canEditCourses(),
             'course' => [
@@ -45,8 +48,35 @@ class CourseShowController extends Controller
                         : null,
                 ],
                 'coordinates' => ['latitude' => $course->lat, 'longitude' => $course->lng],
-                'scorecard' => $course->scorecard,
+                'scorecard' => self::scorecardWithTeeColours($course),
                 'green_centers_available' => $course->hasGreenCenters(),
+            ],
+            // The extent of the course, for framing the map.
+            //
+            // Deliberately the bounding box and not the green centers it is
+            // derived from: this page is public, anything handed to it is
+            // readable in the Inertia payload, and per-hole green GPS is the
+            // one thing EnsurePremium gates on the API. Four numbers frame the
+            // map just as well and give away an outline a satellite view
+            // already shows.
+            'bounds' => self::greenBounds($course),
+            // Other routings of the same club first, then genuine neighbours.
+            // Public-safe: names, hole counts and distances, no green GPS.
+            'nearby' => $course->nearbyCourses(),
+            // Browser key, referer-restricted (see config/services.php). The map
+            // is loaded lazily client-side, so an unset key degrades to the
+            // printed coordinates rather than a broken frame.
+            'maps' => [
+                'key' => $mapsKey,
+                'configured' => filled($mapsKey),
+            ],
+            // Tee colours are resolved from the tee name rather than stored on
+            // the scorecard, the same way the editor and the scan pipeline do
+            // it. Shipping the vocabulary keeps one authority in PHP.
+            'teeColors' => [
+                'palette' => TeeColor::palette(),
+                'vocabulary' => TeeColor::vocabulary(),
+                'ignore' => TeeColor::ignored(),
             ],
         ]);
     }
@@ -109,5 +139,64 @@ class CourseShowController extends Controller
         }
 
         return $sentence.' '.implode(', ', $has).' — free via the GCA golf course API.';
+    }
+
+    /**
+     * The public scorecard plus each tee's stored colour.
+     *
+     * Merged here rather than added to Course::scorecard, because that accessor
+     * is what CourseDetailResource returns: widening it would change the API
+     * payload and stale every captured example in the docs. The page needs the
+     * colour only to draw a swatch, so it stays a page concern.
+     *
+     * Zipped by index — getScorecardAttribute() walks layout_data['teeboxes'] in
+     * order, so position i means the same tee in both lists.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function scorecardWithTeeColours(Course $course): ?array
+    {
+        $scorecard = $course->scorecard;
+
+        if ($scorecard === null) {
+            return null;
+        }
+
+        $stored = array_values(is_array($course->layout_data) ? ($course->layout_data['teeboxes'] ?? []) : []);
+
+        $scorecard['teeboxes'] = array_map(
+            fn (array $tee, int $i) => $tee + [
+                'color' => $stored[$i]['color'] ?? null,
+                'secondary_color' => $stored[$i]['secondaryColor'] ?? null,
+            ],
+            $scorecard['teeboxes'],
+            array_keys($scorecard['teeboxes']),
+        );
+
+        return $scorecard;
+    }
+
+    /**
+     * Bounding box of the course's mapped greens, or null when it has none.
+     *
+     * @return array{min_lat:float,max_lat:float,min_lng:float,max_lng:float}|null
+     */
+    private static function greenBounds(Course $course): ?array
+    {
+        $greens = $course->green_centers;
+
+        if (! $greens) {
+            return null;
+        }
+
+        $lats = array_column($greens, 'lat');
+        $lngs = array_column($greens, 'lng');
+
+        return [
+            'min_lat' => min($lats),
+            'max_lat' => max($lats),
+            'min_lng' => min($lngs),
+            'max_lng' => max($lngs),
+        ];
     }
 }

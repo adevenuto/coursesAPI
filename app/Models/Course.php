@@ -242,6 +242,9 @@ class Course extends Model
                 'distance_mi' => round(((float) $c->distance_km) * 0.621371, 1),
                 'same_club' => $club !== '' && trim((string) $c->club_name) === $club,
                 'edit_url' => '/courses/'.$c->id.'/edit',
+                // The public link too: this list is now rendered on the course
+                // page as well as the editor, and the two want different targets.
+                'url' => '/courses/'.$c->id.'/'.$c->urlSlug(),
             ])->all()];
     }
 
