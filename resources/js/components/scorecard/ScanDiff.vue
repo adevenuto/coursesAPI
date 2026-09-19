@@ -27,11 +27,16 @@ export interface DiffSection {
     holes: DiffHole[];
 }
 
-const props = defineProps<{
-    scanId: number;
-    sections: DiffSection[];
-    isNew: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        scanId: number;
+        sections: DiffSection[];
+        isNew: boolean;
+        /** Range failures the editor approved, from ScanIssues via the page. */
+        approved?: string[];
+    }>(),
+    { approved: () => [] },
+);
 
 // Everything is accepted by default: the common case is a good parse, and the
 // editor is opting *out* of the parts that look wrong.
@@ -73,7 +78,7 @@ function apply() {
     processing.value = true;
     router.post(
         `/scorecard-scans/${props.scanId}/apply`,
-        { sections: accepted.value },
+        { sections: accepted.value, overrides: props.approved },
         { onFinish: () => (processing.value = false) },
     );
 }

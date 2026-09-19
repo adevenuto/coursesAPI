@@ -13,6 +13,26 @@ class CourseRatingTest extends TestCase
         $this->assertSame(CourseRating::MIN_NINE, CourseRating::min(6));
     }
 
+    /**
+     * Pinned to the number, not the constant: the other tests compare against
+     * MIN_FULL and would pass at any value, so nothing here would notice the
+     * floor drifting. 45 sits in the empty 40-45 band of the real distribution —
+     * above it is a course type (executive and par-3 eighteens), below it is a
+     * nine's rating on a tee counted as eighteen holes.
+     */
+    public function test_the_full_length_floor_sits_in_the_empty_band(): void
+    {
+        $this->assertSame(45.0, CourseRating::MIN_FULL);
+
+        // An executive eighteen rating 46 is storable; 44 is still an error.
+        $this->assertGreaterThanOrEqual(CourseRating::min(18), 46.0);
+        $this->assertLessThan(CourseRating::min(18), 44.0);
+
+        // The ceiling and the nine-hole floor are untouched by this.
+        $this->assertSame(80.0, CourseRating::MAX);
+        $this->assertSame(20.0, CourseRating::MIN_NINE);
+    }
+
     public function test_anything_longer_keeps_the_original_floor(): void
     {
         $this->assertSame(CourseRating::MIN_FULL, CourseRating::min(18));

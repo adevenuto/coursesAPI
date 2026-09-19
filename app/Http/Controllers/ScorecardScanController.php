@@ -142,7 +142,14 @@ class ScorecardScanController extends Controller
         $creating = $scan->course_id === null;
 
         try {
-            $course = $applier->apply($scan, $request->validated()['sections'], $request->user());
+            $validated = $request->validated();
+
+            $course = $applier->apply(
+                $scan,
+                $validated['sections'],
+                $request->user(),
+                $validated['overrides'] ?? [],
+            );
         } catch (\RuntimeException $e) {
             throw ValidationException::withMessages(['sections' => $e->getMessage()]);
         }

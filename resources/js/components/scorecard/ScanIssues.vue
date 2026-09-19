@@ -6,6 +6,8 @@ interface Issue {
     level: 'error' | 'warning';
     scope: string;
     message: string;
+    /** Present only on range failures — the single value this addresses. */
+    override?: string;
 }
 
 const props = defineProps<{
@@ -13,6 +15,20 @@ const props = defineProps<{
     unmapped: Array<{ label: string; detail: string }>;
     notes?: string | null;
 }>();
+
+/**
+ * Range failures the editor has approved.
+ *
+ * Owned by the page rather than here, because the apply request is posted from
+ * ScanDiff and these have to travel with it.
+ */
+const approved = defineModel<string[]>('approved', { default: () => [] });
+
+function approve(key: string, on: boolean) {
+    approved.value = on
+        ? [...new Set([...approved.value, key])]
+        : approved.value.filter((k) => k !== key);
+}
 
 const errors = computed(() => props.verification?.issues.filter((i) => i.level === 'error') ?? []);
 const warnings = computed(() => props.verification?.issues.filter((i) => i.level === 'warning') ?? []);
@@ -36,14 +52,35 @@ const notesOpen = ref(false);
             <div
                 v-for="(issue, i) in errors"
                 :key="`e${i}`"
-                class="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-fg"
+                class="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-fg"
             >
-                <XCircle class="mt-0.5 size-4 shrink-0 text-destructive" />
-                <span>{{ issue.message }}</span>
+                <div class="flex items-start gap-2">
+                    <XCircle class="mt-0.5 size-4 shrink-0 text-destructive" />
+                    <span>{{ issue.message }}</span>
+                </div>
+
+                <!-- Only range failures carry a key. A sum that doesn't
+                     reconcile has nothing to approve — the number is wrong, not
+                     merely unusual. -->
+                <label
+                    v-if="issue.override"
+                    class="mt-2 flex cursor-pointer items-start gap-2 border-t border-destructive/25 pt-2 pl-6 text-xs text-fg-muted"
+                >
+                    <input
+                        type="checkbox"
+                        class="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-lime-500"
+                        :checked="approved.includes(issue.override)"
+                        @change="approve(issue.override, ($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>
+                        Store this value as read — the card is official.
+                        <span class="text-fg-subtle">It's kept exactly as printed, not corrected.</span>
+                    </span>
+                </label>
             </div>
             <p class="text-xs text-fg-subtle">
                 These numbers don't add up. Check them against the card before accepting the sections they affect —
-                a value that can't be stored is left out rather than saved wrong.
+                a value that can't be stored is left out rather than saved wrong, unless you approve it above.
             </p>
         </div>
 

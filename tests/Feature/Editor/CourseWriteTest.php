@@ -247,6 +247,88 @@ class CourseWriteTest extends TestCase
         $this->assertSame(7000, $tee['totalYardage']);
     }
 
+    /**
+     * A value can be out of range and still correct — a par-3 eighteen rating
+     * below the floor, or a figure approved off an official card during a scan.
+     * Re-validating it on every save made the course unsaveable until someone
+     * cleared a number that was never wrong; 103 courses were in that state.
+     */
+    public function test_a_stored_out_of_range_rating_survives_a_save(): void
+    {
+        $this->seedGeoNear();
+
+        $course = Course::create([
+            'course_name' => 'Executive Eighteen',
+            'lat' => 40.0, 'lng' => -90.0,
+            'layout_data' => [
+                'hole_count' => 18,
+                'teeboxes' => [[
+                    'name' => 'Blue',
+                    'courseRating' => 41.2, // an eighteen; the floor is 45
+                    'slope' => 201,
+                    'holes' => [],
+                ]],
+            ],
+        ]);
+
+        $payload = $this->payload(['course_name' => 'Executive Eighteen']);
+        $payload['teeboxes'][0]['courseRating'] = 41.2;
+        $payload['teeboxes'][0]['slope'] = 201;
+        $payload['teeboxes'][0]['holes'] = array_map(
+            fn (int $n) => ['hole' => $n, 'par' => 4, 'length' => 400, 'handicap' => $n],
+            range(1, 18),
+        );
+
+        $this->actingAs($this->editor())
+            ->put("/courses/{$course->id}", $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $tee = $course->fresh()->layout_data['teeboxes'][0];
+        $this->assertSame(41.2, $tee['courseRating']);
+        $this->assertSame(201, $tee['slope']);
+    }
+
+    public function test_a_newly_typed_out_of_range_rating_is_still_rejected(): void
+    {
+        $this->seedGeoNear();
+
+        $course = Course::create([
+            'course_name' => 'Ordinary Course',
+            'lat' => 40.0, 'lng' => -90.0,
+            'layout_data' => ['hole_count' => 18, 'teeboxes' => []],
+        ]);
+
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['courseRating'] = 12.3; // below even the nine-hole floor
+
+        $this->actingAs($this->editor())
+            ->put("/courses/{$course->id}", $payload)
+            ->assertSessionHasErrors('teeboxes.0.courseRating');
+    }
+
+    /**
+     * Nothing is stored on a new course, so there is nothing to grandfather and
+     * the bound stays strict. The tee needs a full eighteen holes for the
+     * full-length floor to apply at all — a short tee is bounded as a nine,
+     * where 41.2 is perfectly ordinary.
+     */
+    public function test_a_new_course_keeps_the_strict_bound(): void
+    {
+        $this->seedGeoNear();
+
+        $payload = $this->payload();
+        $payload['teeboxes'][0]['courseRating'] = 41.2;
+        $payload['teeboxes'][0]['holes'] = array_map(
+            fn (int $n) => ['hole' => $n, 'par' => 4, 'length' => 400, 'handicap' => $n],
+            range(1, 18),
+        );
+
+        $this->actingAs($this->editor())
+            ->post('/courses', $payload)
+            ->assertSessionHasErrors('teeboxes.0.courseRating');
+    }
+
     public function test_update_preserves_vendor_keys_like_golftraxx(): void
     {
         $this->seedGeoNear();

@@ -2,6 +2,7 @@
 
 namespace App\Concerns;
 
+use App\Models\Course;
 use App\Support\CourseRating;
 use Closure;
 use Illuminate\Support\Str;
@@ -44,8 +45,8 @@ trait CourseValidationRules
             'teeboxes.*.name' => ['required', 'string', 'max:60'],
             'teeboxes.*.color' => ['nullable', $hex],
             'teeboxes.*.secondaryColor' => ['nullable', $hex],
-            'teeboxes.*.slope' => ['nullable', 'integer', 'between:55,155'],
-            'teeboxes.*.slopeWomen' => ['nullable', 'integer', 'between:55,155'],
+            'teeboxes.*.slope' => ['nullable', 'integer', $this->slopeRule()],
+            'teeboxes.*.slopeWomen' => ['nullable', 'integer', $this->slopeRule()],
             'teeboxes.*.courseRating' => ['nullable', 'numeric', $this->ratingRule()],
             'teeboxes.*.courseRatingWomen' => ['nullable', 'numeric', $this->ratingRule()],
             // Derived from the per-hole yards (up to 36 holes × 900), so the cap
@@ -78,9 +79,75 @@ trait CourseValidationRules
 
             $min = CourseRating::min(CourseRating::playedHoles($holes));
 
-            if ((float) $value < $min || (float) $value > CourseRating::MAX) {
-                $fail(sprintf('The :attribute field must be between %s and %s.', $min, CourseRating::MAX));
+            if ((float) $value >= $min && (float) $value <= CourseRating::MAX) {
+                return;
             }
+
+            if ($this->alreadyStored($attribute, $value)) {
+                return;
+            }
+
+            $fail(sprintf('The :attribute field must be between %s and %s.', $min, CourseRating::MAX));
         };
+    }
+
+    /**
+     * The same treatment for slope, which was a flat `between:55,155`.
+     */
+    protected function slopeRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if ((float) $value >= 55 && (float) $value <= 155) {
+                return;
+            }
+
+            if ($this->alreadyStored($attribute, $value)) {
+                return;
+            }
+
+            $fail('The :attribute field must be between 55 and 155.');
+        };
+    }
+
+    /**
+     * Is this exact value already on the course for this field?
+     *
+     * A value can be out of range and still correct — a par-3 eighteen rating
+     * 50.4, or a figure an editor approved off an official card during a scan.
+     * Once stored, re-validating it on every save would make the course
+     * unsaveable until someone cleared a number that was never wrong. 103
+     * courses are in that state today.
+     *
+     * So the bound applies to what an editor is *changing*, not to what is
+     * already there. Matching on the value rather than on the tee's position is
+     * deliberate: tees can be reordered, renamed and deleted between loads, so
+     * an index is not a stable identity — but a value that is already in this
+     * course's layout_data for this field cannot be smuggled in by an edit.
+     *
+     * A course being created has nothing stored, so it stays strict.
+     */
+    private function alreadyStored(string $attribute, mixed $value): bool
+    {
+        $course = $this->route('course');
+
+        if (! $course instanceof Course) {
+            return false;
+        }
+
+        $field = Str::afterLast($attribute, '.');
+        $data = is_array($course->layout_data) ? $course->layout_data : [];
+
+        foreach ($data['teeboxes'] ?? [] as $tee) {
+            $stored = $tee[$field] ?? null;
+
+            // Gendered values are stored as a scalar or a [men, women] pair.
+            foreach (is_array($stored) ? $stored : [$stored] as $candidate) {
+                if ($candidate !== null && $candidate !== '' && (float) $candidate === (float) $value) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

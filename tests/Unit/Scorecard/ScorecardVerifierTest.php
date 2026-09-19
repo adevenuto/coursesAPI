@@ -218,7 +218,7 @@ class ScorecardVerifierTest extends TestCase
 
         $this->assertFalse($result['passed']);
         $this->assertStringContainsString(
-            'course rating of 33.6 is outside the storable range (55–80)',
+            'course rating of 33.6 is outside the storable range (45–80)',
             $this->messages($result, 'error')[0],
         );
     }
@@ -243,5 +243,42 @@ class ScorecardVerifierTest extends TestCase
 
         $this->assertFalse($result['passed']);
         $this->assertStringContainsString('more than once', $this->messages($result, 'error')[0]);
+    }
+
+    /**
+     * A range failure is a value an editor may legitimately overrule; a sum that
+     * doesn't reconcile is not. Only the first gets a key, and that key is what
+     * ScorecardApplier stops clamping.
+     */
+    public function test_only_range_failures_carry_an_override_key(): void
+    {
+        $card = $this->card();
+        $card['tees'][0]['rating']['men'] = 41.2;   // range failure
+        $card['tees'][0]['yardage']['out'] = 99999; // a sum that cannot reconcile
+
+        $issues = $this->verifier->verify($card)['issues'];
+        $errors = array_values(array_filter($issues, fn ($i) => $i['level'] === 'error'));
+
+        $keyed = array_values(array_filter($errors, fn ($i) => isset($i['override'])));
+        $unkeyed = array_values(array_filter($errors, fn ($i) => ! isset($i['override'])));
+
+        $this->assertNotSame([], $keyed, 'the rating should be overridable');
+        $this->assertNotSame([], $unkeyed, 'the reconciliation failure should not be');
+
+        $teeId = $card['tees'][0]['id'];
+        $this->assertContains("tee:{$teeId}:courseRating", array_column($keyed, 'override'));
+    }
+
+    public function test_a_womens_rating_keys_its_own_field(): void
+    {
+        $card = $this->card();
+        $card['tees'][0]['rating']['women'] = 41.2;
+
+        $issues = $this->verifier->verify($card)['issues'];
+        $keys = array_column(array_filter($issues, fn ($i) => isset($i['override'])), 'override');
+
+        $teeId = $card['tees'][0]['id'];
+        $this->assertContains("tee:{$teeId}:courseRatingWomen", $keys);
+        $this->assertNotContains("tee:{$teeId}:courseRating", $keys);
     }
 }

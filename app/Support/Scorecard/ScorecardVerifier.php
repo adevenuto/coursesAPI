@@ -337,14 +337,25 @@ class ScorecardVerifier
         // long the card is or every correctly read nine-hole rating is an error.
         $minRating = CourseRating::min(count($holes));
 
+        // Named here so a yardage issue further down can say which tee it means.
+        $teeNames = [];
+        foreach ($tees as $tee) {
+            $teeNames[(int) ($tee['id'] ?? 0)] = (string) ($tee['name'] ?? '');
+        }
+
         foreach ($tees as $tee) {
             $id = (int) ($tee['id'] ?? 0);
             $name = (string) ($tee['name'] ?? "tee {$id}");
 
             foreach (['men', 'women'] as $gender) {
+                // The mapped field this gender writes to, so the key the editor
+                // ticks is the field the applier stops clamping.
+                $ratingField = $gender === 'men' ? 'courseRating' : 'courseRatingWomen';
+                $slopeField = $gender === 'men' ? 'slope' : 'slopeWomen';
+
                 $rating = $tee['rating'][$gender] ?? null;
                 if ($rating !== null && ($rating < $minRating || $rating > CourseRating::MAX)) {
-                    $issues[] = self::error("tee:{$id}", sprintf(
+                    $issues[] = self::overridable("tee:{$id}", "tee:{$id}:{$ratingField}", sprintf(
                         '%s: a course rating of %s is outside the storable range (%s–%s).',
                         $name, $rating, $minRating, CourseRating::MAX
                     ));
@@ -352,7 +363,7 @@ class ScorecardVerifier
 
                 $slope = $tee['slope'][$gender] ?? null;
                 if ($slope !== null && ($slope < 55 || $slope > 155)) {
-                    $issues[] = self::error("tee:{$id}", sprintf(
+                    $issues[] = self::overridable("tee:{$id}", "tee:{$id}:{$slopeField}", sprintf(
                         '%s: a slope of %s is outside the storable range (55–155).', $name, $slope
                     ));
                 }
@@ -365,7 +376,7 @@ class ScorecardVerifier
             foreach (['men', 'women'] as $gender) {
                 $par = $hole['par'][$gender] ?? null;
                 if ($par !== null && ($par < 3 || $par > 6)) {
-                    $issues[] = self::error("hole:{$number}", sprintf(
+                    $issues[] = self::overridable("hole:{$number}", "hole:{$number}:par", sprintf(
                         'Hole %d has a par of %s, outside the storable range (3–6).', $number, $par
                     ));
                 }
@@ -374,9 +385,20 @@ class ScorecardVerifier
             foreach ($hole['yardages'] ?? [] as $yardage) {
                 $yards = $yardage['yards'] ?? null;
                 if ($yards !== null && ($yards < 30 || $yards > 900)) {
-                    $issues[] = self::error("hole:{$number}", sprintf(
-                        'Hole %d has a yardage of %s, outside the storable range (30–900).', $number, $yards
-                    ));
+                    // Yardage is per tee per hole, so the key names the tee.
+                    // Without it, accepting one bad yardage would accept every
+                    // tee's yardage on that hole.
+                    $teeId = (int) ($yardage['teeId'] ?? 0);
+                    $teeName = $teeNames[$teeId] ?? "tee {$teeId}";
+
+                    $issues[] = self::overridable(
+                        "hole:{$number}",
+                        "tee:{$teeId}:hole:{$number}:length",
+                        sprintf(
+                            'Hole %d from %s has a yardage of %s, outside the storable range (30–900).',
+                            $number, $teeName, $yards
+                        )
+                    );
                 }
             }
         }
@@ -461,6 +483,24 @@ class ScorecardVerifier
     private static function error(string $scope, string $message): array
     {
         return ['level' => 'error', 'scope' => $scope, 'message' => $message];
+    }
+
+    /**
+     * An error an editor is allowed to overrule.
+     *
+     * Only values that failed a *range* check get one. A sum that doesn't
+     * reconcile or a stroke-index sequence with a gap is a reading problem, and
+     * approving it would store something the card doesn't say — whereas a rating
+     * of 50.4 on a par-3 eighteen is simply correct and outside a bound.
+     *
+     * `$key` addresses the single value, so approving one tee's rating cannot
+     * un-clamp another's. ScorecardApplier resolves it back to a mapped field.
+     *
+     * @return array{level: string, scope: string, message: string, override: string}
+     */
+    private static function overridable(string $scope, string $key, string $message): array
+    {
+        return self::error($scope, $message) + ['override' => $key];
     }
 
     /**

@@ -21,6 +21,8 @@ interface VerificationIssue {
     level: 'error' | 'warning';
     scope: string;
     message: string;
+    /** Present only on range failures — the single value it addresses. */
+    override?: string;
 }
 interface Scan {
     id: number;
@@ -85,6 +87,10 @@ const canParse = computed(
         || wasInterrupted.value,
 );
 const hasParsed = computed(() => props.scan?.status === 'parsed');
+
+// Range failures the editor approved. Held here because ScanIssues raises them
+// and ScanDiff posts them, and neither is the other's parent.
+const approvedOverrides = ref<string[]>([]);
 
 function parse() {
     if (!props.scan) return;
@@ -259,6 +265,7 @@ function discard() {
                 <!-- Verification findings + what the card carried that a course can't hold -->
                 <ScanIssues
                     v-if="hasParsed && diff"
+                    v-model:approved="approvedOverrides"
                     :verification="scan?.verification ?? null"
                     :unmapped="diff.unmapped"
                     :notes="scan?.notes ?? null"
@@ -270,6 +277,7 @@ function discard() {
                     :scan-id="scan.id"
                     :sections="diff.sections"
                     :is-new="diff.is_new"
+                    :approved="approvedOverrides"
                 />
             </div>
         </div>

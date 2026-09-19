@@ -32,7 +32,11 @@ class ScorecardApplier
     /**
      * @param  array<int, string>  $sections  accepted section keys
      */
-    public function apply(ScorecardScan $scan, array $sections, User $editor): Course
+    /**
+     * @param  array<int, string>  $sections  diff sections the editor accepted
+     * @param  array<int, string>  $overrides  range-check keys the editor approved
+     */
+    public function apply(ScorecardScan $scan, array $sections, User $editor, array $overrides = []): Course
     {
         $parse = $scan->parsed();
 
@@ -41,6 +45,12 @@ class ScorecardApplier
         }
 
         $mapped = $this->mapper->map($parse);
+
+        // The verifier keys overrides by the parse's tee id; mapped teeboxes are
+        // positional. Resolve here rather than carrying the id on the mapped
+        // shape — mapped teeboxes are written straight into layout_data, so an
+        // extra key would leak into stored data and into every diff.
+        $approved = self::approvedByTeeIndex($parse, $overrides);
         $course = $scan->course ?? new Course;
         $before = $course->exists ? $course->forEditor() : [];
 
@@ -71,7 +81,7 @@ class ScorecardApplier
             'hole_count' => $accepted('layout')
                 ? $mapped['hole_count']
                 : ($before['hole_count'] ?? null),
-            'teeboxes' => $this->mergeTeeboxes($before['teeboxes'] ?? [], $mapped['teeboxes'], $sections),
+            'teeboxes' => $this->mergeTeeboxes($before['teeboxes'] ?? [], $mapped['teeboxes'], $sections, $approved),
             'green_centers' => $before['green_centers'] ?? [],
         ];
 
@@ -89,7 +99,7 @@ class ScorecardApplier
      * @param  array<int, string>  $sections
      * @return array<int, array<string, mixed>>
      */
-    private function mergeTeeboxes(array $existing, array $scanned, array $sections): array
+    private function mergeTeeboxes(array $existing, array $scanned, array $sections, array $approved = []): array
     {
         $result = $existing;
 
@@ -98,7 +108,7 @@ class ScorecardApplier
                 continue; // rejected — leave whatever the course already had
             }
 
-            $tee = $this->storable($tee);
+            $tee = $this->storable($tee, $approved[$i] ?? []);
             $match = ScorecardDiff::matchTee($result, (string) $tee['name']);
 
             if ($match === null) {
@@ -153,20 +163,42 @@ class ScorecardApplier
      * @param  array<string, mixed>  $tee
      * @return array<string, mixed>
      */
-    private function storable(array $tee): array
+    private function storable(array $tee, array $approved = []): array
     {
         // Bounded against this tee's own hole count: a nine's ratings sit far
         // below an eighteen's, and nulling them would drop correct figures.
         $minRating = CourseRating::min(CourseRating::playedHoles($tee['holes']));
 
-        $tee['courseRating'] = self::within($tee['courseRating'], $minRating, CourseRating::MAX);
-        $tee['courseRatingWomen'] = self::within($tee['courseRatingWomen'], $minRating, CourseRating::MAX);
-        $tee['slope'] = self::within($tee['slope'], 55, 155);
-        $tee['slopeWomen'] = self::within($tee['slopeWomen'], 55, 155);
+        // An approved field keeps whatever the card said. Everything else is
+        // clamped exactly as before, so approving a rating does not quietly
+        // wave through a misread yardage on the same tee.
+        $keep = fn (string $field) => in_array($field, $approved, true);
 
-        $tee['holes'] = array_map(function (array $hole) {
-            $hole['par'] = self::within($hole['par'], 3, 6);
-            $hole['length'] = self::within($hole['length'], 30, 900);
+        if (! $keep('courseRating')) {
+            $tee['courseRating'] = self::within($tee['courseRating'], $minRating, CourseRating::MAX);
+        }
+        if (! $keep('courseRatingWomen')) {
+            $tee['courseRatingWomen'] = self::within($tee['courseRatingWomen'], $minRating, CourseRating::MAX);
+        }
+        if (! $keep('slope')) {
+            $tee['slope'] = self::within($tee['slope'], 55, 155);
+        }
+        if (! $keep('slopeWomen')) {
+            $tee['slopeWomen'] = self::within($tee['slopeWomen'], 55, 155);
+        }
+
+        $tee['holes'] = array_map(function (array $hole) use ($keep) {
+            $number = (int) ($hole['hole'] ?? 0);
+
+            if (! $keep("hole:{$number}:par")) {
+                $hole['par'] = self::within($hole['par'], 3, 6);
+            }
+            if (! $keep("hole:{$number}:length")) {
+                $hole['length'] = self::within($hole['length'], 30, 900);
+            }
+
+            // Stroke index is never range-flagged by the verifier, so there is
+            // nothing for an editor to have approved here.
             $hole['handicap'] = self::within($hole['handicap'], 1, 36);
             $hole['handicapWomen'] = self::within($hole['handicapWomen'], 1, 36);
 
@@ -174,6 +206,59 @@ class ScorecardApplier
         }, $tee['holes']);
 
         return $tee;
+    }
+
+    /**
+     * Regroup the editor's approved keys by mapped teebox index.
+     *
+     * Keys arrive addressed the way the verifier writes them —
+     * `tee:{id}:courseRating`, `tee:{id}:hole:{n}:length`, `hole:{n}:par` — where
+     * the id is the parse's own tee ordinal. Mapped teeboxes are positional, so
+     * the parse is the only thing that can relate the two.
+     *
+     * A bare `hole:{n}:par` has no tee in it (par is read once per card), so it
+     * applies to every accepted tee.
+     *
+     * @param  array<string, mixed>  $parse
+     * @param  array<int, string>  $overrides
+     * @return array<int, array<int, string>> mapped tee index => approved fields
+     */
+    private static function approvedByTeeIndex(array $parse, array $overrides): array
+    {
+        if ($overrides === []) {
+            return [];
+        }
+
+        $indexById = [];
+        foreach (array_values($parse['tees'] ?? []) as $i => $tee) {
+            $indexById[(int) ($tee['id'] ?? 0)] = $i;
+        }
+
+        $shared = [];
+        $byIndex = [];
+
+        foreach ($overrides as $key) {
+            if (preg_match('/^tee:(\d+):(.+)$/', (string) $key, $m)) {
+                $index = $indexById[(int) $m[1]] ?? null;
+                if ($index !== null) {
+                    $byIndex[$index][] = $m[2];
+                }
+
+                continue;
+            }
+
+            if (preg_match('/^hole:\d+:(?:par)$/', (string) $key)) {
+                $shared[] = (string) $key;
+            }
+        }
+
+        if ($shared !== []) {
+            foreach ($indexById as $index) {
+                $byIndex[$index] = array_merge($byIndex[$index] ?? [], $shared);
+            }
+        }
+
+        return $byIndex;
     }
 
     private static function within(mixed $value, float $min, float $max): mixed

@@ -138,6 +138,71 @@ class ScorecardApplyTest extends TestCase
         $this->assertSame('4', ((array) $teeboxes[0]['holes'])['hole-1']['par']);
     }
 
+    /**
+     * The reported case: an official card prints a rating the bound rejects, and
+     * the value is silently dropped on the way in. Without an approval it still
+     * is — the guard is what catches a dropped decimal.
+     */
+    public function test_an_out_of_range_rating_is_still_dropped_without_approval(): void
+    {
+        $course = $this->course();
+        $editor = $this->editor();
+        $card = $this->card();
+        $card['tees'][0]['rating']['men'] = 41.2; // an eighteen; floor is 45
+
+        $scan = $this->scanFor($course, $editor, $card);
+
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/apply", ['sections' => ['tee:0']]);
+
+        $this->assertNull($course->refresh()->layout_data['teeboxes'][0]['courseRating']);
+    }
+
+    public function test_an_approved_rating_is_stored_as_read(): void
+    {
+        $course = $this->course();
+        $editor = $this->editor();
+        $card = $this->card();
+        $card['tees'][0]['rating']['men'] = 41.2;
+
+        $scan = $this->scanFor($course, $editor, $card);
+        $teeId = $card['tees'][0]['id'];
+
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/apply", [
+            'sections' => ['tee:0'],
+            'overrides' => ["tee:{$teeId}:courseRating"],
+        ]);
+
+        $this->assertSame(41.2, $course->refresh()->layout_data['teeboxes'][0]['courseRating']);
+    }
+
+    /**
+     * An approval addresses one value. Accepting a rating must not also wave
+     * through a slope on the same tee, or a rating on a different one.
+     */
+    public function test_an_approval_does_not_spread_to_other_values(): void
+    {
+        $course = $this->course();
+        $editor = $this->editor();
+        $card = $this->card();
+        $card['tees'][0]['rating']['men'] = 41.2;
+        $card['tees'][0]['slope'] = ['men' => 201, 'women' => null];
+        $card['tees'][1]['rating']['men'] = 42.7;
+
+        $scan = $this->scanFor($course, $editor, $card);
+        $teeId = $card['tees'][0]['id'];
+
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/apply", [
+            'sections' => ['tee:0', 'tee:1'],
+            'overrides' => ["tee:{$teeId}:courseRating"],
+        ]);
+
+        $teeboxes = $course->refresh()->layout_data['teeboxes'];
+
+        $this->assertSame(41.2, $teeboxes[0]['courseRating']); // approved
+        $this->assertNull($teeboxes[0]['slope']);              // same tee, not approved
+        $this->assertNull($teeboxes[1]['courseRating']);       // other tee, not approved
+    }
+
     public function test_rejecting_a_tee_leaves_the_existing_one_untouched(): void
     {
         $course = $this->course(['layout_data' => [

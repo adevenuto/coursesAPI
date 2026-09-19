@@ -15,6 +15,14 @@ namespace App\Support;
  * The bound exists to catch a misread digit (a dropped decimal, a slope landing
  * in the rating column), not to enforce golf orthodoxy, so it is deliberately
  * loose within each band.
+ *
+ * The full-length floor is 45 rather than the 55 it started at. Executive and
+ * par-3 eighteens rate well under 55 and are not misreads — 93 of the 130
+ * rejected values in this database sit between 45 and 55. Below 45 the
+ * population changes completely: there are no values at all between 40 and 45,
+ * and everything under 40 is a nine's rating sitting on a tee counted as
+ * eighteen holes. The floor is placed in that empty band on purpose, so it
+ * clears the course type without swallowing the error.
  */
 final class CourseRating
 {
@@ -23,8 +31,8 @@ final class CourseRating
     /** Floor for a nine or shorter. */
     public const MIN_NINE = 20.0;
 
-    /** Floor for anything longer, unchanged from the original rule. */
-    public const MIN_FULL = 55.0;
+    /** Floor for anything longer. See the class docblock for why it is 45. */
+    public const MIN_FULL = 45.0;
 
     public static function min(int $holes): float
     {
