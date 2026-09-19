@@ -67,6 +67,8 @@ class ScorecardApplier
             );
         }
 
+        $teeboxes = $this->mergeTeeboxes($before['teeboxes'] ?? [], $mapped['teeboxes'], $sections, $approved);
+
         $attributes = [
             'course_name' => $name,
             'club_name' => $before['club_name'] ?? null,
@@ -79,9 +81,13 @@ class ScorecardApplier
             'lat' => $before['lat'] ?? null,
             'lng' => $before['lng'] ?? null,
             'hole_count' => $accepted('layout')
-                ? $mapped['hole_count']
+                // Never below what the merged tees actually hold. The card's own
+                // count describes the card — a nine-hole card applied to an
+                // eighteen would otherwise leave the course claiming to be a nine
+                // while still storing eighteen holes of yardage.
+                ? max((int) ($mapped['hole_count'] ?? 0), self::holesCovered($teeboxes)) ?: null
                 : ($before['hole_count'] ?? null),
-            'teeboxes' => $this->mergeTeeboxes($before['teeboxes'] ?? [], $mapped['teeboxes'], $sections, $approved),
+            'teeboxes' => $teeboxes,
             'green_centers' => $before['green_centers'] ?? [],
         ];
 
@@ -143,15 +149,38 @@ class ScorecardApplier
             $currentHoles[(int) $hole['hole']] = $hole;
         }
 
-        $merged['holes'] = array_map(function (array $hole) use ($currentHoles) {
-            $was = $currentHoles[(int) $hole['hole']] ?? [];
+        $incomingHoles = [];
+        foreach ($incoming['holes'] as $hole) {
+            $incomingHoles[(int) $hole['hole']] = $hole;
+        }
+
+        // Walk the union, not the card.
+        //
+        // A card covers what it covers: one nine of a facility that prints per-nine
+        // cards is a nine-hole scan applied to an eighteen-hole course. Mapping over
+        // the incoming holes alone made the result exactly as long as the scan, so
+        // holes 10-18 were not merged, not blanked, simply absent — 54 holes of
+        // yardage, par and stroke index dropped from a six-tee course in one apply,
+        // with nothing in the preview to say so.
+        //
+        // A scan says what it saw. It does not get to assert what isn't there.
+        $numbers = array_unique([...array_keys($incomingHoles), ...array_keys($currentHoles)]);
+        sort($numbers);
+
+        $holes = [];
+        foreach ($numbers as $number) {
+            $was = $currentHoles[$number] ?? [];
+            $hole = $incomingHoles[$number] ?? $was;
 
             foreach (['par', 'length', 'handicap', 'handicapWomen'] as $key) {
                 $hole[$key] = $hole[$key] ?? ($was[$key] ?? null);
             }
 
-            return $hole;
-        }, $incoming['holes']);
+            $hole['hole'] = $number;
+            $holes[] = $hole;
+        }
+
+        $merged['holes'] = $holes;
 
         return $merged;
     }
@@ -206,6 +235,24 @@ class ScorecardApplier
         }, $tee['holes']);
 
         return $tee;
+    }
+
+    /**
+     * The highest hole number any tee carries, which is what hole_count means.
+     *
+     * @param  array<int, array<string, mixed>>  $teeboxes
+     */
+    private static function holesCovered(array $teeboxes): int
+    {
+        $highest = 0;
+
+        foreach ($teeboxes as $tee) {
+            foreach ($tee['holes'] ?? [] as $hole) {
+                $highest = max($highest, (int) ($hole['hole'] ?? 0));
+            }
+        }
+
+        return $highest;
     }
 
     /**

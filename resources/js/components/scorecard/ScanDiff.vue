@@ -25,6 +25,8 @@ export interface DiffSection {
     counts: { added: number; changed: number; unchanged: number };
     fields: DiffField[];
     holes: DiffHole[];
+    /** Holes this tee already has that the card doesn't cover. Left untouched. */
+    untouched_holes?: number[];
 }
 
 const props = withDefaults(
@@ -54,6 +56,16 @@ function toggle(key: string, on: boolean | 'indeterminate') {
 
 function toggleAll() {
     accepted.value = allSelected.value ? [] : props.sections.map((s) => s.key);
+}
+
+/** "10-18", or "3, 7, 12" when the gap isn't contiguous. */
+function holeRange(holes: number[]): string {
+    const sorted = [...holes].sort((a, b) => a - b);
+    const contiguous = sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
+
+    return contiguous && sorted.length > 2
+        ? `${sorted[0]}-${sorted[sorted.length - 1]}`
+        : sorted.join(', ');
 }
 
 function toggleExpanded(key: string) {
@@ -170,6 +182,17 @@ function apply() {
                     </dl>
 
                     <TeeDiffGrid v-if="section.holes.length" class="mt-4" :holes="section.holes" />
+
+                    <!-- Says what the card does NOT reach. A per-nine card against
+                         an eighteen-hole tee shows nine rows above; without this
+                         there is no way to tell the rest is being left alone. -->
+                    <p
+                        v-if="section.untouched_holes?.length"
+                        class="mt-3 font-mono text-[11px] text-fg-subtle"
+                    >
+                        This card doesn't cover hole{{ section.untouched_holes.length === 1 ? '' : 's' }}
+                        {{ holeRange(section.untouched_holes) }} — left as they are on the course.
+                    </p>
                 </div>
             </li>
         </ul>

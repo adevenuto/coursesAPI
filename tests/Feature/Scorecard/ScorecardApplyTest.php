@@ -203,6 +203,97 @@ class ScorecardApplyTest extends TestCase
         $this->assertNull($teeboxes[1]['courseRating']);       // other tee, not approved
     }
 
+    /**
+     * A card covers what it covers. Applying one nine of a facility that prints
+     * per-nine cards used to leave the eighteen-hole course holding nine holes:
+     * the merge walked the incoming holes, so anything the card didn't mention
+     * was not merged, not blanked, simply gone — and the diff, built from the
+     * same incoming side, showed nothing about it.
+     */
+    public function test_a_short_card_does_not_delete_the_holes_it_never_saw(): void
+    {
+        $editor = $this->editor();
+
+        // An eighteen-hole course, one tee, holes 1-18 all carrying yardage.
+        $course = $this->course(['layout_data' => [
+            'hole_count' => 18,
+            'teeboxes' => [[
+                'name' => 'Black',
+                'holes' => collect(range(1, 18))
+                    ->mapWithKeys(fn (int $n) => ["hole-{$n}" => [
+                        'par' => 4, 'length' => 400 + $n, 'handicap' => $n,
+                    ]])->all(),
+            ]],
+        ]]);
+
+        // A card for the front nine only.
+        $card = $this->card();
+        $card['holes'] = array_values(array_filter(
+            $card['holes'],
+            fn (array $h) => (int) $h['number'] <= 9,
+        ));
+
+        $scan = $this->scanFor($course, $editor, $card);
+
+        $this->actingAs($editor)->post("/scorecard-scans/{$scan->id}/apply", [
+            'sections' => ['layout', 'tee:0'],
+        ]);
+
+        $fresh = $course->refresh()->forEditor();
+        $holes = $fresh['teeboxes'][0]['holes'];
+
+        $this->assertCount(18, $holes, 'the back nine must survive a front-nine card');
+        $this->assertSame(18, $fresh['hole_count'], 'a short card must not shrink the course');
+
+        // Holes the card never mentioned keep exactly what was stored.
+        $byNumber = collect($holes)->keyBy('hole');
+        $this->assertSame(410, $byNumber[10]['length']);
+        $this->assertSame(418, $byNumber[18]['length']);
+    }
+
+    /**
+     * The grid is built from the card, so a per-nine card shows nine rows against
+     * an eighteen-hole tee. The preview has to name what it isn't reaching, or
+     * the editor cannot tell the rest is being left alone.
+     */
+    public function test_the_preview_names_the_holes_the_card_does_not_cover(): void
+    {
+        $editor = $this->editor();
+        $course = $this->course(['layout_data' => [
+            'hole_count' => 18,
+            'teeboxes' => [[
+                'name' => 'Black',
+                'holes' => collect(range(1, 18))
+                    ->mapWithKeys(fn (int $n) => ["hole-{$n}" => [
+                        'par' => 4, 'length' => 400 + $n, 'handicap' => $n,
+                    ]])->all(),
+            ]],
+        ]]);
+
+        $card = $this->card();
+        $card['holes'] = array_values(array_filter(
+            $card['holes'],
+            fn (array $h) => (int) $h['number'] <= 9,
+        ));
+
+        $scan = $this->scanFor($course, $editor, $card);
+
+        $props = null;
+
+        $this->actingAs($editor)
+            ->get(route('scorecard-scans.show', $scan))
+            ->assertOk()
+            ->assertInertia(function ($page) use (&$props) {
+                $props = $page->toArray()['props'];
+            });
+
+        $tee = collect($props['diff']['sections'])->firstWhere('label', 'Black');
+
+        $this->assertNotNull($tee, 'the Black tee should appear in the diff');
+        $this->assertSame(range(10, 18), $tee['untouched_holes']);
+        $this->assertCount(9, $tee['holes'], 'the grid itself shows only what the card covers');
+    }
+
     public function test_rejecting_a_tee_leaves_the_existing_one_untouched(): void
     {
         $course = $this->course(['layout_data' => [

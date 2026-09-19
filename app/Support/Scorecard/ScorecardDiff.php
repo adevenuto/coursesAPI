@@ -175,6 +175,16 @@ class ScorecardDiff
         if ($section !== null) {
             $section['status'] = $existing === null ? 'new' : 'update';
             $section['color'] = $tee['color'];
+
+            // A card can cover fewer holes than the tee already has — one nine of
+            // a facility that prints per-nine cards. Those holes are left alone
+            // on apply, but this grid is built from the card, so without naming
+            // them the editor sees nine rows against an eighteen-hole tee with no
+            // way to tell whether the rest is about to be touched.
+            $section['untouched_holes'] = array_values(array_diff(
+                array_keys($existingHoles),
+                array_map(fn (array $h) => (int) $h['hole'], $holes),
+            ));
         }
 
         return $section;
