@@ -84,7 +84,7 @@ const facts = computed(() =>
 
         <!-- Hero -->
         <header class="aurora border-b border-line">
-            <div class="mx-auto max-w-[880px] px-5 py-10 sm:px-7">
+            <div class="mx-auto max-w-[1120px] px-5 py-10 sm:px-7">
                 <Link href="/explorer" class="inline-flex items-center gap-1.5 text-sm text-fg-muted transition hover:text-fg">
                     <ArrowLeft class="size-4" /> Back to explorer
                 </Link>
@@ -133,7 +133,7 @@ const facts = computed(() =>
             </div>
         </header>
 
-        <div class="mx-auto max-w-[880px] px-5 pb-14 sm:px-7">
+        <div class="mx-auto max-w-[1120px] px-5 pb-14 sm:px-7">
             <!-- Location + contact -->
             <div class="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2">
                 <div class="min-w-0">
