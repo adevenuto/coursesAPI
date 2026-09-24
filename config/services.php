@@ -47,6 +47,24 @@ return [
         'geocoding_key' => env('GOOGLE_GEOCODING_API_KEY', env('GOOGLE_MAPS_API_KEY')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | IP → country
+    |--------------------------------------------------------------------------
+    | Resolves the registering browser's address to a country code, once, at
+    | signup (App\Support\IpCountry). Unset by default and null-safe when unset,
+    | so local and CI registrations simply record no country.
+    |
+    | `{ip}` in the endpoint is substituted with the address. The default shape
+    | is ipinfo.io, whose free tier permits commercial use; ip-api.com is a
+    | common alternative but its free tier is non-commercial only, which this
+    | product is not.
+    */
+    'ipcountry' => [
+        'endpoint' => env('IP_COUNTRY_ENDPOINT', 'https://ipinfo.io/{ip}/json'),
+        'token' => env('IP_COUNTRY_TOKEN'),
+    ],
+
     // Algolia public credentials for the browser (explorer autocomplete).
     // The search key is search-only — safe to expose. Admin indexing uses
     // Scout's ALGOLIA_SECRET (config/scout.php), never sent to the client.

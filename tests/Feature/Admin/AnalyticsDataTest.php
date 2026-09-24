@@ -113,7 +113,44 @@ class AnalyticsDataTest extends TestCase
                 ->where('totals.requests', 0)
                 ->where('latency.p95', 0)
                 ->has('endpoints', 0)
-                ->has('statuses', 0)
-                ->has('quota', 0));
+                ->has('quota', 0)
+                // The user-base figures are not range-scoped, so they are
+                // present even when the window holds no traffic at all.
+                ->where('planMix.total', 1)
+                ->has('signupCountries.known', 0));
+    }
+
+    /**
+     * Response mix and clients were removed from the page, so the controller
+     * stops computing them — two queries per load for a prop nobody renders.
+     * ApiAnalytics still exposes both, and ApiAnalyticsTest still covers them.
+     */
+    public function test_the_removed_breakdowns_are_no_longer_sent(): void
+    {
+        $this->actingAs($this->admin)
+            ->get('/admin/analytics')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->missing('statuses')->missing('clients'));
+    }
+
+    public function test_the_user_base_figures_are_sent(): void
+    {
+        User::factory()->count(2)->create(['plan' => 'max', 'signup_country' => 'GB']);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/analytics')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                // Three paid: these two, plus the pro admin from setUp().
+                ->where('planMix.paid', 3)
+                ->where('planMix.mrr', round(
+                    (float) config('api.plans.pro.price')
+                    + 2 * (float) config('api.plans.max.price'),
+                    2,
+                ))
+                ->where('signupCountries.known.0.iso2', 'GB')
+                ->where('signupCountries.known.0.users', 2)
+                // The admin from setUp() has no country.
+                ->where('signupCountries.unknown', 1));
     }
 }

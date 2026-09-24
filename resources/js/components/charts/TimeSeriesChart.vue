@@ -15,15 +15,26 @@ const props = withDefaults(
         type?: 'area' | 'line' | 'bar';
         stacked?: boolean;
         height?: number;
+        /**
+         * Strip the chart down to the line itself — no axes, grid, legend or
+         * padding — for use inside a stat tile. ApexCharts does the whole job
+         * from one flag; the tooltip stays, so a point is still readable.
+         */
+        sparkline?: boolean;
     }>(),
-    { type: 'area', stacked: false, height: 240 },
+    { type: 'area', stacked: false, height: 240, sparkline: false },
 );
 
 const { chart, baseOptions, palette } = useChartTheme();
 
 const options = computed(() => ({
     ...baseOptions.value,
-    chart: { ...baseOptions.value.chart, type: props.type, stacked: props.stacked },
+    chart: {
+        ...baseOptions.value.chart,
+        type: props.type,
+        stacked: props.stacked,
+        sparkline: { enabled: props.sparkline },
+    },
     colors: props.series.map((s, i) => s.color ?? palette.categorical[i % palette.categorical.length]),
     stroke: { curve: 'smooth', width: props.type === 'bar' ? 0 : 2 },
     fill:
@@ -34,8 +45,9 @@ const options = computed(() => ({
               }
             : { type: 'solid' },
     xaxis: { ...baseOptions.value.xaxis, categories: props.categories },
-    // A single series doesn't need a legend telling you what it is.
-    legend: { ...baseOptions.value.legend, show: props.series.length > 1 },
+    // A single series doesn't need a legend telling you what it is, and a
+    // sparkline has no room for one whatever the series count.
+    legend: { ...baseOptions.value.legend, show: ! props.sparkline && props.series.length > 1 },
 }));
 </script>
 

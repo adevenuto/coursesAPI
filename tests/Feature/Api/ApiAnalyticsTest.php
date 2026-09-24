@@ -275,4 +275,68 @@ class ApiAnalyticsTest extends TestCase
         $this->assertSame(2, collect($series)->last()['users']);
         $this->assertSame(0, $series[0]['users']);
     }
+
+    public function test_plan_mix_counts_users_and_prices_them_from_config(): void
+    {
+        // setUp() already made one pro user.
+        User::factory()->count(2)->create(['plan' => 'max']);
+        User::factory()->count(3)->create(['plan' => 'free']);
+
+        $mix = $this->analytics->planMix();
+
+        $this->assertSame(6, $mix['total']);
+        $this->assertSame(3, $mix['paid']);
+        $this->assertSame(3, $mix['free']);
+
+        // List price times headcount, straight from config/api.php.
+        $expected = round(
+            (float) config('api.plans.pro.price')
+            + 2 * (float) config('api.plans.max.price'),
+            2,
+        );
+        $this->assertSame($expected, $mix['mrr']);
+    }
+
+    /**
+     * A row carrying a plan that config no longer knows about is still a user,
+     * so the total comes from the table rather than from the configured plans.
+     */
+    public function test_plan_mix_totals_include_unknown_plans(): void
+    {
+        User::factory()->create(['plan' => 'legacy']);
+
+        $mix = $this->analytics->planMix();
+
+        $this->assertSame(2, $mix['total']);
+        $this->assertSame(1, $mix['paid']);  // the pro user from setUp()
+        $this->assertSame(1, $mix['free']);  // legacy counts as not-paid
+    }
+
+    public function test_signup_countries_group_and_resolve_names(): void
+    {
+        DB::table('countries')->insert([
+            ['id' => 9001, 'name' => 'United Kingdom', 'iso2' => 'GB'],
+            ['id' => 9002, 'name' => 'Spain', 'iso2' => 'ES'],
+        ]);
+
+        User::factory()->count(2)->create(['signup_country' => 'GB']);
+        User::factory()->create(['signup_country' => 'ES']);
+        User::factory()->create(['signup_country' => 'ZZ']); // no row in countries
+
+        $result = $this->analytics->signupCountries();
+        $byCode = collect($result['known'])->keyBy('iso2');
+
+        $this->assertSame('United Kingdom', $byCode['GB']['name']);
+        $this->assertSame(2, $byCode['GB']['users']);
+        $this->assertSame('Spain', $byCode['ES']['name']);
+
+        // An unrecognised code shows as itself rather than as a blank row.
+        $this->assertSame('ZZ', $byCode['ZZ']['name']);
+
+        // Most common first.
+        $this->assertSame('GB', $result['known'][0]['iso2']);
+
+        // The user from setUp() has no country and is counted, not dropped.
+        $this->assertSame(1, $result['unknown']);
+    }
 }

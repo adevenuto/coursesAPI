@@ -17,7 +17,13 @@ use Inertia\Response;
  *
  * Reads `api_requests` for everything except quota pressure, which comes from
  * the `api_usage` rollup so the figure matches what the user sees on their own
- * dashboard and what billing counts.
+ * dashboard and what billing counts — and the two user-base figures, plan mix
+ * and signup countries, which read `users` and ignore the range entirely.
+ *
+ * statusBreakdown() and clientBreakdown() are deliberately not requested: the
+ * page stopped showing them, and computing a prop nobody renders is two queries
+ * per load for nothing. Both remain on ApiAnalytics, still covered by tests, as
+ * the obvious source for a per-user view later.
  */
 class AnalyticsController extends Controller
 {
@@ -44,9 +50,11 @@ class AnalyticsController extends Controller
             'traffic' => $analytics->dailyTraffic($from, $to),
             'activeUsers' => $analytics->activeUsersDaily($from, $to),
             'endpoints' => $analytics->endpointBreakdown($from, $to, null, 10),
-            'statuses' => $analytics->statusBreakdown($from, $to),
-            'clients' => $analytics->clientBreakdown($from, $to),
             'searchTerms' => $analytics->topSearchTerms($from, $to, null, 10),
+            // Not range-scoped, unlike everything above: both describe the user
+            // base as it stands today, not activity within the window.
+            'planMix' => $analytics->planMix(),
+            'signupCountries' => $analytics->signupCountries(),
             'topUsers' => $analytics->topUsers($from, $to, 10),
             'quota' => $analytics->quotaPressure(10),
             'retentionDays' => (int) config('api.analytics.retention_days', 90),

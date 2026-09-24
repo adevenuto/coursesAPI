@@ -369,6 +369,96 @@ class ApiAnalytics
     }
 
     /**
+     * Who is paying, and what that is worth per month.
+     *
+     * Priced from config rather than Stripe: config/api.php already holds the
+     * monthly amount for each plan, so this needs no API call and no key, and it
+     * stays truthful on a local database with no Stripe customers at all. It is
+     * list price times headcount — not billed revenue, so it knows nothing about
+     * trials, proration, discounts or failed payments.
+     *
+     * @return array{total:int, paid:int, free:int, mrr:float, plans:list<array{key:string, label:string, count:int, premium:bool}>}
+     */
+    public function planMix(): array
+    {
+        $counts = DB::table('users')
+            ->selectRaw('plan, COUNT(*) AS n')
+            ->groupBy('plan')
+            ->pluck('n', 'plan');
+
+        $plans = [];
+        $paid = 0;
+        $mrr = 0.0;
+
+        foreach ((array) config('api.plans', []) as $key => $plan) {
+            $count = (int) ($counts[$key] ?? 0);
+            $premium = (bool) ($plan['premium'] ?? false);
+
+            if ($premium) {
+                $paid += $count;
+                $mrr += $count * (float) ($plan['price'] ?? 0);
+            }
+
+            $plans[] = [
+                'key' => (string) $key,
+                'label' => (string) ($plan['label'] ?? $key),
+                'count' => $count,
+                'premium' => $premium,
+            ];
+        }
+
+        // Totalled from the table, not from the configured plans: a row carrying
+        // a plan that no longer exists in config is still a user.
+        $total = (int) $counts->sum();
+
+        return [
+            'total' => $total,
+            'paid' => $paid,
+            'free' => $total - $paid,
+            'mrr' => round($mrr, 2),
+            'plans' => $plans,
+        ];
+    }
+
+    /**
+     * Where users signed up from, most common first.
+     *
+     * Resolved once at registration from the browser\'s own address — see
+     * App\Support\IpCountry. Request IPs are deliberately not used: for an API
+     * most of them belong to servers, so they would report where a customer\'s
+     * infrastructure runs rather than where the customer is.
+     *
+     * Users with no country — everyone who registered before this was captured,
+     * plus anyone whose lookup failed — are counted rather than dropped, so the
+     * figures still add up to the user count.
+     *
+     * @return array{known:list<array{iso2:string, name:string, users:int}>, unknown:int}
+     */
+    public function signupCountries(int $limit = 10): array
+    {
+        $rows = DB::table('users')
+            ->leftJoin('countries', 'countries.iso2', '=', 'users.signup_country')
+            ->whereNotNull('users.signup_country')
+            ->selectRaw('users.signup_country AS iso2, MAX(countries.name) AS name, COUNT(*) AS users')
+            ->groupBy('users.signup_country')
+            ->orderByDesc('users')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'iso2' => (string) $r->iso2,
+                // A code with no row in `countries` shows as itself rather than
+                // as a blank line.
+                'name' => (string) ($r->name ?? $r->iso2),
+                'users' => (int) $r->users,
+            ])->all();
+
+        return [
+            'known' => $rows,
+            'unknown' => (int) DB::table('users')->whereNull('signup_country')->count(),
+        ];
+    }
+
+    /**
      * Walks whole days across the range so a gap renders as a zero rather than
      * a missing point. Mirrors the loop in ApiUsage::series().
      *
