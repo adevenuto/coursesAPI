@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { AlertTriangle, Gauge, TrendingUp, Users, Zap } from '@lucide/vue';
-import CategoryBarChart from '@/components/charts/CategoryBarChart.vue';
-import DonutChart from '@/components/charts/DonutChart.vue';
+import { AlertTriangle, Gauge, Globe, TrendingUp, Users, Wallet, Zap } from '@lucide/vue';
 import TimeSeriesChart from '@/components/charts/TimeSeriesChart.vue';
 import { chartPalette } from '@/components/charts/useChartTheme';
 import { ms, nf, pct, shortDate } from '@/lib/format';
@@ -33,9 +31,18 @@ const props = defineProps<{
         errors: number;
         throttled: number;
     }[];
-    statuses: { label: string; count: number }[];
-    clients: { label: string; count: number }[];
     searchTerms: { term: string; count: number }[];
+    planMix: {
+        total: number;
+        paid: number;
+        free: number;
+        mrr: number;
+        plans: { key: string; label: string; count: number; premium: boolean }[];
+    };
+    signupCountries: {
+        known: { iso2: string; name: string; users: number }[];
+        unknown: number;
+    };
     topUsers: {
         id: number;
         name: string;
@@ -90,13 +97,15 @@ const usersSeries = computed(() => [
     { name: 'Active users', color: chartPalette.categorical[1], data: props.activeUsers.map((d) => d.users) },
 ]);
 
-const statusColors = computed(() =>
-    props.statuses.map((s) =>
-        s.label === 'Success' ? chartPalette.ok
-        : s.label === 'Throttled' ? chartPalette.throttled
-        : chartPalette.error,
-    ),
-);
+// Endpoints carry their own latency, so volume and speed are one row rather
+// than two cards at opposite ends of the page — you can see at a glance whether
+// the busiest endpoint is also the slowest.
+const maxEndpoint = computed(() => Math.max(1, ...props.endpoints.map((e) => e.requests)));
+
+const usd = (n: number) =>
+    n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+const maxCountry = computed(() => Math.max(1, ...props.signupCountries.known.map((c) => c.users)));
 
 // A quota bar is only interesting as it approaches the ceiling.
 const quotaTone = (percent: number) =>
@@ -106,7 +115,7 @@ const maxTerm = computed(() => Math.max(1, ...props.searchTerms.map((t) => t.cou
 </script>
 
 <template>
-    <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+    <div class="space-y-4 p-4 sm:p-6">
         <!-- header + range -->
         <div class="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -127,45 +136,87 @@ const maxTerm = computed(() => Math.max(1, ...props.searchTerms.map((t) => t.cou
             </div>
         </div>
 
-        <!-- KPIs -->
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div class="rounded-xl border border-border p-5">
-                <span class="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <TrendingUp class="size-4" /> Requests
+        <!-- KPI strip: one container with divided cells rather than six cards,
+             and the two daily charts folded in as sparklines. -->
+        <div class="grid divide-y divide-border rounded-xl border border-border sm:grid-cols-2 sm:divide-x lg:grid-cols-3 xl:grid-cols-6 xl:divide-y-0">
+            <div class="min-w-0 p-4">
+                <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <TrendingUp class="size-3.5" /> Requests
                 </span>
-                <div class="mt-1 text-2xl font-semibold">{{ nf(totals.requests) }}</div>
+                <div class="mt-0.5 text-xl font-semibold tabular-nums">{{ nf(totals.requests) }}</div>
+                <TimeSeriesChart
+                    v-if="hasTraffic"
+                    class="-mb-1"
+                    :series="[trafficSeries[0]]"
+                    :categories="categories"
+                    type="area"
+                    sparkline
+                    :height="34"
+                />
             </div>
-            <div class="rounded-xl border border-border p-5">
-                <span class="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <AlertTriangle class="size-4" /> Errors
+
+            <div class="min-w-0 p-4">
+                <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <AlertTriangle class="size-3.5" /> Errors
                 </span>
-                <div class="mt-1 text-2xl font-semibold">
+                <div class="mt-0.5 text-xl font-semibold tabular-nums">
                     {{ nf(totals.errors) }}
-                    <span class="text-base font-normal text-muted-foreground">
-                        / {{ pct(totals.errors, totals.requests) }}
-                    </span>
+                    <span class="text-sm font-normal text-muted-foreground">/ {{ pct(totals.errors, totals.requests) }}</span>
                 </div>
             </div>
-            <div class="rounded-xl border border-border p-5">
-                <span class="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Zap class="size-4" /> Throttled
+
+            <div class="min-w-0 p-4">
+                <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Zap class="size-3.5" /> Throttled
                 </span>
-                <div class="mt-1 text-2xl font-semibold">{{ nf(totals.throttled) }}</div>
-                <p class="mt-0.5 text-xs text-muted-foreground">429s — quota pressure</p>
+                <div class="mt-0.5 text-xl font-semibold tabular-nums">{{ nf(totals.throttled) }}</div>
+                <p class="text-[11px] text-muted-foreground">429s — quota pressure</p>
             </div>
-            <div class="rounded-xl border border-border p-5">
-                <span class="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Gauge class="size-4" /> p95 latency
+
+            <div class="min-w-0 p-4">
+                <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Gauge class="size-3.5" /> p95 latency
                 </span>
-                <div class="mt-1 text-2xl font-semibold">{{ ms(latency.p95) }}</div>
-                <p class="mt-0.5 text-xs text-muted-foreground">p50 {{ ms(latency.p50) }} · max {{ ms(latency.max) }}</p>
+                <div class="mt-0.5 text-xl font-semibold tabular-nums">{{ ms(latency.p95) }}</div>
+                <p class="text-[11px] text-muted-foreground">p50 {{ ms(latency.p50) }} · max {{ ms(latency.max) }}</p>
             </div>
-            <div class="rounded-xl border border-border p-5">
-                <span class="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Users class="size-4" /> Active users
+
+            <div class="min-w-0 p-4">
+                <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Users class="size-3.5" /> Active users
                 </span>
-                <div class="mt-1 text-2xl font-semibold">{{ nf(totals.unique_users) }}</div>
-                <p class="mt-0.5 text-xs text-muted-foreground">{{ nf(totals.unique_ips) }} distinct networks</p>
+                <div class="mt-0.5 text-xl font-semibold tabular-nums">{{ nf(totals.unique_users) }}</div>
+                <TimeSeriesChart
+                    v-if="hasTraffic"
+                    class="-mb-1"
+                    :series="usersSeries"
+                    :categories="categories"
+                    type="area"
+                    sparkline
+                    :height="34"
+                />
+            </div>
+
+            <!-- Not range-scoped: the user base as it stands, whatever window is
+                 selected. MRR is list price times headcount, not billed revenue. -->
+            <div class="min-w-0 p-4">
+                <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Wallet class="size-3.5" /> Paid users
+                </span>
+                <div class="mt-0.5 text-xl font-semibold tabular-nums">
+                    {{ nf(planMix.paid) }}<span class="text-sm font-normal text-muted-foreground">/{{ nf(planMix.total) }}</span>
+                    <span class="ml-1 text-sm font-normal text-muted-foreground">· {{ usd(planMix.mrr) }} MRR</span>
+                </div>
+                <div class="mt-1.5 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                        v-for="p in planMix.plans.filter((x) => x.count > 0)"
+                        :key="p.key"
+                        class="h-full"
+                        :class="p.premium ? 'bg-emerald-500' : 'bg-muted-foreground/40'"
+                        :style="{ width: pct(p.count, Math.max(1, planMix.total)) }"
+                        :title="`${p.label}: ${p.count}`"
+                    />
+                </div>
             </div>
         </div>
 
@@ -174,154 +225,142 @@ const maxTerm = computed(() => Math.max(1, ...props.searchTerms.map((t) => t.cou
         </p>
 
         <template v-else>
-            <!-- traffic -->
-            <div class="rounded-xl border border-border p-5">
-                <h2 class="mb-2 text-sm font-medium">Requests over time</h2>
-                <TimeSeriesChart :series="trafficSeries" :categories="categories" type="bar" stacked :height="260" />
-            </div>
-
-            <div class="grid gap-4 lg:grid-cols-2">
-                <!-- endpoints -->
-                <div class="rounded-xl border border-border p-5">
-                    <h2 class="mb-2 text-sm font-medium">Top endpoints</h2>
-                    <CategoryBarChart
-                        :labels="endpoints.map((e) => e.endpoint)"
-                        :values="endpoints.map((e) => e.requests)"
-                        :height="280"
-                    />
+            <!-- Endpoints, with their own latency. Volume and speed were two
+                 cards at opposite ends of the page; reading them together is the
+                 whole question. -->
+            <div class="rounded-xl border border-border">
+                <div class="border-b border-border px-4 py-2.5">
+                    <h2 class="text-sm font-medium">Endpoints</h2>
                 </div>
-
-                <!-- statuses -->
-                <div class="rounded-xl border border-border p-5">
-                    <h2 class="mb-2 text-sm font-medium">Response mix</h2>
-                    <DonutChart
-                        :labels="statuses.map((s) => s.label)"
-                        :values="statuses.map((s) => s.count)"
-                        :colors="statusColors"
-                        :height="280"
-                    />
-                </div>
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-border text-[11px] text-muted-foreground">
+                            <th class="px-4 py-1.5 text-left font-normal">Endpoint</th>
+                            <th class="px-2 py-1.5 text-right font-normal">Requests</th>
+                            <th class="px-2 py-1.5 text-right font-normal">Errors</th>
+                            <th class="px-2 py-1.5 text-right font-normal">Avg</th>
+                            <th class="px-4 py-1.5 text-right font-normal">Max</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="e in endpoints" :key="`${e.method} ${e.endpoint}`">
+                            <td class="max-w-0 px-4 py-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">{{ e.method }}</span>
+                                    <code class="min-w-0 flex-1 truncate font-mono text-xs">{{ e.endpoint }}</code>
+                                </div>
+                                <!-- The bar the old chart carried, inline. -->
+                                <div class="mt-1 h-0.5 rounded-full bg-primary/60" :style="{ width: pct(e.requests, maxEndpoint) }" />
+                            </td>
+                            <td class="px-2 py-2 text-right tabular-nums">{{ nf(e.requests) }}</td>
+                            <td class="px-2 py-2 text-right tabular-nums" :class="e.errors > 0 ? 'text-red-500' : 'text-muted-foreground'">
+                                {{ nf(e.errors) }}
+                            </td>
+                            <td class="px-2 py-2 text-right tabular-nums text-muted-foreground">{{ ms(e.avg_ms) }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums text-muted-foreground">{{ ms(e.max_ms) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <div class="grid gap-4 lg:grid-cols-2">
                 <!-- top users -->
                 <div class="rounded-xl border border-border">
-                    <div class="border-b border-border px-5 py-3">
+                    <div class="border-b border-border px-4 py-2.5">
                         <h2 class="text-sm font-medium">Busiest users</h2>
                     </div>
                     <ul class="divide-y divide-border">
-                        <li v-for="u in topUsers" :key="u.id" class="flex items-center gap-3 px-5 py-3">
+                        <li v-for="u in topUsers" :key="u.id" class="flex items-center gap-3 px-4 py-2">
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2">
-                                    <span class="truncate text-sm font-medium">{{ u.name }}</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="truncate text-sm">{{ u.name }}</span>
                                     <span class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase">
                                         {{ u.plan }}
                                     </span>
                                 </div>
-                                <div class="truncate text-xs text-muted-foreground">
-                                    {{ u.email }} · last seen {{ u.last_seen }}
-                                </div>
+                                <p class="truncate text-xs text-muted-foreground">{{ u.email }}</p>
                             </div>
-                            <div class="shrink-0 text-right">
-                                <div class="text-sm font-medium tabular-nums">{{ nf(u.requests) }}</div>
-                                <div v-if="u.throttled" class="text-xs text-amber-500">
-                                    {{ nf(u.throttled) }} throttled
-                                </div>
-                            </div>
+                            <span class="shrink-0 text-sm tabular-nums">{{ nf(u.requests) }}</span>
+                        </li>
+                        <li v-if="!topUsers.length" class="px-4 py-6 text-center text-sm text-muted-foreground">
+                            No users in this period.
                         </li>
                     </ul>
                 </div>
 
                 <!-- quota pressure: the upgrade-candidate list -->
                 <div class="rounded-xl border border-border">
-                    <div class="flex items-baseline justify-between gap-3 border-b border-border px-5 py-3">
+                    <div class="border-b border-border px-4 py-2.5">
                         <h2 class="text-sm font-medium">Quota used today</h2>
-                        <span class="text-xs text-muted-foreground">from the billing counter</span>
-                    </div>
-                    <ul v-if="quota.length" class="divide-y divide-border">
-                        <li v-for="q in quota" :key="q.id" class="px-5 py-3">
-                            <div class="flex items-baseline justify-between gap-3">
-                                <span class="truncate text-sm">{{ q.name }}</span>
-                                <span class="shrink-0 text-xs tabular-nums text-muted-foreground">
-                                    {{ nf(q.requests) }} / {{ nf(q.limit) }}
-                                </span>
-                            </div>
-                            <div class="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-                                <div
-                                    class="h-full rounded-full transition-all"
-                                    :class="quotaTone(q.percent)"
-                                    :style="{ width: Math.max(2, q.percent) + '%' }"
-                                />
-                            </div>
-                        </li>
-                    </ul>
-                    <p v-else class="px-5 py-8 text-center text-sm text-muted-foreground">
-                        Nobody has called the API today.
-                    </p>
-                </div>
-            </div>
-
-            <div class="grid gap-4 lg:grid-cols-2">
-                <!-- search terms: what people are looking for -->
-                <div class="rounded-xl border border-border p-5">
-                    <h2 class="mb-3 text-sm font-medium">Top searches</h2>
-                    <ul v-if="searchTerms.length" class="space-y-2.5">
-                        <li v-for="t in searchTerms" :key="t.term">
-                            <div class="flex items-baseline justify-between gap-3 text-sm">
-                                <span class="min-w-0 truncate">{{ t.term }}</span>
-                                <span class="shrink-0 tabular-nums text-muted-foreground">{{ nf(t.count) }}</span>
-                            </div>
-                            <div class="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
-                                <div
-                                    class="h-full rounded-full bg-emerald-500"
-                                    :style="{ width: Math.max(2, (t.count / maxTerm) * 100) + '%' }"
-                                />
-                            </div>
-                        </li>
-                    </ul>
-                    <p v-else class="py-8 text-center text-sm text-muted-foreground">No searches recorded.</p>
-                </div>
-
-                <!-- clients -->
-                <div class="rounded-xl border border-border p-5">
-                    <h2 class="mb-2 text-sm font-medium">Clients</h2>
-                    <DonutChart
-                        v-if="clients.length"
-                        :labels="clients.map((c) => c.label)"
-                        :values="clients.map((c) => c.count)"
-                        :height="260"
-                    />
-                    <p v-else class="py-8 text-center text-sm text-muted-foreground">No client data.</p>
-                </div>
-            </div>
-
-            <!-- active users + latency detail -->
-            <div class="grid gap-4 lg:grid-cols-2">
-                <div class="rounded-xl border border-border p-5">
-                    <h2 class="mb-2 text-sm font-medium">Active users per day</h2>
-                    <TimeSeriesChart
-                        :series="usersSeries"
-                        :categories="activeUsers.map((d) => shortDate(d.date))"
-                        type="line"
-                        :height="220"
-                    />
-                </div>
-
-                <div class="rounded-xl border border-border">
-                    <div class="border-b border-border px-5 py-3">
-                        <h2 class="text-sm font-medium">Latency by endpoint</h2>
                     </div>
                     <ul class="divide-y divide-border">
-                        <li v-for="e in endpoints" :key="e.endpoint" class="flex items-center gap-3 px-5 py-2.5">
-                            <code class="min-w-0 flex-1 truncate font-mono text-xs">{{ e.endpoint }}</code>
-                            <span class="shrink-0 text-xs tabular-nums text-muted-foreground">
-                                avg {{ ms(e.avg_ms) }} · max {{ ms(e.max_ms) }}
-                            </span>
+                        <li v-for="u in quota" :key="u.id" class="px-4 py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="truncate text-sm">{{ u.name }}</span>
+                                        <span class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase">
+                                            {{ u.plan }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <span class="shrink-0 text-xs tabular-nums text-muted-foreground">
+                                    {{ nf(u.requests) }} / {{ nf(u.limit) }}
+                                </span>
+                            </div>
+                            <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                                <div class="h-full rounded-full" :class="quotaTone(u.percent)" :style="{ width: `${Math.min(100, u.percent)}%` }" />
+                            </div>
+                        </li>
+                        <li v-if="!quota.length" class="px-4 py-6 text-center text-sm text-muted-foreground">
+                            Nobody has called the API today.
                         </li>
                     </ul>
                 </div>
             </div>
         </template>
+
+        <!-- Outside the traffic guard on purpose: where users are is a fact about
+             the user base, not about activity in the selected window. -->
+        <div class="grid gap-4 lg:grid-cols-2">
+            <div class="rounded-xl border border-border p-4">
+                <h2 class="mb-3 text-sm font-medium">Top searches</h2>
+                <ul class="space-y-1.5">
+                    <li v-for="t in searchTerms" :key="t.term" class="flex items-center gap-3">
+                        <span class="min-w-0 flex-1 truncate text-sm">{{ t.term }}</span>
+                        <div class="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-muted">
+                            <div class="h-full rounded-full bg-primary/60" :style="{ width: pct(t.count, maxTerm) }" />
+                        </div>
+                        <span class="w-8 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{{ nf(t.count) }}</span>
+                    </li>
+                    <li v-if="!searchTerms.length" class="py-4 text-center text-sm text-muted-foreground">
+                        No searches in this period.
+                    </li>
+                </ul>
+            </div>
+
+            <div class="rounded-xl border border-border p-4">
+                <h2 class="mb-3 flex items-center gap-1.5 text-sm font-medium">
+                    <Globe class="size-4 text-muted-foreground" /> Where users signed up
+                </h2>
+                <ul class="space-y-1.5">
+                    <li v-for="c in signupCountries.known" :key="c.iso2" class="flex items-center gap-3">
+                        <span class="min-w-0 flex-1 truncate text-sm">{{ c.name }}</span>
+                        <div class="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-muted">
+                            <div class="h-full rounded-full bg-primary/60" :style="{ width: pct(c.users, maxCountry) }" />
+                        </div>
+                        <span class="w-8 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{{ nf(c.users) }}</span>
+                    </li>
+                </ul>
+                <!-- Says why it is empty rather than showing a blank panel: this
+                     is only captured from now on, and cannot be backfilled. -->
+                <p v-if="signupCountries.unknown" class="mt-3 text-xs text-muted-foreground">
+                    {{ nf(signupCountries.unknown) }}
+                    {{ signupCountries.unknown === 1 ? 'user has' : 'users have' }} no country —
+                    it is recorded at registration, so accounts created earlier don't have one.
+                </p>
+            </div>
+        </div>
 
         <!-- The two numbers come from different tables on purpose; say so before
              the first discrepancy reads as a bug. -->

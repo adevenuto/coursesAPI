@@ -27,6 +27,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $role
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
+ * @property string|null $signup_country
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property Carbon|null $created_at
