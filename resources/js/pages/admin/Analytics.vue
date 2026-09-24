@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { AlertTriangle, Gauge, Globe, TrendingUp, Users, Wallet, Zap } from '@lucide/vue';
 import TimeSeriesChart from '@/components/charts/TimeSeriesChart.vue';
+import ErrorLogDialog from '@/components/admin/ErrorLogDialog.vue';
 import { chartPalette } from '@/components/charts/useChartTheme';
 import { ms, nf, pct, shortDate } from '@/lib/format';
 
@@ -102,6 +103,17 @@ const usersSeries = computed(() => [
 // the busiest endpoint is also the slowest.
 const maxEndpoint = computed(() => Math.max(1, ...props.endpoints.map((e) => e.requests)));
 
+/**
+ * Paid plans should be visible in a list without reading the word. Free keeps
+ * the neutral chip; pro and max each get their own tone, ordered by tier so the
+ * more valuable plan reads as the more prominent one.
+ */
+const planTone = (plan: string) =>
+    ({
+        max: 'bg-violet-500/15 text-violet-700 ring-violet-500/30 dark:text-violet-300',
+        pro: 'bg-emerald-500/15 text-emerald-700 ring-emerald-500/30 dark:text-emerald-300',
+    })[plan] ?? 'bg-muted text-muted-foreground ring-transparent';
+
 const usd = (n: number) =>
     n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
@@ -159,10 +171,12 @@ const maxTerm = computed(() => Math.max(1, ...props.searchTerms.map((t) => t.cou
                 <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <AlertTriangle class="size-3.5" /> Errors
                 </span>
-                <div class="mt-0.5 text-xl font-semibold tabular-nums">
-                    {{ nf(totals.errors) }}
-                    <span class="text-sm font-normal text-muted-foreground">/ {{ pct(totals.errors, totals.requests) }}</span>
-                </div>
+                <ErrorLogDialog :range="range" :count="totals.errors">
+                    <div class="mt-0.5 text-xl font-semibold tabular-nums">
+                        {{ nf(totals.errors) }}
+                        <span class="text-sm font-normal text-muted-foreground">/ {{ pct(totals.errors, totals.requests) }}</span>
+                    </div>
+                </ErrorLogDialog>
             </div>
 
             <div class="min-w-0 p-4">
@@ -274,9 +288,10 @@ const maxTerm = computed(() => Math.max(1, ...props.searchTerms.map((t) => t.cou
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-1.5">
                                     <span class="truncate text-sm">{{ u.name }}</span>
-                                    <span class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase">
-                                        {{ u.plan }}
-                                    </span>
+                                    <span
+                                        class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ring-1"
+                                        :class="planTone(u.plan)"
+                                    >{{ u.plan }}</span>
                                 </div>
                                 <p class="truncate text-xs text-muted-foreground">{{ u.email }}</p>
                             </div>
@@ -299,9 +314,10 @@ const maxTerm = computed(() => Math.max(1, ...props.searchTerms.map((t) => t.cou
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-1.5">
                                         <span class="truncate text-sm">{{ u.name }}</span>
-                                        <span class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase">
-                                            {{ u.plan }}
-                                        </span>
+                                        <span
+                                            class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase ring-1"
+                                            :class="planTone(u.plan)"
+                                        >{{ u.plan }}</span>
                                     </div>
                                 </div>
                                 <span class="shrink-0 text-xs tabular-nums text-muted-foreground">

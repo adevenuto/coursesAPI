@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Support\ApiAnalytics;
 use Carbon\CarbonInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -58,6 +59,23 @@ class AnalyticsController extends Controller
             'topUsers' => $analytics->topUsers($from, $to, 10),
             'quota' => $analytics->quotaPressure(10),
             'retentionDays' => (int) config('api.analytics.retention_days', 90),
+        ]);
+    }
+
+    /**
+     * The failed requests behind the Errors figure, fetched when the log preview
+     * is opened rather than shipped with every page load.
+     *
+     * Most loads never open it, and the rows are the widest thing on the page —
+     * putting fifty of them in the Inertia payload unconditionally would cost
+     * every visit to save one click.
+     */
+    public function errors(Request $request, ApiAnalytics $analytics): JsonResponse
+    {
+        [, $from, $to] = $this->range($request);
+
+        return response()->json([
+            'errors' => $analytics->recentErrors($from, $to, 50),
         ]);
     }
 

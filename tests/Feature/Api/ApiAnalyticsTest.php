@@ -339,4 +339,52 @@ class ApiAnalyticsTest extends TestCase
         // The user from setUp() has no country and is counted, not dropped.
         $this->assertSame(1, $result['unknown']);
     }
+
+    /**
+     * The log preview sits behind the Errors figure, so it has to count the same
+     * things. A 429 is the quota signal and is tallied separately — including it
+     * here would make the list disagree with the number that opened it.
+     */
+    public function test_recent_errors_match_the_errors_figure(): void
+    {
+        $this->request(['status' => 200]);
+        $this->request(['status' => 404]);
+        $this->request(['status' => 500]);
+        $this->request(['status' => 429]);
+
+        $rows = $this->analytics->recentErrors($this->rangeStart(), $this->rangeEnd());
+        $statuses = array_column($rows, 'status');
+
+        sort($statuses);
+        $this->assertSame([404, 500], $statuses);
+
+        $totals = $this->analytics->totals($this->rangeStart(), $this->rangeEnd());
+        $this->assertSame($totals['errors'], count($rows));
+    }
+
+    public function test_recent_errors_are_newest_first_and_capped(): void
+    {
+        $this->request(['status' => 500, 'created_at' => now()->subDays(3)]);
+        $this->request(['status' => 500, 'created_at' => now()->subDays(1)]);
+        $this->request(['status' => 500, 'created_at' => now()->subDays(2)]);
+
+        $rows = $this->analytics->recentErrors($this->rangeStart(), $this->rangeEnd(), 2);
+
+        $this->assertCount(2, $rows);
+        $this->assertTrue($rows[0]['at'] > $rows[1]['at'], 'newest first');
+    }
+
+    /**
+     * The address is already anonymised on the way in and nothing about reading
+     * a failure needs it, so it never reaches the client.
+     */
+    public function test_recent_errors_do_not_expose_the_client_address(): void
+    {
+        $this->request(['status' => 500, 'ip' => '203.0.113.7']);
+
+        $row = $this->analytics->recentErrors($this->rangeStart(), $this->rangeEnd())[0];
+
+        $this->assertArrayNotHasKey('ip', $row);
+        $this->assertStringNotContainsString('203.0.113', json_encode($row));
+    }
 }

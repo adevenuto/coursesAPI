@@ -153,4 +153,26 @@ class AnalyticsDataTest extends TestCase
                 // The admin from setUp() has no country.
                 ->where('signupCountries.unknown', 1));
     }
+
+    public function test_the_error_log_endpoint_returns_failed_requests(): void
+    {
+        ApiRequest::factory()->create(['user_id' => $this->admin->id, 'status' => 500]);
+        ApiRequest::factory()->create(['user_id' => $this->admin->id, 'status' => 429]);
+
+        $response = $this->actingAs($this->admin)
+            ->getJson('/admin/analytics/errors')
+            ->assertOk();
+
+        $errors = $response->json('errors');
+
+        $this->assertCount(1, $errors);
+        $this->assertSame(500, $errors[0]['status']);
+    }
+
+    public function test_the_error_log_endpoint_is_admin_only(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'user']))
+            ->get('/admin/analytics/errors')
+            ->assertForbidden();
+    }
 }
