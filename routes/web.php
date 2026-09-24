@@ -115,6 +115,11 @@ Route::withHead(robots: 'noindex, nofollow')
         Route::get('analytics', AnalyticsController::class)
             ->name('admin.analytics')
             ->withHead(title: 'API analytics');
+
+        // Fetched on demand by the log preview behind the Errors figure, so the
+        // rows aren't in every page payload.
+        Route::get('analytics/errors', [AnalyticsController::class, 'errors'])
+            ->name('admin.analytics.errors');
     });
 
 require __DIR__.'/settings.php';

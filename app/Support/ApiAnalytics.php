@@ -369,6 +369,47 @@ class ApiAnalytics
     }
 
     /**
+     * The most recent failed requests, newest first.
+     *
+     * Feeds the log preview behind the Errors figure, so the definition has to
+     * match the figure exactly: 4xx and 5xx, but not 429. A throttled request is
+     * the quota signal and gets counted separately — folding it in here would
+     * make the list disagree with the number that opened it.
+     *
+     * The client's IP is deliberately left out. It is already anonymised on the
+     * way in, and nothing about diagnosing a 422 needs it; who, what and when
+     * are enough.
+     *
+     * @return list<array{id:int, at:string, method:string, endpoint:string, status:int, duration_ms:int|null, user:?string, email:?string, query:?string}>
+     */
+    public function recentErrors(CarbonInterface $from, CarbonInterface $to, int $limit = 50): array
+    {
+        return $this->base($from, $to)
+            ->leftJoin('users', 'users.id', '=', 'api_requests.user_id')
+            ->where('api_requests.status', '>=', 400)
+            ->where('api_requests.status', '<>', 429)
+            ->selectRaw('api_requests.id, api_requests.created_at, api_requests.method, api_requests.endpoint')
+            ->selectRaw('api_requests.status, api_requests.duration_ms, api_requests.query')
+            ->selectRaw('users.name AS user_name, users.email AS user_email')
+            ->orderByDesc('api_requests.created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => (int) $r->id,
+                'at' => (string) $r->created_at,
+                'method' => (string) $r->method,
+                'endpoint' => (string) $r->endpoint,
+                'status' => (int) $r->status,
+                'duration_ms' => $r->duration_ms === null ? null : (int) $r->duration_ms,
+                // A deleted user leaves its requests behind; say so rather than
+                // rendering a blank column.
+                'user' => $r->user_name === null ? null : (string) $r->user_name,
+                'email' => $r->user_email === null ? null : (string) $r->user_email,
+                'query' => $r->query === null ? null : (string) $r->query,
+            ])->all();
+    }
+
+    /**
      * Who is paying, and what that is worth per month.
      *
      * Priced from config rather than Stripe: config/api.php already holds the
