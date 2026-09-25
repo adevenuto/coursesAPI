@@ -317,21 +317,14 @@ const resCities = `{
                         <!-- Units change. Remove once existing integrations have moved over. -->
                         <div class="mt-5 rounded-xl border border-line-lime bg-mk-accent/5 p-4">
                             <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-fg">
-                                <span class="rounded-full bg-mk-accent/15 px-2 py-0.5 text-xs font-medium tracking-wide text-mk-accent uppercase">Changed</span>
-                                Near-me search now works in miles
+                                <span class="rounded-full bg-mk-accent/15 px-2 py-0.5 text-xs font-medium tracking-wide text-mk-accent uppercase">New</span>
+                                The <code>radius</code> parameter now defaults to miles (returning <code>distance_mi</code>).
                             </p>
-                            <p class="mt-2 max-w-2xl text-sm text-fg-muted">
-                                <code>radius</code> is now read as <strong class="font-medium text-fg">miles</strong> rather than
-                                kilometres, and results carry <code>distance_mi</code>.
-                                <code>distance_km</code> is still returned alongside it, unchanged, so existing integrations keep
-                                working &mdash; it is deprecated and will be removed in a future release.
-                            </p>
-                            <p class="mt-2 max-w-2xl text-sm text-fg-muted">
-                                To keep your current search area, pass <code>units=km</code>:
-                                <code>?radius=25&amp;units=km</code> returns exactly what <code>?radius=25</code> used to. If you
-                                omit <code>radius</code> altogether, the default area widened too &mdash; send
-                                <code>?radius=100&amp;units=km</code> to pin it where it was.
-                            </p>
+                            <ul class="mt-3 ml-5 max-w-2xl list-disc space-y-1 text-sm text-fg-muted marker:text-mk-accent">
+                                <li><strong class="font-medium text-fg">To preserve existing behavior:</strong> Pass <code>units=km</code> (e.g., <code>?radius=25&amp;units=km</code>).</li>
+                                <li><strong class="font-medium text-fg">If omitting radius:</strong> Pass <code>?radius=100&amp;units=km</code> to prevent the search area from expanding.</li>
+                                <li><strong class="font-medium text-fg">Deprecation notice:</strong> <code>distance_km</code> is deprecated and will be removed in a future release.</li>
+                            </ul>
                         </div>
 
                         <div class="mt-5 overflow-x-auto rounded-xl border border-line">
