@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Distance;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,7 +19,8 @@ class DocsController extends Controller
             'plans' => config('api.plans'),
             'baseUrl' => rtrim((string) config('app.url'), '/'),
             'pagination' => config('api.pagination'),
-            'maxRadiusKm' => (int) config('api.max_radius_km', 100),
+            'maxRadiusMi' => (int) Distance::maxRadius(Distance::MI),
+            'maxRadiusKm' => (int) Distance::maxRadius(Distance::KM),
         ]);
     }
 }

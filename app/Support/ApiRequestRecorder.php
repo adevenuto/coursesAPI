@@ -26,7 +26,7 @@ class ApiRequestRecorder
 {
     /** Mirrors IndexCoursesRequest + GeoController; anything else is dropped. */
     private const QUERY_WHITELIST = [
-        'q', 'country', 'state_prov_id', 'city_id', 'lat', 'lng', 'radius', 'per_page', 'page',
+        'q', 'country', 'state_prov_id', 'city_id', 'lat', 'lng', 'radius', 'units', 'per_page', 'page',
     ];
 
     /**

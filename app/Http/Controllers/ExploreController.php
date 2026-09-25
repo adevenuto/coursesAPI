@@ -6,6 +6,7 @@ use App\Models\City;
 use App\Models\Country;
 use App\Models\Course;
 use App\Models\State;
+use App\Support\Distance;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,8 +22,6 @@ class ExploreController extends Controller
 {
     /** Cap markers returned to the map for a single area. */
     private const MAX_MARKERS = 500;
-
-    private const MILES_PER_KM = 0.621371;
 
     public function city(Request $request, City $city): JsonResponse
     {
@@ -43,7 +42,7 @@ class ExploreController extends Controller
                     'radius_mi' => $radiusMi,
                     'center' => ['lat' => $lat, 'lng' => $lng],
                 ],
-                Course::near($lat, $lng, $radiusMi / self::MILES_PER_KM),
+                Course::near($lat, $lng, Distance::toKm($radiusMi, Distance::MI)),
                 radius: true,
             );
         }
@@ -88,9 +87,7 @@ class ExploreController extends Controller
             return null;
         }
 
-        $maxMi = floor(((int) config('api.max_radius_km', 100)) * self::MILES_PER_KM);
-
-        return min((float) $raw, $maxMi);
+        return min((float) $raw, Distance::maxRadius(Distance::MI));
     }
 
     /**
@@ -140,7 +137,7 @@ class ExploreController extends Controller
                 ];
 
                 if ($radius && $c->distance_km !== null) {
-                    $out['distance_mi'] = round(((float) $c->distance_km) * self::MILES_PER_KM, 1);
+                    $out['distance_mi'] = round(Distance::fromKm((float) $c->distance_km, Distance::MI), 1);
                 }
 
                 return $out;

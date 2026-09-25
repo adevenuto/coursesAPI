@@ -43,7 +43,7 @@ const tabs = [
       "country": "US",
       "latitude": 37.0132,
       "longitude": -86.43378,
-      "distance_km": 0.09
+      "distance_mi": 0.06
     },
     {
       "id": 331,
@@ -51,7 +51,7 @@ const tabs = [
       "city": "Bowling Green",
       "state": "Kentucky",
       "country": "US",
-      "distance_km": 3.72
+      "distance_mi": 2.31
     }
   ],
   "meta": { "current_page": 1, "per_page": 25, "last_page": 1, "total": 5 }

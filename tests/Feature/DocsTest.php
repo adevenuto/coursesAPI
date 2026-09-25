@@ -19,7 +19,11 @@ class DocsTest extends TestCase
                 ->has('plans.free')
                 ->has('plans.pro')
                 ->has('baseUrl')
-                ->where('pagination.max_per_page', 100),
+                ->where('pagination.max_per_page', 100)
+                // Both radius caps, so the docs table can't drift from what
+                // IndexCoursesRequest actually enforces.
+                ->where('maxRadiusMi', 100)
+                ->where('maxRadiusKm', 161),
             );
     }
 }

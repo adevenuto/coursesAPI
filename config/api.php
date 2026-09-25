@@ -59,8 +59,10 @@ return [
         'max_per_page' => 100,
     ],
 
-    // Max radius (km) accepted by the near-me query.
-    'max_radius_km' => 100,
+    // Max radius accepted by the near-me query, in miles — the API's default
+    // unit. A `units=km` caller gets the rounded-up kilometre equivalent.
+    // See App\Support\Distance.
+    'max_radius_mi' => 100,
 
     /*
     |--------------------------------------------------------------------------
