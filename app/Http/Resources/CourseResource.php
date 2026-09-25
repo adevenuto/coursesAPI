@@ -25,13 +25,15 @@ class CourseResource extends JsonResource
             'country' => $this->country?->iso2,
             'latitude' => $this->lat,
             'longitude' => $this->lng,
-            // Present only on near-me queries, keyed by the unit the caller
-            // asked for: `distance_mi` by default, `distance_km` on units=km.
-            $this->mergeWhen(isset($this->distance_km), function () use ($request) {
-                $unit = Distance::unit($request->query('units'));
-
-                return ['distance_'.$unit => round(Distance::fromKm((float) $this->distance_km, $unit), 2)];
-            }),
+            // Present only on near-me queries. Both units ship regardless of
+            // what `units` asked for: `distance_mi` is the new primary, and
+            // `distance_km` rides along unchanged so integrations written
+            // against the kilometres-only API keep parsing. `distance_km` is
+            // deprecated and goes away once those have moved over.
+            $this->mergeWhen(isset($this->distance_km), fn () => [
+                'distance_mi' => round(Distance::fromKm((float) $this->distance_km, Distance::MI), 2),
+                'distance_km' => round((float) $this->distance_km, 2),
+            ]),
         ];
     }
 }
