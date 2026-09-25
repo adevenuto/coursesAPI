@@ -78,7 +78,6 @@ class CourseApiTest extends ApiTestCase
         $this->assertSame('Bowling Green Country Club', $res->json('data.0.name'));
         $this->assertLessThan((float) $res->json('data.1.distance_mi'), (float) $res->json('data.0.distance_mi'));
         $this->assertArrayHasKey('distance_mi', $res->json('data.0'));
-        $this->assertArrayNotHasKey('distance_km', $res->json('data.0'));
     }
 
     /**
@@ -99,23 +98,51 @@ class CourseApiTest extends ApiTestCase
             ->assertJsonPath('meta.total', 1);
     }
 
-    public function test_units_km_returns_distance_in_km(): void
+    /**
+     * Both distance keys ship on every near-me result, whatever `units` said.
+     * `distance_km` is deprecated, but removing it would break every
+     * integration written against the kilometres-only API, so it stays until
+     * those have moved over. This test is what keeps it there.
+     */
+    public function test_both_distance_units_are_always_returned(): void
     {
         Sanctum::actingAs($this->freeUser);
 
-        $res = $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378&radius=25&units=km')->assertOk();
+        foreach (['', '&units=mi', '&units=km'] as $suffix) {
+            $row = $this->getJson("/api/v1/courses?lat=37.0132&lng=-86.43378&radius=25{$suffix}")
+                ->assertOk()
+                ->json('data.1');
 
-        $this->assertArrayHasKey('distance_km', $res->json('data.0'));
-        $this->assertArrayNotHasKey('distance_mi', $res->json('data.0'));
+            $this->assertArrayHasKey('distance_mi', $row, "units suffix: '{$suffix}'");
+            $this->assertArrayHasKey('distance_km', $row, "units suffix: '{$suffix}'");
 
-        // Same neighbour, both ways round: the two readings are one distance.
-        $mi = $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378&radius=25')->assertOk();
+            // One distance, two readings.
+            $this->assertEqualsWithDelta(
+                (float) $row['distance_km'] * Distance::MILES_PER_KM,
+                (float) $row['distance_mi'],
+                0.01,
+                "units suffix: '{$suffix}'",
+            );
+        }
+    }
 
-        $this->assertEqualsWithDelta(
-            (float) $res->json('data.1.distance_km') * Distance::MILES_PER_KM,
-            (float) $mi->json('data.1.distance_mi'),
-            0.01,
-        );
+    /**
+     * Omitting `radius` searches to the cap, and the cap moved with the unit —
+     * so `units=km` alone does NOT reproduce the old 100km default. Pinning
+     * this because the docs tell callers to send radius=100&units=km for that.
+     */
+    public function test_omitted_radius_searches_to_the_cap_in_the_requested_unit(): void
+    {
+        Sanctum::actingAs($this->freeUser);
+
+        // Pebble Beach is ~3000km away: out of range either way, so the cap
+        // itself is what this asserts, via the request that defines it.
+        $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+
+        $this->assertSame(100.0, Distance::maxRadius(Distance::MI));
+        $this->assertSame(161.0, Distance::maxRadius(Distance::KM));
     }
 
     public function test_radius_cap_follows_the_requested_unit(): void

@@ -73,11 +73,11 @@ const resNear = `{
     { "id": 4, "name": "Bowling Green Country Club",
       "club": "Bowling Green Country Club", "city": "Bowling Green",
       "state": "Kentucky", "country": "US", "latitude": 37.0132,
-      "longitude": -86.43378, "distance_mi": 0.06 },
+      "longitude": -86.43378, "distance_mi": 0.06, "distance_km": 0.09 },
     { "id": 331, "name": "Indian Hills Country Club",
       "club": "Indian Hills Country Club", "city": "Bowling Green",
       "state": "Kentucky", "country": "US", "latitude": 36.993816,
-      "longitude": -86.400566, "distance_mi": 2.31 }
+      "longitude": -86.400566, "distance_mi": 2.31, "distance_km": 3.72 }
   ],
   "meta": { "current_page": 1, "per_page": 25, "last_page": 1, "total": 5 }
 }`;
@@ -321,10 +321,16 @@ const resCities = `{
                                 Near-me search now works in miles
                             </p>
                             <p class="mt-2 max-w-2xl text-sm text-fg-muted">
-                                <code>radius</code> is read as <strong class="font-medium text-fg">miles</strong>, and each result
-                                carries <code>distance_mi</code>. Both were kilometres before. The new
-                                <code>units</code> parameter restores the old behaviour exactly &mdash;
-                                <code>?radius=25&amp;units=km</code> returns what <code>?radius=25</code> used to.
+                                <code>radius</code> is now read as <strong class="font-medium text-fg">miles</strong> rather than
+                                kilometres, and results carry <code>distance_mi</code>.
+                                <code>distance_km</code> is still returned alongside it, unchanged, so existing integrations keep
+                                working &mdash; it is deprecated and will be removed in a future release.
+                            </p>
+                            <p class="mt-2 max-w-2xl text-sm text-fg-muted">
+                                To keep your current search area, pass <code>units=km</code>:
+                                <code>?radius=25&amp;units=km</code> returns exactly what <code>?radius=25</code> used to. If you
+                                omit <code>radius</code> altogether, the default area widened too &mdash; send
+                                <code>?radius=100&amp;units=km</code> to pin it where it was.
                             </p>
                         </div>
 
@@ -339,7 +345,7 @@ const resCities = `{
                                     <tr><td class="px-4 py-3 font-mono text-fg">state_prov_id</td><td class="px-4 py-3">Filter by state/province id.</td></tr>
                                     <tr><td class="px-4 py-3 font-mono text-fg">city_id</td><td class="px-4 py-3">Filter by city id.</td></tr>
                                     <tr><td class="px-4 py-3 font-mono text-fg">lat, lng, radius</td><td class="px-4 py-3">Near-me search, sorted nearest first. <code>radius</code> is in <strong>miles</strong> (max {{ maxRadiusMi }}) unless <code>units=km</code>. Omit it to search out to the cap.</td></tr>
-                                    <tr><td class="px-4 py-3 font-mono text-fg">units</td><td class="px-4 py-3"><code>mi</code> (default) or <code>km</code>. Sets the unit of <code>radius</code> and of the distance field on each result &mdash; <code>distance_mi</code>, or <code>distance_km</code> with a max radius of {{ maxRadiusKm }}.</td></tr>
+                                    <tr><td class="px-4 py-3 font-mono text-fg">units</td><td class="px-4 py-3"><code>mi</code> (default) or <code>km</code>. Sets the unit <code>radius</code> is read in, and the cap that applies &mdash; {{ maxRadiusMi }} mi or {{ maxRadiusKm }} km. Results always carry both <code>distance_mi</code> and <code>distance_km</code> either way.</td></tr>
                                     <tr><td class="px-4 py-3 font-mono text-fg">page, per_page</td><td class="px-4 py-3">Pagination.</td></tr>
                                 </tbody>
                             </table>
@@ -350,9 +356,9 @@ const resCities = `{
                         </div>
                         <p class="mt-6 mb-2 text-sm font-medium text-fg">Near-me example</p>
                         <p class="mb-3 max-w-2xl text-sm text-fg-muted">
-                            Courses within 25 miles, nearest first. Each result carries
-                            <code>distance_mi</code>; add <code>units=km</code> to send and receive
-                            kilometres instead.
+                            Courses within 25 miles, nearest first. Each result carries both
+                            <code>distance_mi</code> and <code>distance_km</code>; add <code>units=km</code>
+                            to have <code>radius</code> itself read in kilometres.
                         </p>
                         <div class="grid gap-4">
                             <CodeBlock method="GET" label="/courses?lat=&amp;lng=&amp;radius=" :code="curl('/courses?lat=37.014&lng=-86.434&radius=25')" />
