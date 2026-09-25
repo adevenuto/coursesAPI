@@ -100,7 +100,7 @@ class ExplorerTest extends TestCase
         // Way over the max (~62 mi) → clamped; far course still excluded.
         $this->getJson('/explore/city/500?radius=9999')
             ->assertOk()
-            ->assertJsonPath('area.radius_mi', (int) floor(config('api.max_radius_km') * 0.621371))
+            ->assertJsonPath('area.radius_mi', (int) config('api.max_radius_mi'))
             ->assertJsonPath('count', 2);
     }
 

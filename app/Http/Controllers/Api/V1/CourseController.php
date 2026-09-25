@@ -7,6 +7,7 @@ use App\Http\Requests\IndexCoursesRequest;
 use App\Http\Resources\CourseCollection;
 use App\Http\Resources\CourseDetailResource;
 use App\Models\Course;
+use App\Support\Distance;
 
 class CourseController extends Controller
 {
@@ -19,10 +20,17 @@ class CourseController extends Controller
 
         $query = Course::query()->with(['city', 'state', 'country']);
 
-        // Near-me overrides ordering with distance.
+        // Near-me overrides ordering with distance. `radius` is in miles unless
+        // `units=km`; omitting it searches out to the cap.
         if ($request->filled('lat') && $request->filled('lng')) {
-            $radius = (float) $request->input('radius', config('api.max_radius_km', 100));
-            $query->near((float) $request->input('lat'), (float) $request->input('lng'), $radius);
+            $units = Distance::unit($request->input('units'));
+            $radius = (float) $request->input('radius', Distance::maxRadius($units));
+
+            $query->near(
+                (float) $request->input('lat'),
+                (float) $request->input('lng'),
+                Distance::toKm($radius, $units),
+            );
         }
 
         $query->search($request->input('q'));

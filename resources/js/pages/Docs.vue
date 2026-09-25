@@ -21,6 +21,7 @@ const props = defineProps<{
     plans: Record<'free' | 'pro' | 'max', PlanConfig>;
     baseUrl: string;
     pagination: { default_per_page: number; max_per_page: number };
+    maxRadiusMi: number;
     maxRadiusKm: number;
 }>();
 
@@ -72,11 +73,11 @@ const resNear = `{
     { "id": 4, "name": "Bowling Green Country Club",
       "club": "Bowling Green Country Club", "city": "Bowling Green",
       "state": "Kentucky", "country": "US", "latitude": 37.0132,
-      "longitude": -86.43378, "distance_km": 0.09 },
+      "longitude": -86.43378, "distance_mi": 0.06 },
     { "id": 331, "name": "Indian Hills Country Club",
       "club": "Indian Hills Country Club", "city": "Bowling Green",
       "state": "Kentucky", "country": "US", "latitude": 36.993816,
-      "longitude": -86.400566, "distance_km": 3.72 }
+      "longitude": -86.400566, "distance_mi": 2.31 }
   ],
   "meta": { "current_page": 1, "per_page": 25, "last_page": 1, "total": 5 }
 }`;
@@ -312,6 +313,21 @@ const resCities = `{
                         <p class="mt-3 max-w-2xl text-fg-muted">
                             Search and filter courses. Combine any parameters; results are paginated.
                         </p>
+
+                        <!-- Units change. Remove once existing integrations have moved over. -->
+                        <div class="mt-5 rounded-xl border border-line-lime bg-mk-accent/5 p-4">
+                            <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-fg">
+                                <span class="rounded-full bg-mk-accent/15 px-2 py-0.5 text-xs font-medium tracking-wide text-mk-accent uppercase">Changed</span>
+                                Near-me search now works in miles
+                            </p>
+                            <p class="mt-2 max-w-2xl text-sm text-fg-muted">
+                                <code>radius</code> is read as <strong class="font-medium text-fg">miles</strong>, and each result
+                                carries <code>distance_mi</code>. Both were kilometres before. The new
+                                <code>units</code> parameter restores the old behaviour exactly &mdash;
+                                <code>?radius=25&amp;units=km</code> returns what <code>?radius=25</code> used to.
+                            </p>
+                        </div>
+
                         <div class="mt-5 overflow-x-auto rounded-xl border border-line">
                             <table class="w-full text-left text-sm">
                                 <thead class="border-b border-line text-fg-subtle">
@@ -322,7 +338,8 @@ const resCities = `{
                                     <tr><td class="px-4 py-3 font-mono text-fg">country</td><td class="px-4 py-3">ISO2 code (e.g. <code>US</code>) or country id.</td></tr>
                                     <tr><td class="px-4 py-3 font-mono text-fg">state_prov_id</td><td class="px-4 py-3">Filter by state/province id.</td></tr>
                                     <tr><td class="px-4 py-3 font-mono text-fg">city_id</td><td class="px-4 py-3">Filter by city id.</td></tr>
-                                    <tr><td class="px-4 py-3 font-mono text-fg">lat, lng, radius</td><td class="px-4 py-3">Near-me search (radius in km, max {{ maxRadiusKm }}). Adds <code>distance_km</code>, sorted nearest first.</td></tr>
+                                    <tr><td class="px-4 py-3 font-mono text-fg">lat, lng, radius</td><td class="px-4 py-3">Near-me search, sorted nearest first. <code>radius</code> is in <strong>miles</strong> (max {{ maxRadiusMi }}) unless <code>units=km</code>. Omit it to search out to the cap.</td></tr>
+                                    <tr><td class="px-4 py-3 font-mono text-fg">units</td><td class="px-4 py-3"><code>mi</code> (default) or <code>km</code>. Sets the unit of <code>radius</code> and of the distance field on each result &mdash; <code>distance_mi</code>, or <code>distance_km</code> with a max radius of {{ maxRadiusKm }}.</td></tr>
                                     <tr><td class="px-4 py-3 font-mono text-fg">page, per_page</td><td class="px-4 py-3">Pagination.</td></tr>
                                 </tbody>
                             </table>
@@ -332,9 +349,15 @@ const resCities = `{
                             <CodeBlock method="200" label="response" :code="resList" />
                         </div>
                         <p class="mt-6 mb-2 text-sm font-medium text-fg">Near-me example</p>
+                        <p class="mb-3 max-w-2xl text-sm text-fg-muted">
+                            Courses within 25 miles, nearest first. Each result carries
+                            <code>distance_mi</code>; add <code>units=km</code> to send and receive
+                            kilometres instead.
+                        </p>
                         <div class="grid gap-4">
                             <CodeBlock method="GET" label="/courses?lat=&amp;lng=&amp;radius=" :code="curl('/courses?lat=37.014&lng=-86.434&radius=25')" />
                             <CodeBlock method="200" label="response" :code="resNear" />
+                            <CodeBlock method="GET" label="same search in kilometres" :code="curl('/courses?lat=37.014&lng=-86.434&radius=40&units=km')" />
                         </div>
                     </section>
 

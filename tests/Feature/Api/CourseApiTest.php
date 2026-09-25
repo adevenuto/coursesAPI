@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Course;
+use App\Support\Distance;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 
@@ -72,11 +73,77 @@ class CourseApiTest extends ApiTestCase
 
         $res = $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378&radius=25')->assertOk();
 
-        // Two KY courses within 25km; Pebble Beach (CA) excluded.
+        // Two KY courses within 25 miles; Pebble Beach (CA) excluded.
         $res->assertJsonPath('meta.total', 2);
         $this->assertSame('Bowling Green Country Club', $res->json('data.0.name'));
-        $this->assertLessThan((float) $res->json('data.1.distance_km'), (float) $res->json('data.0.distance_km'));
+        $this->assertLessThan((float) $res->json('data.1.distance_mi'), (float) $res->json('data.0.distance_mi'));
+        $this->assertArrayHasKey('distance_mi', $res->json('data.0'));
+        $this->assertArrayNotHasKey('distance_km', $res->json('data.0'));
+    }
+
+    /**
+     * The two KY courses sit 3.72 km — 2.31 mi — apart, so a radius of 3 covers
+     * both when it means miles and only the first when it means kilometres.
+     * That gap is what pins the default down.
+     */
+    public function test_radius_defaults_to_miles(): void
+    {
+        Sanctum::actingAs($this->freeUser);
+
+        $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378&radius=3')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+
+        $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378&radius=3&units=km')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_units_km_returns_distance_in_km(): void
+    {
+        Sanctum::actingAs($this->freeUser);
+
+        $res = $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378&radius=25&units=km')->assertOk();
+
         $this->assertArrayHasKey('distance_km', $res->json('data.0'));
+        $this->assertArrayNotHasKey('distance_mi', $res->json('data.0'));
+
+        // Same neighbour, both ways round: the two readings are one distance.
+        $mi = $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378&radius=25')->assertOk();
+
+        $this->assertEqualsWithDelta(
+            (float) $res->json('data.1.distance_km') * Distance::MILES_PER_KM,
+            (float) $mi->json('data.1.distance_mi'),
+            0.01,
+        );
+    }
+
+    public function test_radius_cap_follows_the_requested_unit(): void
+    {
+        Sanctum::actingAs($this->freeUser);
+
+        $base = '/api/v1/courses?lat=37.0132&lng=-86.43378';
+
+        // 100 miles is the cap, so the mile ceiling is lower in raw numbers...
+        $this->getJson("{$base}&radius=100")->assertOk();
+        $this->getJson("{$base}&radius=101")
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('radius');
+
+        // ...than the kilometre one, which is the same distance rounded up.
+        $this->getJson("{$base}&radius=161&units=km")->assertOk();
+        $this->getJson("{$base}&radius=162&units=km")
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('radius');
+    }
+
+    public function test_unknown_units_are_rejected(): void
+    {
+        Sanctum::actingAs($this->freeUser);
+
+        $this->getJson('/api/v1/courses?lat=37.0132&lng=-86.43378&radius=25&units=furlongs')
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('units');
     }
 
     public function test_per_page_is_capped(): void

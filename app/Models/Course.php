@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Distance;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -218,7 +219,7 @@ class Course extends Model
         $club = trim((string) $this->club_name);
 
         $query = static::query()
-            ->near((float) $this->lat, (float) $this->lng, $radiusMi * 1.60934)
+            ->near((float) $this->lat, (float) $this->lng, Distance::toKm($radiusMi, Distance::MI))
             ->whereKeyNot($this->id)
             // scopeNear ends with orderBy('distance_km'); clear it so same-club
             // sorts first rather than landing behind distance and doing nothing.
@@ -239,7 +240,7 @@ class Course extends Model
                 'hole_count' => is_array($c->layout_data) && isset($c->layout_data['hole_count'])
                     ? (int) $c->layout_data['hole_count'] : null,
                 'green_centers_available' => $c->hasGreenCenters(),
-                'distance_mi' => round(((float) $c->distance_km) * 0.621371, 1),
+                'distance_mi' => round(Distance::fromKm((float) $c->distance_km, Distance::MI), 1),
                 'same_club' => $club !== '' && trim((string) $c->club_name) === $club,
                 'edit_url' => '/courses/'.$c->id.'/edit',
                 // The public link too: this list is now rendered on the course
