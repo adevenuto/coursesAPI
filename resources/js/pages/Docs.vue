@@ -314,7 +314,7 @@ const resCities = `{
                             Search and filter courses. Combine any parameters; results are paginated.
                         </p>
 
-                        <!-- Units change. Remove once existing integrations have moved over. -->
+                        <!-- Units change. Both distance keys are permanent; see CourseResource. -->
                         <div class="mt-5 rounded-xl border border-line-lime bg-mk-accent/5 p-4">
                             <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-fg">
                                 <span class="rounded-full bg-mk-accent/15 px-2 py-0.5 text-xs font-medium tracking-wide text-mk-accent uppercase">New</span>
@@ -323,7 +323,7 @@ const resCities = `{
                             <ul class="mt-3 ml-5 max-w-2xl list-disc space-y-1 text-sm text-fg-muted marker:text-mk-accent">
                                 <li><strong class="font-medium text-fg">To preserve existing behavior:</strong> Pass <code>units=km</code> (e.g., <code>?radius=25&amp;units=km</code>).</li>
                                 <li><strong class="font-medium text-fg">If omitting radius:</strong> Pass <code>?radius=100&amp;units=km</code> to prevent the search area from expanding.</li>
-                                <li><strong class="font-medium text-fg">Deprecation notice:</strong> <code>distance_km</code> is deprecated and will be removed in a future release.</li>
+                                <li><strong class="font-medium text-fg">Both units are always returned:</strong> every result carries <code>distance_mi</code> and <code>distance_km</code>, whichever you pass.</li>
                             </ul>
                         </div>
 
