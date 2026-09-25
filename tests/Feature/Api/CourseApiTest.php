@@ -99,10 +99,11 @@ class CourseApiTest extends ApiTestCase
     }
 
     /**
-     * Both distance keys ship on every near-me result, whatever `units` said.
-     * `distance_km` is deprecated, but removing it would break every
-     * integration written against the kilometres-only API, so it stays until
-     * those have moved over. This test is what keeps it there.
+     * Both distance keys ship on every near-me result, whatever `units` said:
+     * that parameter chooses how `radius` is read, not which distance comes
+     * back. Both are permanent — the audience spans miles and kilometres, and
+     * dropping either would only buy a future breaking change. This test is
+     * what keeps them there.
      */
     public function test_both_distance_units_are_always_returned(): void
     {
