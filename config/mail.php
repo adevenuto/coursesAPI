@@ -115,4 +115,17 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Support inbox
+    |--------------------------------------------------------------------------
+    |
+    | Where visitor-facing mail lands — currently the explorer's "suggest a
+    | course" submissions. Kept here rather than inlined at the call site so
+    | the address changes in one place.
+    |
+    */
+
+    'support_address' => env('MAIL_SUPPORT_ADDRESS', 'support@golfcoursesapi.com'),
+
 ];

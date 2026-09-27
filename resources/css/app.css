@@ -335,6 +335,45 @@
     }
 
     /* Pill buttons. */
+    /* Form input baseline. The shadcn ui/input primitive uses the other token
+       set (border-input, bg-transparent) and doesn't fit the marketing surfaces,
+       so text inputs, textareas and native selects share this instead. */
+    .ds-input {
+        width: 100%;
+        min-width: 0;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        background: var(--ink-800);
+        padding: 8px 12px;
+        font-size: 14px;
+        color: var(--text-primary);
+    }
+    .ds-input::placeholder {
+        color: var(--text-tertiary);
+    }
+    .ds-input:focus {
+        outline: none;
+        border-color: var(--border-lime);
+    }
+    .ds-input:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    /* Readonly is not disabled: the value is settled, not unavailable. Recessed
+       a step and quieter, with no lime focus ring promising editability — but
+       full contrast and still focusable, selectable and copyable. */
+    .ds-input:read-only:not(:disabled) {
+        background: var(--ink-850);
+        color: var(--text-secondary);
+        cursor: default;
+    }
+    .ds-input:read-only:not(:disabled):focus {
+        border-color: var(--border-subtle);
+    }
+    .ds-input[aria-invalid='true'] {
+        border-color: var(--border-default);
+    }
+
     .ds-btn {
         display: inline-flex;
         align-items: center;
