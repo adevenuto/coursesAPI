@@ -384,6 +384,10 @@
         line-height: 1;
         white-space: nowrap;
         border: 1px solid transparent;
+        /* A button's UA default cursor is an arrow, not a pointer — nothing in
+           Preflight changes that, so every pill in the app needs it stated here
+           or none of them look clickable. */
+        cursor: pointer;
         transition:
             transform 0.12s ease,
             background 0.15s ease,
@@ -392,6 +396,14 @@
     }
     .ds-btn:active {
         transform: scale(0.97);
+    }
+    .ds-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    /* Nothing to press while it's submitting. */
+    .ds-btn:disabled:active {
+        transform: none;
     }
     .ds-btn--primary {
         background: var(--grad-lime);

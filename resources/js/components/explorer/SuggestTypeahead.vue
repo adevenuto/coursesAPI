@@ -207,7 +207,7 @@ onClickOutside(root, () => (open.value = false));
                 v-for="(option, i) in options"
                 :key="option.id"
                 type="button"
-                class="flex w-full flex-col rounded-md px-3 py-2 text-left transition-colors"
+                class="flex w-full cursor-pointer flex-col rounded-md px-3 py-2 text-left transition-colors"
                 :class="active === i ? 'bg-ink-700' : 'hover:bg-ink-800'"
                 @mouseenter="active = i"
                 @click="choose(option)"
