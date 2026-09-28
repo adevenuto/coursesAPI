@@ -62,6 +62,9 @@ class AnalyticsController extends Controller
         ]);
     }
 
+    /** Rows returned with a drill-down. The summary alongside them is uncapped. */
+    private const ERROR_ROWS = 50;
+
     /**
      * The failed requests behind the Errors figure, fetched when the log preview
      * is opened rather than shipped with every page load.
@@ -74,8 +77,25 @@ class AnalyticsController extends Controller
     {
         [, $from, $to] = $this->range($request);
 
+        // Scope narrows the same figures the page already shows; an unrecognised
+        // value falls back rather than erroring, matching how range() treats a
+        // bad range. Nothing here is trusted into SQL — endpoint and method go in
+        // as bound parameters, so an unknown one simply matches nothing.
+        $endpoint = $request->string('endpoint')->trim()->value() ?: null;
+        $method = $request->string('method')->trim()->upper()->value() ?: null;
+        $status = $request->filled('status') ? $request->integer('status') : null;
+        $mode = $request->input('mode') === ApiAnalytics::MODE_THROTTLED
+            ? ApiAnalytics::MODE_THROTTLED
+            : ApiAnalytics::MODE_ERRORS;
+
+        // The breakdown counts everything in scope; the rows are the newest
+        // slice of it. They are deliberately different sizes — see errorBreakdown.
+        $summary = $analytics->errorBreakdown($from, $to, $endpoint, $method, $mode);
+
         return response()->json([
-            'errors' => $analytics->recentErrors($from, $to, 50),
+            'summary' => $summary,
+            'total' => array_sum(array_column($summary, 'count')),
+            'errors' => $analytics->recentErrors($from, $to, self::ERROR_ROWS, $endpoint, $method, $status, $mode),
         ]);
     }
 
