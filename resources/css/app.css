@@ -335,6 +335,45 @@
     }
 
     /* Pill buttons. */
+    /* Form input baseline. The shadcn ui/input primitive uses the other token
+       set (border-input, bg-transparent) and doesn't fit the marketing surfaces,
+       so text inputs, textareas and native selects share this instead. */
+    .ds-input {
+        width: 100%;
+        min-width: 0;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        background: var(--ink-800);
+        padding: 8px 12px;
+        font-size: 14px;
+        color: var(--text-primary);
+    }
+    .ds-input::placeholder {
+        color: var(--text-tertiary);
+    }
+    .ds-input:focus {
+        outline: none;
+        border-color: var(--border-lime);
+    }
+    .ds-input:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    /* Readonly is not disabled: the value is settled, not unavailable. Recessed
+       a step and quieter, with no lime focus ring promising editability — but
+       full contrast and still focusable, selectable and copyable. */
+    .ds-input:read-only:not(:disabled) {
+        background: var(--ink-850);
+        color: var(--text-secondary);
+        cursor: default;
+    }
+    .ds-input:read-only:not(:disabled):focus {
+        border-color: var(--border-subtle);
+    }
+    .ds-input[aria-invalid='true'] {
+        border-color: var(--border-default);
+    }
+
     .ds-btn {
         display: inline-flex;
         align-items: center;
@@ -345,6 +384,10 @@
         line-height: 1;
         white-space: nowrap;
         border: 1px solid transparent;
+        /* A button's UA default cursor is an arrow, not a pointer — nothing in
+           Preflight changes that, so every pill in the app needs it stated here
+           or none of them look clickable. */
+        cursor: pointer;
         transition:
             transform 0.12s ease,
             background 0.15s ease,
@@ -353,6 +396,14 @@
     }
     .ds-btn:active {
         transform: scale(0.97);
+    }
+    .ds-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    /* Nothing to press while it's submitting. */
+    .ds-btn:disabled:active {
+        transform: none;
     }
     .ds-btn--primary {
         background: var(--grad-lime);

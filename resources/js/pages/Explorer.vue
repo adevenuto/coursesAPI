@@ -11,6 +11,7 @@ import CourseSearch from '@/components/explorer/CourseSearch.vue';
 import ResultsList from '@/components/explorer/ResultsList.vue';
 import CoursesMap from '@/components/explorer/CoursesMap.vue';
 import RadiusControl from '@/components/explorer/RadiusControl.vue';
+import SuggestCourseDialog from '@/components/explorer/SuggestCourseDialog.vue';
 import {
     clearExplorerSearch,
     readExplorerSearch,
@@ -296,6 +297,12 @@ watch(radiusMiles, refetchForRadius);
                     <Link href="/courses/create" class="ds-btn ds-btn--primary px-4 py-2.5 text-sm">
                         <Plus class="size-4" /> New course
                     </Link>
+                </div>
+
+                <!-- Editors add a course outright; everyone else can tell us
+                     about one we're missing. -->
+                <div v-else class="flex shrink-0 items-center gap-2">
+                    <SuggestCourseDialog :algolia="algolia" />
                 </div>
             </div>
 

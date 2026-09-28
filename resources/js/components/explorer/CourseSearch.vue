@@ -275,7 +275,7 @@ const flatIndex = (g: number, h: number) =>
                         v-for="(hit, hi) in g.hits"
                         :key="hit.objectID"
                         type="button"
-                        class="flex w-full flex-col rounded-lg px-3 py-2 text-left transition-colors"
+                        class="flex w-full cursor-pointer flex-col rounded-lg px-3 py-2 text-left transition-colors"
                         :class="active === flatIndex(gi, hi) ? 'bg-ink-700' : 'hover:bg-ink-800'"
                         @mouseenter="active = flatIndex(gi, hi)"
                         @click="choose(hit)"

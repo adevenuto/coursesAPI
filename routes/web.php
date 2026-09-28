@@ -3,10 +3,12 @@
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\CourseEditorController;
 use App\Http\Controllers\CourseShowController;
+use App\Http\Controllers\CourseSuggestionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\ExplorerController;
+use App\Http\Controllers\GeoLookupController;
 use App\Http\Controllers\PrivacyController;
 use App\Http\Controllers\ScorecardScanController;
 use App\Http\Controllers\SitemapController;
@@ -100,6 +102,23 @@ Route::prefix('explore')->middleware('throttle:explore')->group(function () {
     Route::get('state/{state}', [ExploreController::class, 'state'])->name('explore.state');
     Route::get('country/{country}', [ExploreController::class, 'country'])->name('explore.country');
 });
+
+// Public geo name lookups for the suggestion modal's cascading country → state
+// → city typeaheads. Deliberately queries the FULL geo tables: the Algolia geo
+// indices are restricted to course-bearing rows by shouldBeSearchable(), and a
+// town with no courses is exactly the town a "missing course" submitter needs.
+Route::prefix('geo')->middleware('throttle:geo')->group(function () {
+    Route::get('countries', [GeoLookupController::class, 'countries'])->name('geo.countries');
+    Route::get('states', [GeoLookupController::class, 'states'])->name('geo.states');
+    Route::get('cities', [GeoLookupController::class, 'cities'])->name('geo.cities');
+});
+
+// "Suggest a course" from the explorer modal. Public, and the only
+// unauthenticated POST in the app — see the `suggestions` limiter and the
+// honeypot in CourseSuggestionController for what holds the door.
+Route::post('course-suggestions', [CourseSuggestionController::class, 'store'])
+    ->middleware('throttle:suggestions')
+    ->name('course-suggestions.store');
 
 Route::withHead(robots: 'noindex, nofollow')->middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard')->withHead(title: 'Dashboard');
