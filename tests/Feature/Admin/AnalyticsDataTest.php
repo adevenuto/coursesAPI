@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\ApiRequest;
+use App\Models\Course;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -284,6 +285,88 @@ class AnalyticsDataTest extends TestCase
                 ->where('endpoints.0.errors', 4)
                 ->where('endpoints.0.server_errors', 1)
                 ->where('endpoints.0.throttled', 1)
+                ->etc());
+    }
+
+    /**
+     * The course id lives in the `query` JSON because it is a route parameter,
+     * so this exercises the JSON_EXTRACT join rather than a plain GROUP BY.
+     */
+    public function test_it_ranks_the_most_requested_courses(): void
+    {
+        $wanted = Course::create([
+            'course_name' => 'Wanted GC', 'club_name' => 'Wanted Club',
+            'layout_data' => ['hole_count' => 18, 'teeboxes' => []],
+        ]);
+        $other = Course::create([
+            'course_name' => 'Quiet GC', 'club_name' => 'Quiet Club',
+            'layout_data' => ['hole_count' => 18, 'teeboxes' => []],
+        ]);
+
+        ApiRequest::factory()->count(3)->create([
+            'user_id' => $this->admin->id,
+            'endpoint' => 'api/v1/courses/{course}',
+            'query' => ['course' => (string) $wanted->id],
+        ]);
+        ApiRequest::factory()->create([
+            'user_id' => $this->admin->id,
+            'endpoint' => 'api/v1/courses/{course}',
+            'query' => ['course' => (string) $other->id],
+        ]);
+        // No route parameter captured — older traffic must simply not appear.
+        ApiRequest::factory()->create([
+            'user_id' => $this->admin->id,
+            'endpoint' => 'api/v1/courses/{course}',
+            'query' => null,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/analytics')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('requestedCourses.0.id', $wanted->id)
+                ->where('requestedCourses.0.name', 'Wanted GC')
+                ->where('requestedCourses.0.count', 3)
+                ->where('requestedCourses.1.count', 1)
+                ->etc());
+    }
+
+    /** Only the 404s, and only from the green-centers endpoint. */
+    public function test_it_ranks_the_courses_missing_green_centers(): void
+    {
+        $course = Course::create([
+            'course_name' => 'No Greens GC',
+            'layout_data' => ['hole_count' => 18, 'teeboxes' => []],
+        ]);
+
+        ApiRequest::factory()->count(2)->create([
+            'user_id' => $this->admin->id,
+            'endpoint' => 'api/v1/courses/{course}/green-centers',
+            'status' => 404,
+            'query' => ['course' => (string) $course->id],
+        ]);
+        // A successful green-centers call isn't a gap.
+        ApiRequest::factory()->create([
+            'user_id' => $this->admin->id,
+            'endpoint' => 'api/v1/courses/{course}/green-centers',
+            'status' => 200,
+            'query' => ['course' => (string) $course->id],
+        ]);
+        // Nor is a 404 on a different endpoint.
+        ApiRequest::factory()->create([
+            'user_id' => $this->admin->id,
+            'endpoint' => 'api/v1/courses/{course}',
+            'status' => 404,
+            'query' => ['course' => (string) $course->id],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get('/admin/analytics')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('missingGreenCenters', 1)
+                ->where('missingGreenCenters.0.id', $course->id)
+                ->where('missingGreenCenters.0.count', 2)
                 ->etc());
     }
 

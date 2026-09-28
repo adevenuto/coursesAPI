@@ -48,6 +48,19 @@ const props = defineProps<{
         throttled: number;
     }[];
     searchTerms: { term: string; count: number }[];
+    /** Courses fetched by id — empty until route params have been captured a while. */
+    requestedCourses: {
+        id: number;
+        name: string;
+        club: string | null;
+        count: number;
+    }[];
+    missingGreenCenters: {
+        id: number;
+        name: string;
+        club: string | null;
+        count: number;
+    }[];
     planMix: {
         total: number;
         paid: number;
@@ -177,6 +190,14 @@ const quotaTone = (percent: number) =>
 
 const maxTerm = computed(() =>
     Math.max(1, ...props.searchTerms.map((t) => t.count)),
+);
+
+const maxRequested = computed(() =>
+    Math.max(1, ...props.requestedCourses.map((c) => c.count)),
+);
+
+const maxMissing = computed(() =>
+    Math.max(1, ...props.missingGreenCenters.map((c) => c.count)),
 );
 </script>
 
@@ -554,6 +575,96 @@ const maxTerm = computed(() =>
                 </div>
             </div>
         </template>
+
+        <!--
+            Both panels read the course id out of the request's route parameters,
+            which only started being recorded recently — so they stay empty for
+            older traffic and fill in as it comes. Not backfillable: the id was
+            never stored before.
+        -->
+        <div class="grid gap-4 lg:grid-cols-2">
+            <div class="rounded-xl border border-border p-4">
+                <h2 class="mb-1 text-sm font-medium">Most requested courses</h2>
+                <p class="mb-3 text-xs text-muted-foreground">
+                    Fetched by id — what's actually wired into someone's app,
+                    rather than what they searched for.
+                </p>
+                <ul class="space-y-1.5">
+                    <li
+                        v-for="c in requestedCourses"
+                        :key="c.id"
+                        class="flex items-center gap-3"
+                    >
+                        <a
+                            :href="`/courses/${c.id}`"
+                            class="min-w-0 flex-1 truncate text-sm hover:underline"
+                            :title="c.club ?? c.name"
+                            >{{ c.name }}</a
+                        >
+                        <div
+                            class="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-muted"
+                        >
+                            <div
+                                class="h-full rounded-full bg-primary/60"
+                                :style="{ width: pct(c.count, maxRequested) }"
+                            />
+                        </div>
+                        <span
+                            class="w-8 shrink-0 text-right text-xs text-muted-foreground tabular-nums"
+                            >{{ nf(c.count) }}</span
+                        >
+                    </li>
+                    <li
+                        v-if="!requestedCourses.length"
+                        class="py-4 text-center text-sm text-muted-foreground"
+                    >
+                        Nothing yet — this fills as requests come in.
+                    </li>
+                </ul>
+            </div>
+
+            <div class="rounded-xl border border-border p-4">
+                <h2 class="mb-1 text-sm font-medium">Missing green centers</h2>
+                <p class="mb-3 text-xs text-muted-foreground">
+                    Paying customers asked for green data on these and got a
+                    404. In demand order — the work queue for
+                    <code class="font-mono">green-centers:osm</code>.
+                </p>
+                <ul class="space-y-1.5">
+                    <li
+                        v-for="c in missingGreenCenters"
+                        :key="c.id"
+                        class="flex items-center gap-3"
+                    >
+                        <a
+                            :href="`/courses/${c.id}/edit`"
+                            class="min-w-0 flex-1 truncate text-sm hover:underline"
+                            :title="c.club ?? c.name"
+                            >{{ c.name }}</a
+                        >
+                        <div
+                            class="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-muted"
+                        >
+                            <div
+                                class="h-full rounded-full bg-amber-500/70"
+                                :style="{ width: pct(c.count, maxMissing) }"
+                            />
+                        </div>
+                        <span
+                            class="w-8 shrink-0 text-right text-xs text-muted-foreground tabular-nums"
+                            >{{ nf(c.count) }}</span
+                        >
+                    </li>
+                    <li
+                        v-if="!missingGreenCenters.length"
+                        class="py-4 text-center text-sm text-muted-foreground"
+                    >
+                        Nothing yet — every green-centers request found its
+                        data.
+                    </li>
+                </ul>
+            </div>
+        </div>
 
         <!-- Outside the traffic guard on purpose: where users are is a fact about
              the user base, not about activity in the selected window. -->

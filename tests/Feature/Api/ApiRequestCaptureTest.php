@@ -107,6 +107,47 @@ class ApiRequestCaptureTest extends ApiTestCase
         $this->assertSame(1, (int) $this->lastRequest()->result_count);
     }
 
+    /**
+     * The whole point of capturing route parameters: a green-centers 404 means a
+     * paying customer wanted green data we don't have, and the id is the only
+     * thing that says which course to go and map.
+     */
+    public function test_it_records_the_route_parameters(): void
+    {
+        Sanctum::actingAs($this->proUser);
+
+        $this->getJson("/api/v1/courses/{$this->noGreenCourse->id}/green-centers")
+            ->assertNotFound();
+
+        $query = json_decode($this->lastRequest()->query, true);
+
+        $this->assertSame((string) $this->noGreenCourse->id, $query['course']);
+    }
+
+    /**
+     * Binding never ran here, so `parameters()` would have nothing — which is
+     * why the recorder reads originalParameters().
+     */
+    public function test_it_records_the_route_parameter_when_binding_failed(): void
+    {
+        Sanctum::actingAs($this->proUser);
+
+        $this->getJson('/api/v1/courses/99999999')->assertNotFound();
+
+        $query = json_decode($this->lastRequest()->query, true);
+
+        $this->assertSame('99999999', $query['course']);
+    }
+
+    public function test_a_route_parameter_value_is_capped(): void
+    {
+        Sanctum::actingAs($this->proUser);
+
+        $this->getJson('/api/v1/courses/'.str_repeat('9', 80))->assertNotFound();
+
+        $this->assertSame(40, strlen(json_decode($this->lastRequest()->query, true)['course']));
+    }
+
     public function test_it_stores_only_whitelisted_query_params(): void
     {
         Sanctum::actingAs($this->proUser);
