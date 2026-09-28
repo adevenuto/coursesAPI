@@ -247,6 +247,56 @@ class ApiAnalytics
     }
 
     /**
+     * Courses fetched by id, most-wanted first — and, filtered to 404s, the
+     * ones customers wanted green data for and didn't get.
+     *
+     * Distinct from topSearchTerms: that reads the free-text `q` someone typed
+     * to find out whether we have a course. This reads the id they asked for
+     * once they already knew, so it names a row we can act on rather than a
+     * phrase we have to interpret.
+     *
+     * The id lives in the `query` JSON because it is a route parameter — see
+     * ApiRequestRecorder. That means JSON_EXTRACT here rather than a plain
+     * GROUP BY, which is why this is capped and range-scoped like everything
+     * else on the page. Only rows captured after that change carry one, so this
+     * is empty for traffic older than it.
+     *
+     * @param  string  $endpoint  route URI in its templated form
+     * @return list<array{id:int, name:string, club:?string, count:int}>
+     */
+    public function topRequestedCourses(
+        CarbonInterface $from,
+        CarbonInterface $to,
+        string $endpoint = 'api/v1/courses/{course}',
+        ?int $status = null,
+        int $limit = 10,
+    ): array {
+        $courseId = "JSON_UNQUOTE(JSON_EXTRACT(api_requests.query, '$.course'))";
+
+        $query = $this->base($from, $to)
+            ->where('api_requests.endpoint', $endpoint)
+            ->whereNotNull(DB::raw($courseId));
+
+        if ($status !== null) {
+            $query->where('api_requests.status', $status);
+        }
+
+        return $query
+            ->join('courses', DB::raw('courses.id'), '=', DB::raw($courseId))
+            ->selectRaw('courses.id, courses.course_name, courses.club_name, COUNT(*) AS c')
+            ->groupBy('courses.id', 'courses.course_name', 'courses.club_name')
+            ->orderByDesc('c')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => (int) $r->id,
+                'name' => (string) $r->course_name,
+                'club' => $r->club_name === null ? null : (string) $r->club_name,
+                'count' => (int) $r->c,
+            ])->all();
+    }
+
+    /**
      * Cheap because the term was normalised at write time.
      *
      * @return list<array{term:string, count:int}>

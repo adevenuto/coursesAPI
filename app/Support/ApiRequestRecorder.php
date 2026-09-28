@@ -20,7 +20,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *
  * Only parameters the API actually accepts are stored. Recording the raw query
  * string would let any caller write arbitrary keys of their choosing into the
- * analytics table, which is both a storage and a trust problem.
+ * analytics table, which is both a storage and a trust problem. Route parameters
+ * are captured on the same terms: their names come from the route definition so
+ * a caller cannot invent them, and their values are capped like any other input.
  */
 class ApiRequestRecorder
 {
@@ -131,11 +133,43 @@ class ApiRequestRecorder
     }
 
     /**
+     * The route's own parameters — `{course}` and friends — as the caller sent
+     * them.
+     *
+     * `originalParameters()` rather than `parameters()`: the latter hands back
+     * bound models, and the case this exists for is the one where binding never
+     * happened. A green-centers 404 means a paying customer asked for a course
+     * we have no green data for, and without the id the analytics can say that
+     * happened 592 times but not once say which course — which is the only part
+     * that turns the number into work.
+     *
+     * @return array<string, string>
+     */
+    private function routeParams(Request $request): array
+    {
+        $params = $request->route()?->originalParameters() ?? [];
+
+        $kept = [];
+
+        foreach ($params as $name => $value) {
+            // Values are caller-supplied, so they are capped the same way the
+            // query whitelist caps its own.
+            if (is_scalar($value)) {
+                $kept[(string) $name] = Str::limit((string) $value, 40, '');
+            }
+        }
+
+        return $kept;
+    }
+
+    /**
      * @return string|null JSON, or null when nothing survives the whitelist
      */
     private function query(Request $request): ?string
     {
-        $kept = [];
+        // Route parameters first, so the path the caller asked for reads ahead
+        // of the filters they asked for it with.
+        $kept = $this->routeParams($request);
 
         foreach (self::QUERY_WHITELIST as $key) {
             $value = $request->query($key);

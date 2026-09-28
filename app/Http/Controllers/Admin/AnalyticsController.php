@@ -52,6 +52,16 @@ class AnalyticsController extends Controller
             'activeUsers' => $analytics->activeUsersDaily($from, $to),
             'endpoints' => $analytics->endpointBreakdown($from, $to, null, 10),
             'searchTerms' => $analytics->topSearchTerms($from, $to, null, 10),
+            // Both read the course id out of the route parameters, so both stay
+            // empty for traffic captured before ApiRequestRecorder started
+            // keeping them. Deliberately not backfillable — it was never stored.
+            'requestedCourses' => $analytics->topRequestedCourses($from, $to),
+            'missingGreenCenters' => $analytics->topRequestedCourses(
+                $from,
+                $to,
+                'api/v1/courses/{course}/green-centers',
+                404,
+            ),
             // Not range-scoped, unlike everything above: both describe the user
             // base as it stands today, not activity within the window.
             'planMix' => $analytics->planMix(),
