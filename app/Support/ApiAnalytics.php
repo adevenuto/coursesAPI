@@ -66,7 +66,7 @@ class ApiAnalytics
      * them as errors here would make the endpoint panel disagree with the KPI
      * row on the same page — a throttle is quota pressure, not a failure.
      *
-     * @return list<array{endpoint:string, method:string, requests:int, avg_ms:int, max_ms:int, errors:int, throttled:int}>
+     * @return list<array{endpoint:string, method:string, requests:int, avg_ms:int, max_ms:int, errors:int, server_errors:int, throttled:int}>
      */
     public function endpointBreakdown(CarbonInterface $from, CarbonInterface $to, ?int $userId = null, int $limit = 20): array
     {
@@ -74,6 +74,7 @@ class ApiAnalytics
             ->selectRaw('endpoint, method, COUNT(*) AS requests')
             ->selectRaw('ROUND(AVG(duration_ms)) AS avg_ms, MAX(duration_ms) AS max_ms')
             ->selectRaw('SUM(status >= 400 AND status <> 429) AS errors')
+            ->selectRaw('SUM(status >= 500) AS server_errors')
             ->selectRaw('SUM(status = 429) AS throttled')
             ->groupBy('endpoint', 'method')
             ->orderByDesc('requests')
@@ -86,6 +87,10 @@ class ApiAnalytics
                 'avg_ms' => (int) $r->avg_ms,
                 'max_ms' => (int) $r->max_ms,
                 'errors' => (int) $r->errors,
+                // A subset of `errors`, not a sibling of it: the only thing the
+                // table can't work out from the total is whether any of it was
+                // ours, which is what decides red versus amber.
+                'server_errors' => (int) $r->server_errors,
                 'throttled' => (int) $r->throttled,
             ])->all();
     }
@@ -369,6 +374,86 @@ class ApiAnalytics
     }
 
     /**
+     * Everything that counts as a failure but a quota rejection — the default
+     * everywhere on this page.
+     */
+    public const MODE_ERRORS = 'errors';
+
+    /** Quota rejections only. 429 is deliberately not an error; see below. */
+    public const MODE_THROTTLED = 'throttled';
+
+    /**
+     * The WHERE shape both the error list and its breakdown sit on, so the count
+     * above the rows can never disagree with the rows themselves.
+     *
+     * `mode` exists because 429 is excluded from every error figure on this page
+     * (see statusBreakdown) — so a drill-down into the Throttled column has to
+     * opt out of that exclusion rather than fight it. `status` then narrows
+     * within whichever mode is in play.
+     *
+     * Endpoint and method are bound parameters: an endpoint we don't serve
+     * simply matches nothing, which is the right answer and needs no validation.
+     */
+    private function scopedFailures(
+        CarbonInterface $from,
+        CarbonInterface $to,
+        ?string $endpoint,
+        ?string $method,
+        ?int $status,
+        string $mode,
+    ): Builder {
+        $query = $this->base($from, $to);
+
+        if ($mode === self::MODE_THROTTLED) {
+            $query->where('api_requests.status', 429);
+        } else {
+            $query->where('api_requests.status', '>=', 400)
+                ->where('api_requests.status', '<>', 429);
+        }
+
+        if ($status !== null) {
+            $query->where('api_requests.status', $status);
+        }
+
+        if ($endpoint !== null && $endpoint !== '') {
+            $query->where('api_requests.endpoint', $endpoint);
+        }
+
+        // endpointBreakdown groups by endpoint AND method, so a path served by
+        // two verbs would otherwise drill down to the wrong total.
+        if ($method !== null && $method !== '') {
+            $query->where('api_requests.method', $method);
+        }
+
+        return $query;
+    }
+
+    /**
+     * How many of each status, over the WHOLE matching set rather than over the
+     * page of rows returned alongside it.
+     *
+     * Counted here rather than tallied from those rows on purpose: the list is
+     * capped, so a client-side tally of 592 errors would confidently report 50.
+     *
+     * @return list<array{status:int, count:int}>
+     */
+    public function errorBreakdown(
+        CarbonInterface $from,
+        CarbonInterface $to,
+        ?string $endpoint = null,
+        ?string $method = null,
+        string $mode = self::MODE_ERRORS,
+    ): array {
+        return $this->scopedFailures($from, $to, $endpoint, $method, null, $mode)
+            ->selectRaw('api_requests.status, COUNT(*) AS c')
+            ->groupBy('api_requests.status')
+            ->orderByDesc('c')
+            ->get()
+            ->map(fn ($r) => ['status' => (int) $r->status, 'count' => (int) $r->c])
+            ->all();
+    }
+
+    /**
      * The most recent failed requests, newest first.
      *
      * Feeds the log preview behind the Errors figure, so the definition has to
@@ -382,12 +467,17 @@ class ApiAnalytics
      *
      * @return list<array{id:int, at:string, method:string, endpoint:string, status:int, duration_ms:int|null, user:?string, email:?string, query:?string}>
      */
-    public function recentErrors(CarbonInterface $from, CarbonInterface $to, int $limit = 50): array
-    {
-        return $this->base($from, $to)
+    public function recentErrors(
+        CarbonInterface $from,
+        CarbonInterface $to,
+        int $limit = 50,
+        ?string $endpoint = null,
+        ?string $method = null,
+        ?int $status = null,
+        string $mode = self::MODE_ERRORS,
+    ): array {
+        return $this->scopedFailures($from, $to, $endpoint, $method, $status, $mode)
             ->leftJoin('users', 'users.id', '=', 'api_requests.user_id')
-            ->where('api_requests.status', '>=', 400)
-            ->where('api_requests.status', '<>', 429)
             ->selectRaw('api_requests.id, api_requests.created_at, api_requests.method, api_requests.endpoint')
             ->selectRaw('api_requests.status, api_requests.duration_ms, api_requests.query')
             ->selectRaw('users.name AS user_name, users.email AS user_email')
